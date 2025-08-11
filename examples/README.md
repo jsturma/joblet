@@ -7,19 +7,23 @@ coordination patterns.
 
 ### 🎯 YAML Template System
 
-Each example directory now includes a `jobs.yaml` file that defines multiple job configurations. Instead of complex multi-flag commands, you can run jobs with simple template references:
+Each example directory now includes a `jobs.yaml` file that defines multiple job configurations. Instead of complex
+multi-flag commands, you can run jobs with simple template references:
 
 **Before (Complex):**
+
 ```bash
 rnx run --runtime=python:3.11-ml --upload=script.py --volume=data --volume=results --max-memory=2048 --max-cpu=75 python3 script.py
 ```
 
 **After (Simple):**
+
 ```bash
 rnx run --template=jobs.yaml:ml-analysis
 ```
 
 **Template Benefits:**
+
 - ✅ **Simplified Commands**: One-liner execution instead of multi-flag commands
 - ✅ **Predefined Jobs**: Common use cases pre-configured and tested
 - ✅ **Easy Discovery**: See all available jobs with `cat jobs.yaml`
@@ -32,7 +36,7 @@ rnx run --template=jobs.yaml:ml-analysis
 ✅ **Realistic Features**: Removed unsupported/future features, using only current Joblet capabilities  
 ✅ **Resource Limits**: Updated to realistic CPU/memory constraints (≤80% CPU, ≤6GB RAM)  
 ✅ **Clean Templates**: Eliminated preview features and experimental options  
-✅ **Supported Runtimes**: Only uses available runtimes (`python:3.11`, `python:3.11-ml`, `java:17`, `java:21`)  
+✅ **Supported Runtimes**: Only uses available runtimes (`python:3.11`, `python:3.11-ml`, `java:17`, `java:21`)
 
 ## ⚡ Runtime-Powered Examples (Instant Startup)
 
@@ -132,9 +136,9 @@ sudo tar -xzf /tmp/java-17-runtime-complete.tar.gz -C /opt/joblet/runtimes/java/
 sudo chown -R joblet:joblet /opt/joblet/runtimes/
 
 # Option 2: Build from setup scripts (builds on host)
-sudo /opt/joblet/examples/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
-sudo /opt/joblet/examples/runtimes/java-17/setup_java_17.sh
-sudo /opt/joblet/examples/runtimes/java-21/setup_java_21.sh
+sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
+sudo /opt/joblet/runtimes/java-17/setup_java_17.sh
+sudo /opt/joblet/runtimes/java-21/setup_java_21.sh
 
 # 2. Verify runtimes are available
 rnx runtime list
@@ -227,13 +231,13 @@ ssh admin@host "sudo tar -xzf /tmp/java-21-runtime-complete.tar.gz -C /opt/joble
 
 ```bash
 # Python 3.11 + ML Stack (builds from source)
-sudo /opt/joblet/examples/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
+sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
 
 # Java 17 LTS + Maven
-sudo /opt/joblet/examples/runtimes/java-17/setup_java_17.sh
+sudo /opt/joblet/runtimes/java-17/setup_java_17.sh
 
 # Java 21 + Modern Features  
-sudo /opt/joblet/examples/runtimes/java-21/setup_java_21.sh
+sudo /opt/joblet/runtimes/java-21/setup_java_21.sh
 ```
 
 **Benefits:**
@@ -376,7 +380,7 @@ rnx list
 
 ```bash
 # Install the missing runtime on Joblet server
-sudo /opt/joblet/examples/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
+sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
 
 # Verify installation
 rnx runtime list
