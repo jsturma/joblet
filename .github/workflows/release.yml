@@ -166,38 +166,96 @@ jobs:
         prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
         generate_release_notes: true
         body: |
-          ## Multi-Platform Release
+          # Joblet Server & RNX Client Release
           
-          ### Supported Platforms
+          ## 🖥️ A. Joblet Server (Linux Only)
           
-          #### Full Installation (Linux)
-          - `linux-amd64` - Complete Joblet with server and admin UI
-          - `linux-arm64` - Complete Joblet with server and admin UI  
-          - `linux-386` - Complete Joblet with server and admin UI
+          The Joblet daemon runs on Linux servers and executes jobs in isolated environments.
           
-          #### Client Only (Cross-Platform)
-          - `darwin-amd64` - RNX CLI for macOS Intel
-          - `darwin-arm64` - RNX CLI for macOS Apple Silicon
-          - `windows-amd64` - RNX CLI for Windows 64-bit
-          - `windows-386` - RNX CLI for Windows 32-bit
+          ### Server Downloads
+          - `linux-amd64` - Joblet server + RNX client for x86_64 Linux
+          - `linux-arm64` - Joblet server + RNX client for ARM64 Linux  
+          - `linux-386` - Joblet server + RNX client for 32-bit Linux
           
-          ### Installation
-          
-          1. **Linux (Full Server)**: Download `linux-*` for complete installation
-          2. **macOS/Windows (Client)**: Download platform-specific archive for RNX CLI only
-          
-          ### Quick Start
-          
+          ### Server Installation
           ```bash
-          # Linux full installation
+          # 1. Download and extract the Linux package
           tar -xzf rnx-linux-amd64.tar.gz
           cd rnx-linux-amd64
-          ./install.sh
           
-          # Start admin UI
+          # 2. Install Joblet server
+          sudo ./install.sh
+          
+          # 3. Start the Joblet service
+          sudo systemctl start joblet
+          sudo systemctl enable joblet
+          
+          # 4. Install Admin UI dependencies (for web dashboard)
+          cd /opt/joblet/admin/server
+          npm install
+          
+          # 5. Start Admin UI (optional)
           /opt/joblet/bin/rnx admin --bind-address=0.0.0.0
           ```
           
-          For detailed instructions, see the README.md in each platform archive.
+          The Joblet server will run on port 50051 (gRPC) and Admin UI on port 5173 (HTTP).
+          
+          ---
+          
+          ## 💻 B. RNX Client (All Platforms)
+          
+          The RNX CLI connects to Joblet servers from any platform.
+          
+          ### Client Downloads
+          - `darwin-amd64` - RNX client for macOS Intel
+          - `darwin-arm64` - RNX client for macOS Apple Silicon
+          - `windows-amd64` - RNX client for Windows 64-bit
+          - `windows-386` - RNX client for Windows 32-bit
+          - `linux-*` - Also includes RNX client (see server section above)
+          
+          ### macOS Client Installation
+          ```bash
+          # 1. Download and extract for your architecture
+          tar -xzf rnx-darwin-arm64.tar.gz  # or darwin-amd64
+          
+          # 2. Install the binary
+          chmod +x rnx-darwin-arm64/bin/rnx
+          sudo mv rnx-darwin-arm64/bin/rnx /usr/local/bin/
+          
+          # 3. Copy configuration from your Joblet server
+          scp user@your-joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
+          ```
+          
+          ### Windows Client Installation
+          ```powershell
+          # 1. Extract the Windows package
+          # 2. Add rnx.exe to your PATH
+          # 3. Copy configuration from Joblet server to %USERPROFILE%\.rnx\rnx-config.yml
+          ```
+          
+          ### Admin UI on Client (Optional)
+          ```bash
+          # Clone repository for Admin UI files
+          git clone https://github.com/ehsaniara/joblet.git
+          cd joblet/admin/server
+          npm install
+          
+          # Start Admin UI (connects to remote Joblet server)
+          rnx admin
+          ```
+          
+          ---
+          
+          ## 📋 Important Notes
+          
+          - **Joblet Server**: Linux only, requires root/sudo for installation
+          - **RNX Client**: Works on Linux, macOS, and Windows
+          - **Configuration**: Clients need `rnx-config.yml` from server (contains mTLS certificates)
+          - **Admin UI**: Requires Node.js 18+ and npm dependencies
+          - **Network**: Ensure port 50051 (gRPC) is accessible from clients to server
+          
+          ⚠️ **Admin UI Error Prevention**: Always run `npm install` in admin/server directory before using `rnx admin`, otherwise you'll get `ERR_MODULE_NOT_FOUND` errors.
+          
+          For detailed instructions, see the [Installation Guide](https://github.com/ehsaniara/joblet/blob/main/docs/INSTALLATION.md).
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

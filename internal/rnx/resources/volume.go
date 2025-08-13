@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"joblet/internal/rnx/common"
 	"sort"
@@ -58,13 +59,19 @@ Examples:
 }
 
 func NewVolumeListCmd() *cobra.Command {
+	var jsonOutput bool
+
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all volumes",
 		Long:  "Display all available volumes with their size, type, and usage information",
 		Args:  cobra.NoArgs,
-		RunE:  runVolumeList,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runVolumeList(jsonOutput)
+		},
 	}
+
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }
@@ -121,7 +128,14 @@ func runVolumeCreate(name, size, volumeType string) error {
 	return nil
 }
 
-func runVolumeList(cmd *cobra.Command, args []string) error {
+type VolumeInfo struct {
+	Name        string `json:"name"`
+	Size        string `json:"size"`
+	Type        string `json:"type"`
+	CreatedTime string `json:"created_time"`
+}
+
+func runVolumeList(jsonOutput bool) error {
 	jobClient, err := common.NewJobClient()
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
@@ -137,7 +151,11 @@ func runVolumeList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(resp.Volumes) == 0 {
-		fmt.Println("No volumes found")
+		if jsonOutput {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No volumes found")
+		}
 		return nil
 	}
 
@@ -146,6 +164,28 @@ func runVolumeList(cmd *cobra.Command, args []string) error {
 		return resp.Volumes[i].Name < resp.Volumes[j].Name
 	})
 
+	if jsonOutput {
+		var volumes []VolumeInfo
+
+		for _, vol := range resp.Volumes {
+			volumes = append(volumes, VolumeInfo{
+				Name:        vol.Name,
+				Size:        vol.Size,
+				Type:        vol.Type,
+				CreatedTime: vol.CreatedTime,
+			})
+		}
+
+		output, err := json.MarshalIndent(map[string][]VolumeInfo{"volumes": volumes}, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		fmt.Println(string(output))
+		return nil
+	}
+
+	// Text output (original format)
 	// Display header
 	fmt.Printf("%-15s %-8s %-12s %s\n", "NAME", "SIZE", "TYPE", "CREATED")
 	fmt.Printf("%s %s %s %s\n",

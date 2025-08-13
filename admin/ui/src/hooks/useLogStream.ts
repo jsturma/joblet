@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import { useNode } from '../contexts/NodeContext';
 
 interface UseLogStreamReturn {
     logs: string[];
@@ -12,6 +13,7 @@ export const useLogStream = (jobId: string | null): UseLogStreamReturn => {
     const [connected, setConnected] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
+    const { selectedNode } = useNode();
 
     const clearLogs = useCallback(() => {
         setLogs([]);
@@ -24,7 +26,7 @@ export const useLogStream = (jobId: string | null): UseLogStreamReturn => {
             return;
         }
 
-        const wsUrl = `ws://${window.location.host}/ws/logs/${jobId}`;
+        const wsUrl = `ws://${window.location.host}/ws/logs/${jobId}?node=${encodeURIComponent(selectedNode)}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
@@ -69,7 +71,7 @@ export const useLogStream = (jobId: string | null): UseLogStreamReturn => {
             ws.close();
             wsRef.current = null;
         };
-    }, [jobId]);
+    }, [jobId, selectedNode]);
 
     return {logs, connected, error, clearLogs};
 };

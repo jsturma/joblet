@@ -6,25 +6,31 @@ import CreateJob from './pages/CreateJob';
 import Workflows from './pages/Workflows';
 import Monitoring from './pages/Monitoring';
 import Resources from './pages/Resources';
+import { NodeProvider } from './contexts/NodeContext';
+import { ApiProvider } from './providers/ApiProvider';
 
 function App() {
     return (
-        <Router>
-            <Routes>
-                <Route path="/jobs/create" element={<CreateJob/>}/>
-                <Route path="*" element={
-                    <Layout>
-                        <Routes>
-                            <Route path="/" element={<Dashboard/>}/>
-                            <Route path="/jobs" element={<Jobs/>}/>
-                            <Route path="/workflows" element={<Workflows/>}/>
-                            <Route path="/monitoring" element={<Monitoring/>}/>
-                            <Route path="/resources" element={<Resources/>}/>
-                        </Routes>
-                    </Layout>
-                }/>
-            </Routes>
-        </Router>
+        <NodeProvider>
+            <ApiProvider>
+                <Router>
+                    <Routes>
+                        <Route path="/jobs/create" element={<CreateJob/>}/>
+                        <Route path="*" element={
+                            <Layout>
+                                <Routes>
+                                    <Route path="/" element={<Dashboard/>}/>
+                                    <Route path="/jobs" element={<Jobs/>}/>
+                                    <Route path="/workflows" element={<Workflows/>}/>
+                                    <Route path="/monitoring" element={<Monitoring/>}/>
+                                    <Route path="/resources" element={<Resources/>}/>
+                                </Routes>
+                            </Layout>
+                        }/>
+                    </Routes>
+                </Router>
+            </ApiProvider>
+        </NodeProvider>
     );
 }
 

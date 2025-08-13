@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"joblet/internal/rnx/common"
 	"sort"
@@ -52,13 +53,19 @@ Examples:
 }
 
 func NewNetworkListCmd() *cobra.Command {
+	var jsonOutput bool
+
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all networks",
 		Long:  "Display all available networks including built-in and custom networks",
 		Args:  cobra.NoArgs,
-		RunE:  runNetworkList,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runNetworkList(jsonOutput)
+		},
 	}
+
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }
@@ -113,7 +120,14 @@ func runNetworkCreate(name, cidr string) error {
 	return nil
 }
 
-func runNetworkList(cmd *cobra.Command, args []string) error {
+type NetworkInfo struct {
+	Name    string `json:"name"`
+	CIDR    string `json:"cidr"`
+	Bridge  string `json:"bridge"`
+	Builtin bool   `json:"builtin"`
+}
+
+func runNetworkList(jsonOutput bool) error {
 	jobClient, err := common.NewJobClient()
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
@@ -129,7 +143,11 @@ func runNetworkList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(resp.Networks) == 0 {
-		fmt.Println("No networks found")
+		if jsonOutput {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No networks found")
+		}
 		return nil
 	}
 
@@ -144,6 +162,28 @@ func runNetworkList(cmd *cobra.Command, args []string) error {
 		return resp.Networks[i].Name < resp.Networks[j].Name
 	})
 
+	if jsonOutput {
+		var networks []NetworkInfo
+
+		for _, net := range resp.Networks {
+			networks = append(networks, NetworkInfo{
+				Name:    net.Name,
+				CIDR:    net.Cidr,
+				Bridge:  net.Bridge,
+				Builtin: isBuiltinNetwork(net.Name),
+			})
+		}
+
+		output, err := json.MarshalIndent(map[string][]NetworkInfo{"networks": networks}, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		fmt.Println(string(output))
+		return nil
+	}
+
+	// Text output (original format)
 	// Display header
 	fmt.Printf("%-15s %-18s %s\n", "NAME", "CIDR", "BRIDGE")
 	fmt.Printf("%s %s %s\n",

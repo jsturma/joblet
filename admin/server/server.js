@@ -30,8 +30,14 @@ app.use(express.static(path.join(__dirname, '../ui/dist')));
 // Helper function to execute rnx commands
 async function execRnx(args, options = {}) {
   try {
+    // Add node selection if provided
+    const node = options.node;
+    if (node && node !== 'default') {
+      args = ['--node', node, ...args];
+    }
+    
     const command = `${RNX_PATH} ${args.join(' ')}`;
-    console.log(`Executing: ${command}`);
+    // console.log(`Executing: ${command}`);
     const { stdout, stderr } = await execAsync(command, options);
     if (stderr) {
       console.warn(`Command warning: ${stderr}`);
@@ -45,10 +51,42 @@ async function execRnx(args, options = {}) {
 
 // API Routes
 
+// List available nodes
+app.get('/api/nodes', async (req, res) => {
+  try {
+    const output = await execRnx(['nodes', '--json']);
+    
+    let nodes = [];
+    if (output && output.trim()) {
+      try {
+        nodes = JSON.parse(output);
+        if (!Array.isArray(nodes)) {
+          nodes = [];
+        }
+      } catch (e) {
+        console.warn('Failed to parse JSON from rnx nodes:', e.message);
+        nodes = [];
+      }
+    }
+    
+    // Always include default node if not present
+    if (!nodes.find(n => n.name === 'default')) {
+      nodes.unshift({ name: 'default', status: 'active', default: true });
+    }
+    
+    res.json(nodes);
+  } catch (error) {
+    console.error('Failed to list nodes:', error);
+    // Return default node on error
+    res.json([{ name: 'default', status: 'active', default: true }]);
+  }
+});
+
 // List all jobs
 app.get('/api/jobs', async (req, res) => {
   try {
-    const output = await execRnx(['list', '--json']);
+    const node = req.query.node;
+    const output = await execRnx(['list', '--json'], { node });
     
     // Parse rnx list output
     let jobs = [];
@@ -91,7 +129,8 @@ app.post('/api/jobs/execute', async (req, res) => {
       envVars = {},
       schedule,
       name,
-      workdir
+      workdir,
+      node
     } = req.body;
 
     if (!command) {
@@ -118,7 +157,7 @@ app.post('/api/jobs/execute', async (req, res) => {
     });
 
     // Execute the job
-    const output = await execRnx(rnxArgs);
+    const output = await execRnx(rnxArgs, { node });
     
     // Extract job ID from output (adjust based on rnx run output format)
     const jobId = output || `job-${Date.now()}`;
@@ -138,7 +177,8 @@ app.post('/api/jobs/execute', async (req, res) => {
 app.get('/api/jobs/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
-    const output = await execRnx(['status', jobId, '--json']);
+    const node = req.query.node;
+    const output = await execRnx(['status', jobId, '--json'], { node });
     
     let jobDetails;
     if (output && output.trim()) {
@@ -175,7 +215,8 @@ app.get('/api/jobs/:jobId', async (req, res) => {
 // Monitor system metrics
 app.get('/api/monitor', async (req, res) => {
   try {
-    const output = await execRnx(['monitor']);
+    const node = req.query.node;
+    const output = await execRnx(['monitor'], { node });
     
     let metrics;
     try {
@@ -202,7 +243,8 @@ app.get('/api/monitor', async (req, res) => {
 // List volumes
 app.get('/api/volumes', async (req, res) => {
   try {
-    const output = await execRnx(['volume', 'list', '--json']);
+    const node = req.query.node;
+    const output = await execRnx(['volume', 'list', '--json'], { node });
     
     let result;
     if (output && output.trim()) {
@@ -230,7 +272,8 @@ app.get('/api/volumes', async (req, res) => {
 // List networks
 app.get('/api/networks', async (req, res) => {
   try {
-    const output = await execRnx(['network', 'list', '--json']);
+    const node = req.query.node;
+    const output = await execRnx(['network', 'list', '--json'], { node });
     
     let result;
     if (output && output.trim()) {
@@ -389,10 +432,10 @@ function handleLogStream(ws, jobId) {
   });
 }
 
-function handleMonitorStream(ws) {
+function handleMonitorStream(ws, node) {
   const interval = setInterval(async () => {
     try {
-      const output = await execRnx(['monitor']);
+      const output = await execRnx(['monitor'], { node });
       const metrics = JSON.parse(output);
       
       ws.send(JSON.stringify({

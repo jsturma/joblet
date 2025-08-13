@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 
@@ -10,33 +11,74 @@ import (
 )
 
 func NewNodesCmd() *cobra.Command {
+	var jsonOutput bool
+
 	cmd := &cobra.Command{
 		Use:   "nodes",
 		Short: "List available nodes from configuration",
 		Long:  "Display all configured nodes and their connection details from rnx-config-template.yml",
-		RunE:  runNodes,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runNodes(jsonOutput)
+		},
 	}
+
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }
 
-func runNodes(cmd *cobra.Command, args []string) error {
+type NodeInfo struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Status  string `json:"status"`
+	Default bool   `json:"default"`
+}
+
+func runNodes(jsonOutput bool) error {
 	// NodeConfig should be loaded by PersistentPreRun, but check anyway
 	if common.NodeConfig == nil {
 		return fmt.Errorf("no client configuration loaded. Please ensure rnx-config-template.yml exists")
 	}
 
-	nodes := common.NodeConfig.ListNodes()
-	if len(nodes) == 0 {
+	nodeNames := common.NodeConfig.ListNodes()
+	if len(nodeNames) == 0 {
 		return fmt.Errorf("no nodes configured in rnx-config-template.yml")
 	}
 
 	// Sort nodes for consistent output
-	sort.Strings(nodes)
+	sort.Strings(nodeNames)
 
+	if jsonOutput {
+		var nodes []NodeInfo
+
+		for _, name := range nodeNames {
+			node, err := common.NodeConfig.GetNode(name)
+			status := "active"
+			if err != nil {
+				status = "error"
+			}
+
+			nodes = append(nodes, NodeInfo{
+				Name:    name,
+				Address: node.Address,
+				Status:  status,
+				Default: name == "default",
+			})
+		}
+
+		output, err := json.MarshalIndent(nodes, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		fmt.Println(string(output))
+		return nil
+	}
+
+	// Text output (original format)
 	fmt.Printf("Available nodes from configuration:\n\n")
 
-	for _, name := range nodes {
+	for _, name := range nodeNames {
 		node, err := common.NodeConfig.GetNode(name)
 		if err != nil {
 			fmt.Printf("❌ %s: Error - %v\n", name, err)
@@ -75,7 +117,7 @@ func runNodes(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Usage examples:\n")
 	fmt.Printf("  rnx list                    # uses 'default' node\n")
-	for _, name := range nodes {
+	for _, name := range nodeNames {
 		if name != "default" {
 			fmt.Printf("  rnx --node=%s list         # uses '%s' node\n", name, name)
 			break

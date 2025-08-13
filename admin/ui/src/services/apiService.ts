@@ -14,15 +14,30 @@ interface Network {
     subnet: string;
 }
 
+interface Node {
+    name: string;
+    status: string;
+}
+
 export const API_BASE_URL = (import.meta as any).env?.DEV
     ? 'http://localhost:5173'
     : '';
 
 class APIService {
     private baseURL: string;
+    private currentNode: string = 'default';
 
     constructor() {
         this.baseURL = `${API_BASE_URL}/api`;
+    }
+    
+    setNode(node: string) {
+        this.currentNode = node;
+    }
+    
+    // Node operations
+    async getNodes(): Promise<Node[]> {
+        return this.request<Node[]>('/nodes', {}, false); // Don't add node param for this call
     }
 
     // Job operations
@@ -37,13 +52,14 @@ class APIService {
     async executeJob(request: JobExecuteRequest): Promise<{ jobId: string }> {
         return this.request<{ jobId: string }>('/jobs/execute', {
             method: 'POST',
-            body: JSON.stringify(request),
+            body: JSON.stringify({ ...request, node: this.currentNode }),
         });
     }
 
     async stopJob(jobId: string): Promise<void> {
-        await this.request(`/jobs/${jobId}`, {
-            method: 'DELETE',
+        await this.request(`/jobs/${jobId}/stop`, {
+            method: 'POST',
+            body: JSON.stringify({ node: this.currentNode }),
         });
     }
 
@@ -83,9 +99,17 @@ class APIService {
 
     private async request<T>(
         endpoint: string,
-        options: RequestInit = {}
+        options: RequestInit = {},
+        includeNode: boolean = true
     ): Promise<T> {
-        const response = await fetch(`${this.baseURL}${endpoint}`, {
+        // Add node parameter to GET requests
+        let url = `${this.baseURL}${endpoint}`;
+        if (includeNode && (!options.method || options.method === 'GET')) {
+            const separator = url.includes('?') ? '&' : '?';
+            url = `${url}${separator}node=${encodeURIComponent(this.currentNode)}`;
+        }
+        
+        const response = await fetch(url, {
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers,

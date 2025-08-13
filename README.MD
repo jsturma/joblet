@@ -72,39 +72,133 @@ Joblet consists of three components:
 
 ## 📦 Quick Start
 
-### Option 1: Package Installation (Recommended)
+### A. Joblet Server Installation (Linux Only)
+
+The Joblet daemon runs on Linux servers and executes jobs in isolated environments.
+
+#### Option 1: Package Installation (Recommended for Ubuntu/Debian)
 ```bash
-# 1. Download and install (Linux)
+# 1. Download and install the .deb package
 wget $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*_amd64\.deb" | cut -d '"' -f 4)
 sudo dpkg -i joblet_*_amd64.deb
 
-# 2. Start the service
+# 2. Start the Joblet service
 sudo systemctl start joblet
 sudo systemctl enable joblet
 
-# 3. Test it works
-rnx run echo "Hello Joblet!"
-rnx list
+# 3. Verify the server is running
+sudo systemctl status joblet
 ```
 
-### Option 2: Release Archive (Multi-Platform)
+#### Option 2: Manual Installation (Any Linux Distribution)
 ```bash
-# 1. Download and extract
-curl -L -o rnx-release.tar.gz $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
-tar -xzf rnx-release.tar.gz
-cd rnx-release
+# 1. Download the Linux release
+curl -L -o rnx-linux-amd64.tar.gz $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
+tar -xzf rnx-linux-amd64.tar.gz
+cd rnx-linux-amd64
 
-# 2. Install
-./install.sh
+# 2. Run the installation script
+sudo ./install.sh
 
-# 3. Start admin UI
+# 3. Start the Joblet service
+sudo systemctl start joblet
+sudo systemctl enable joblet
+```
+
+The Joblet server will now be running on port 50051 (gRPC).
+
+### B. RNX Client Installation (All Platforms)
+
+The RNX CLI connects to Joblet servers from Linux, macOS, or Windows machines.
+
+#### Linux Client
+```bash
+# If installed on the same machine as Joblet, RNX is already available
+# For remote Linux clients, download the binary:
+wget https://github.com/ehsaniara/joblet/releases/latest/download/rnx-linux-amd64.tar.gz
+tar -xzf rnx-linux-amd64.tar.gz
+sudo mv rnx-linux-amd64/bin/rnx /usr/local/bin/
+```
+
+#### macOS Client
+```bash
+# 1. Download the appropriate binary
+# Intel Mac:
+curl -L -o rnx https://github.com/ehsaniara/joblet/releases/latest/download/rnx-darwin-amd64
+
+# Apple Silicon:
+curl -L -o rnx https://github.com/ehsaniara/joblet/releases/latest/download/rnx-darwin-arm64
+
+# 2. Make executable and install
+chmod +x rnx
+sudo mv rnx /usr/local/bin/
+
+# 3. Copy the configuration from your Joblet server
+scp user@joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
+```
+
+#### Windows Client
+```powershell
+# 1. Download the Windows binary
+Invoke-WebRequest -Uri "https://github.com/ehsaniara/joblet/releases/latest/download/rnx-windows-amd64.exe" -OutFile "rnx.exe"
+
+# 2. Add to PATH (or move to a directory in PATH)
+# Create directory if it doesn't exist
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\bin"
+Move-Item rnx.exe "$env:USERPROFILE\bin\"
+
+# 3. Add to PATH permanently (run as Administrator)
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\bin", [EnvironmentVariableTarget]::User)
+
+# 4. Copy configuration from Joblet server (use WinSCP or similar)
+# Place in %USERPROFILE%\.rnx\rnx-config.yml
+```
+
+### C. Admin UI Setup (Optional)
+
+The Admin UI provides a web dashboard for managing jobs. It can run on the Joblet server or any machine with RNX installed.
+
+#### On Joblet Server (Linux)
+```bash
+# 1. Install Node.js dependencies
+cd /opt/joblet/admin/server
+npm install
+
+# 2. Start the Admin UI
 /opt/joblet/bin/rnx admin --bind-address=0.0.0.0
 ```
 
-### Access Admin UI
-After installation, access the web dashboard at:
-- Local: `http://localhost:5173`
-- Network: `http://your-server-ip:5173`
+#### On Client Machine (macOS/Windows/Linux)
+```bash
+# 1. Clone the repository to get admin files
+git clone https://github.com/ehsaniara/joblet.git
+cd joblet/admin/server
+
+# 2. Install Node.js dependencies
+npm install
+
+# 3. Start the Admin UI (connects to remote Joblet server)
+rnx admin
+
+# Access at http://localhost:5173
+```
+
+> **Important Notes:**
+> - **Joblet Server**: Linux only, runs as a system service on port 50051
+> - **RNX Client**: Works on Linux, macOS, and Windows, connects to remote Joblet servers
+> - **Admin UI**: Requires Node.js 18+ and npm dependencies installed
+> - **Configuration**: Clients need the `rnx-config.yml` file from the server (contains mTLS certificates)
+
+### D. Quick Test
+
+After installation, test your setup:
+
+```bash
+# From any client machine with RNX installed:
+rnx list                           # List jobs (should connect to server)
+rnx run echo "Hello from Joblet!"  # Run a simple job
+rnx monitor status                 # Check server metrics
+```
 
 > **📋 Complete Installation Guide**: See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed installation
 > instructions covering all platforms (Ubuntu, RHEL, Amazon Linux, macOS, Windows) and deployment scenarios.
