@@ -86,18 +86,17 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 0
       run: |
-        # Clean any cached builds
-        go clean -cache -modcache -testcache
-        
         # Create dist directory
         mkdir -p dist
         
-        # Build rnx CLI with build timestamp
-        go build -ldflags="-s -w -X main.buildTime=$(date -u +%Y%m%d%H%M%S)" -o dist/rnx${{ matrix.ext }} ./cmd/rnx
+        # Build rnx CLI with build timestamp and unique build ID
+        BUILD_TIME=$(date -u +%Y%m%d%H%M%S)
+        BUILD_ID="${{ github.sha }}-${BUILD_TIME}"
+        go build -a -ldflags="-s -w -X main.buildTime=${BUILD_TIME} -X main.buildID=${BUILD_ID}" -o dist/rnx${{ matrix.ext }} ./cmd/rnx
         
         # Build joblet server (Linux only for now)
         if [ "${{ matrix.goos }}" = "linux" ]; then
-          go build -ldflags="-s -w -X main.buildTime=$(date -u +%Y%m%d%H%M%S)" -o dist/joblet${{ matrix.ext }} ./cmd/joblet
+          go build -a -ldflags="-s -w -X main.buildTime=${BUILD_TIME} -X main.buildID=${BUILD_ID}" -o dist/joblet${{ matrix.ext }} ./cmd/joblet
         fi
         
         # Verify volume command is built into the binary (on Linux only for testing)
