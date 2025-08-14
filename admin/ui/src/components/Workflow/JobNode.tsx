@@ -84,7 +84,7 @@ export const JobNode: React.FC<JobNodeProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-gray-900 truncate flex-1">
-            {job.name || job.id.slice(0, 8)}
+            {job.id.slice(0, 8)}
           </span>
                     <span className="text-lg ml-2">{statusIcon}</span>
                 </div>

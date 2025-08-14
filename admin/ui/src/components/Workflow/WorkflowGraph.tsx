@@ -331,7 +331,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             {selectedJob && (
                 <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-20">
                     <h4 className="font-medium text-gray-900 mb-2">
-                        {selectedJob.name || selectedJob.id}
+                        {selectedJob.id}
                     </h4>
                     <div className="space-y-1 text-sm text-gray-600">
                         <div>Status: <span className="font-medium">{selectedJob.status}</span></div>

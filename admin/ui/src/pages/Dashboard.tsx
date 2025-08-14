@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
                                 <div key={job.id}
                                      className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                                     <div>
-                                        <p className="text-sm font-medium text-white-900">{job.name || job.id.slice(0, 8)}</p>
+                                        <p className="text-sm font-medium text-white-900">{job.id.slice(0, 8)}</p>
                                         <p className="text-sm text-gray-500">{job.command}</p>
                                     </div>
                                     <span

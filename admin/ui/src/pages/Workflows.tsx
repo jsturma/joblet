@@ -145,7 +145,7 @@ const Workflows: React.FC = () => {
                                                     <div key={job.id} className="border rounded-lg p-4">
                                                         <div className="flex items-center justify-between">
                                                             <div>
-                                                                <h4 className="font-medium">{job.name || job.id.slice(0, 8)}</h4>
+                                                                <h4 className="font-medium">{job.id.slice(0, 8)}</h4>
                                                                 <p className="text-sm text-gray-500">{job.command}</p>
                                                                 {job.dependsOn && job.dependsOn.length > 0 && (
                                                                     <p className="text-xs text-gray-400 mt-1">
@@ -204,7 +204,7 @@ const Workflows: React.FC = () => {
                     </div>
                     {selectedJob && (
                         <div>
-                            Selected: {selectedJob.name || selectedJob.id.slice(0, 8)} ({selectedJob.status})
+                            Selected: {selectedJob.id.slice(0, 8)} ({selectedJob.status})
                         </div>
                     )}
                 </div>
