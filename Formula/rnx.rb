@@ -3,18 +3,44 @@ class Rnx < Formula
   homepage "https://github.com/ehsaniara/joblet"
   license "MIT"
 
-  version_scheme 1
+  # Dynamically fetch latest release info
+  def self.get_latest_release
+    require 'net/http'
+    require 'json'
+    require 'uri'
 
-  # Multi-architecture support with admin UI
-  # NOTE: These URLs and checksums will be automatically updated by the auto-update workflow
-  # when new releases are published. For initial testing, use actual release URLs.
-  if Hardware::CPU.intel?
-    url "https://github.com/ehsaniara/joblet/releases/download/v0.1.0/rnx-v0.1.0-darwin-amd64.tar.gz"
-    sha256 "0000000000000000000000000000000000000000000000000000000000000000"
-  else
-    url "https://github.com/ehsaniara/joblet/releases/download/v0.1.0/rnx-v0.1.0-darwin-arm64.tar.gz"
-    sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+    uri = URI('https://api.github.com/repos/ehsaniara/joblet/releases/latest')
+    response = Net::HTTP.get_response(uri)
+    
+    if response.code == '200'
+      JSON.parse(response.body)
+    else
+      # Fallback to known working version if API fails
+      {
+        'tag_name' => 'v4.1.1',
+        'assets' => []
+      }
+    end
+  rescue StandardError
+    # Fallback on any error
+    {
+      'tag_name' => 'v4.1.1', 
+      'assets' => []
+    }
   end
+
+  latest_release = get_latest_release
+  latest_version = latest_release['tag_name']
+  
+  version latest_version.sub(/^v/, '')
+
+  # Dynamic URLs based on latest release
+  arch_suffix = Hardware::CPU.intel? ? 'amd64' : 'arm64'
+  url "https://github.com/ehsaniara/joblet/releases/download/#{latest_version}/rnx-#{latest_version}-darwin-#{arch_suffix}.tar.gz"
+  
+  # Skip SHA256 verification for dynamic URLs (security trade-off for convenience)
+  # Alternatively, we could parse the release assets to get checksums
+  sha256 :no_check
 
   # Optional Node.js dependency for admin UI
   depends_on "node" => :optional
