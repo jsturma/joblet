@@ -26,17 +26,15 @@ execution - protecting your host system from malicious or resource-hungry proces
 - **Pre-built Runtimes**: Instant access to Python+ML, Java 17/21, Node.js environments (10-100x faster startup)
 - **Job Scheduling**: Future execution with flexible time specifications
 - **Real-time Monitoring**: Live logs, system metrics, and job status tracking
-- **Web Admin UI**: Modern React-based dashboard with real-time log streaming
 - **mTLS Security**: Certificate-based authentication with role-based access control
 - **Cross-platform CLI**: Manage jobs from Linux, macOS, or Windows
 
 ## 🔧 How It Works
 
-Joblet consists of three components:
+Joblet consists of two components:
 
 1. **Joblet Daemon** - Runs on Linux servers, executes jobs in isolated environments
 2. **RNX CLI** - Connects from anywhere (Linux/macOS/Windows) to manage jobs
-3. **Admin UI** - Web-based dashboard for job management with real-time monitoring
 
 ### Security & Isolation Features
 
@@ -154,42 +152,12 @@ Move-Item rnx.exe "$env:USERPROFILE\bin\"
 # Place in %USERPROFILE%\.rnx\rnx-config.yml
 ```
 
-### C. Admin UI Setup (Optional)
-
-The Admin UI provides a web dashboard for managing jobs. It can run on the Joblet server or any machine with RNX installed.
-
-#### On Joblet Server (Linux)
-```bash
-# 1. Install Node.js dependencies
-cd /opt/joblet/admin/server
-npm install
-
-# 2. Start the Admin UI
-/opt/joblet/bin/rnx admin --bind-address=0.0.0.0
-```
-
-#### On Client Machine (macOS/Windows/Linux)
-```bash
-# 1. Clone the repository to get admin files
-git clone https://github.com/ehsaniara/joblet.git
-cd joblet/admin/server
-
-# 2. Install Node.js dependencies
-npm install
-
-# 3. Start the Admin UI (connects to remote Joblet server)
-rnx admin
-
-# Access at http://localhost:5173
-```
-
 > **Important Notes:**
 > - **Joblet Server**: Linux only, runs as a system service on port 50051
 > - **RNX Client**: Works on Linux, macOS, and Windows, connects to remote Joblet servers
-> - **Admin UI**: Requires Node.js 18+ and npm dependencies installed
 > - **Configuration**: Clients need the `rnx-config.yml` file from the server (contains mTLS certificates)
 
-### D. Quick Test
+### C. Quick Test
 
 After installation, test your setup:
 
@@ -334,11 +302,10 @@ rnx monitor status
 - **CPU**: Multi-core CPU recommended for core limiting features
 - **Memory**: 1GB+ RAM
 - **Disk**: 5GB+ available space
-- **Network**: Port 50051 (gRPC), Port 5173 (Admin UI, configurable)
+- **Network**: Port 50051 (gRPC)
 - **Privileges**: Root access for namespace operations
 - **Cgroups**: cgroups v2 with cpuset controller support
 - **Network Tools**: iptables, iproute2, bridge-utils
-- **Node.js**: 18+ (for Admin UI server)
 
 ### RNX CLI (Client)
 
@@ -346,11 +313,6 @@ rnx monitor status
 - **Memory**: 50MB+ RAM
 - **Network**: Access to daemon port 50051
 
-### Admin UI (Web Dashboard)
-
-- **Server**: Node.js 18+ (included in release package)
-- **Browser**: Modern browser with WebSocket support
-- **Network**: Access to port 5173 (configurable)
 
 ## 🚀 Command Reference
 
@@ -364,7 +326,6 @@ rnx status <id>            # Job/workflow details and status (unified)
 rnx log <job-id>           # Stream job logs
 rnx stop <job-id>          # Stop running job
 rnx monitor status         # System metrics
-rnx admin                  # Start web admin UI
 ```
 
 ### Key Flags
@@ -380,9 +341,6 @@ rnx admin                  # Start web admin UI
 --upload=file.py          # Upload files
 --schedule="1hour"        # Schedule execution
 
-# Admin UI flags
---port=5173               # Admin UI port
---bind-address=0.0.0.0    # Bind to all interfaces
 ```
 
 > **📝 Complete CLI Reference**: See [RNX CLI Reference](docs/RNX_CLI_REFERENCE.md) for comprehensive command
@@ -519,15 +477,8 @@ scheduling workers, and production considerations.
 
 ## 📋 Recent Changes & Improvements
 
-### Latest Updates (January 2025) - Admin UI & Multi-Platform Release
+### Latest Updates (January 2025) - Multi-Platform Release
 
-#### 🌐 New Web Admin UI
-
-- **Modern React Dashboard**: Full-featured web interface for job management
-- **Real-time Log Streaming**: Live job logs with WebSocket streaming and auto-scroll
-- **Job Management**: Create, monitor, stop jobs through intuitive web interface
-- **System Monitoring**: Real-time metrics and resource usage visualization
-- **Dark Mode Support**: Optimized for better visibility and user experience
 - **Multi-Platform Releases**: Automated GitHub Actions for Linux, macOS, Windows releases
 
 #### 🎯 New Workflow Orchestration System
