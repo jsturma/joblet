@@ -10,23 +10,35 @@ class Rnx < Formula
     require 'uri'
 
     uri = URI('https://api.github.com/repos/ehsaniara/joblet/releases/latest')
-    response = Net::HTTP.get_response(uri)
     
-    if response.code == '200'
-      JSON.parse(response.body)
-    else
-      # Fallback to known working version if API fails
-      {
-        'tag_name' => 'v4.1.1',
-        'assets' => []
-      }
+    begin
+      response = Net::HTTP.get_response(uri)
+      
+      if response.code == '200'
+        JSON.parse(response.body)
+      else
+        # Try to get list of releases as fallback
+        fallback_uri = URI('https://api.github.com/repos/ehsaniara/joblet/releases')
+        fallback_response = Net::HTTP.get_response(fallback_uri)
+        
+        if fallback_response.code == '200'
+          releases = JSON.parse(fallback_response.body)
+          # Get first non-prerelease or just first release
+          stable = releases.find { |r| !r['prerelease'] } || releases.first
+          
+          if stable
+            opoo "Using release #{stable['tag_name']} (unable to fetch 'latest' tag)"
+            stable
+          else
+            odie "Unable to fetch release information from GitHub. Please check your internet connection and try again."
+          end
+        else
+          odie "Unable to connect to GitHub API (HTTP #{response.code}). Please check your internet connection and try again."
+        end
+      end
+    rescue StandardError => e
+      odie "Failed to fetch latest release from GitHub: #{e.message}\n\nPlease check your internet connection or try again later."
     end
-  rescue StandardError
-    # Fallback on any error
-    {
-      'tag_name' => 'v4.1.1', 
-      'assets' => []
-    }
   end
 
   latest_release = get_latest_release
