@@ -79,6 +79,7 @@ jobs:
         cd admin/ui && npm run build
 
     - name: Build Go binaries
+      shell: bash
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
