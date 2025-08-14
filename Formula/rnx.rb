@@ -46,8 +46,22 @@ class Rnx < Formula
   option "without-admin", "Install CLI only"
 
   def install
-    # Install base rnx binary
-    bin.install "rnx"
+    # Install base rnx binary (handle different naming conventions)
+    if File.exist?("rnx")
+      bin.install "rnx"
+    elsif File.exist?("rnx-darwin-amd64")
+      bin.install "rnx-darwin-amd64" => "rnx"
+    elsif File.exist?("rnx-darwin-arm64")
+      bin.install "rnx-darwin-arm64" => "rnx"
+    else
+      # Fallback: find any file starting with rnx
+      rnx_files = Dir.glob("rnx*")
+      if rnx_files.any?
+        bin.install rnx_files.first => "rnx"
+      else
+        raise "No rnx binary found in the archive"
+      end
+    end
 
     # Determine installation type
     install_admin = determine_admin_installation
