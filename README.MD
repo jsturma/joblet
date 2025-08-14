@@ -28,13 +28,15 @@ execution - protecting your host system from malicious or resource-hungry proces
 - **Real-time Monitoring**: Live logs, system metrics, and job status tracking
 - **mTLS Security**: Certificate-based authentication with role-based access control
 - **Cross-platform CLI**: Manage jobs from Linux, macOS, or Windows
+- **Web Admin UI**: Optional React-based web interface for visual job management (macOS)
 
 ## 🔧 How It Works
 
-Joblet consists of two components:
+Joblet consists of three components:
 
 1. **Joblet Daemon** - Runs on Linux servers, executes jobs in isolated environments
 2. **RNX CLI** - Connects from anywhere (Linux/macOS/Windows) to manage jobs
+3. **Web Admin UI** - Optional React-based web interface for visual job management (macOS via Homebrew)
 
 ### Security & Isolation Features
 
@@ -119,6 +121,22 @@ sudo mv rnx-linux-amd64/bin/rnx /usr/local/bin/
 ```
 
 #### macOS Client
+
+**Option 1: Homebrew (Recommended)**
+```bash
+# Install with interactive setup (detects Node.js for optional web UI)
+brew tap ehsaniara/joblet
+brew install rnx
+
+# Or specify installation type:
+brew install ehsaniara/joblet/rnx --with-admin     # CLI + Web UI
+brew install ehsaniara/joblet/rnx --without-admin  # CLI only
+
+# Copy configuration from your Joblet server
+scp user@joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
+```
+
+**Option 2: Manual Installation**
 ```bash
 # 1. Download the appropriate binary
 # Intel Mac:
@@ -155,6 +173,7 @@ Move-Item rnx.exe "$env:USERPROFILE\bin\"
 > **Important Notes:**
 > - **Joblet Server**: Linux only, runs as a system service on port 50051
 > - **RNX Client**: Works on Linux, macOS, and Windows, connects to remote Joblet servers
+> - **Web Admin UI**: Available on macOS via Homebrew with optional Node.js integration
 > - **Configuration**: Clients need the `rnx-config.yml` file from the server (contains mTLS certificates)
 
 ### C. Quick Test
@@ -166,10 +185,16 @@ After installation, test your setup:
 rnx list                           # List jobs (should connect to server)
 rnx run echo "Hello from Joblet!"  # Run a simple job
 rnx monitor status                 # Check server metrics
+
+# If you installed the web admin UI (macOS Homebrew with --with-admin):
+rnx admin                          # Launch web interface at http://localhost:5173
 ```
 
 > **📋 Complete Installation Guide**: See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed installation
 > instructions covering all platforms (Ubuntu, RHEL, Amazon Linux, macOS, Windows) and deployment scenarios.
+>
+> **🍺 macOS Homebrew**: See [ehsaniara/homebrew-joblet](https://github.com/ehsaniara/homebrew-joblet) for 
+> comprehensive Homebrew installation guide including web admin UI setup.
 
 ## 🚀 Basic Usage
 

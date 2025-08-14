@@ -1,0 +1,48 @@
+name: Formula Issue
+description: Report problems with the homebrew formula itself
+title: "[FORMULA] "
+labels: ["formula", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report issues specific to the homebrew formula (not RNX functionality).
+        
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of formula issue is this?
+      options:
+        - Formula syntax error
+        - Checksum mismatch
+        - Download failure
+        - Dependency issue
+        - Installation logic error
+    validations:
+      required: true
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem Description
+      description: Describe the issue in detail
+    validations:
+      required: true
+      
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: formula-audit
+    attributes:
+      label: Formula Audit Output
+      description: Output of `brew audit --strict Formula/rnx.rb`
+      placeholder: Paste audit output here...
+    validations:
+      required: false

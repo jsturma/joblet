@@ -1,0 +1,68 @@
+name: Installation Issue
+description: Report problems with homebrew installation
+title: "[INSTALL] "
+labels: ["installation", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an installation issue! Please provide details below.
+        
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS Version
+      description: Output of `sw_vers`
+      placeholder: "macOS 13.5 (22G74)"
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture
+      description: What type of Mac are you using?
+      options:
+        - Intel (x86_64)
+        - Apple Silicon (ARM64)
+    validations:
+      required: true
+      
+  - type: input
+    id: homebrew-version
+    attributes:
+      label: Homebrew Version
+      description: Output of `brew --version`
+      placeholder: "Homebrew 4.1.0"
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: installation-type
+    attributes:
+      label: Installation Type Attempted
+      description: Which installation method did you use?
+      options:
+        - Interactive (brew install rnx)
+        - With Admin UI (--with-admin)
+        - CLI Only (--without-admin)
+    validations:
+      required: true
+      
+  - type: textarea
+    id: error-message
+    attributes:
+      label: Error Message
+      description: Complete error message from the installation
+      placeholder: Paste the full error message here...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: command-output
+    attributes:
+      label: Command Output
+      description: Full output of the installation command
+      placeholder: Paste the complete output here...
+    validations:
+      required: false

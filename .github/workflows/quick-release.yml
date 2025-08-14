@@ -2,7 +2,7 @@ name: Quick Release
 
 on:
   push:
-    tags: [ 'v*.*.*-rc*', 'v*.*.*-hotfix*' ]
+    tags: [ 'v*.*.*', 'v*.*.*-rc*', 'v*.*.*-hotfix*' ]
 
 permissions:
   contents: write
@@ -70,6 +70,26 @@ jobs:
           echo "tag_version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           echo "Building version: $CLEAN_VERSION (from $VERSION)"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            admin/server/package-lock.json
+            admin/ui/package-lock.json
+
+      - name: Build Admin UI for Distribution
+        run: |
+          echo "🚀 Building Admin UI..."
+          cd admin/ui
+          npm ci
+          npm run build
+          
+          echo "🚀 Installing Admin Server dependencies..."
+          cd ../server
+          npm ci --omit=dev
+
       - name: Build all binaries
         run: |
           echo "🚀 Building joblet server binaries..."
@@ -128,12 +148,35 @@ jobs:
             mv *.rpm joblet-${{ steps.version.outputs.version }}-1.$rpm_arch.rpm || true
           done
 
+      - name: Package RNX with Admin UI for Homebrew
+        run: |
+          echo "🍺 Packaging RNX with Admin UI for Homebrew distribution..."
+          
+          # Create macOS packages with admin UI
+          for arch in amd64 arm64; do
+            echo "📦 Creating macOS $arch package with admin UI..."
+            mkdir -p "rnx-darwin-$arch-release"
+            cp "rnx-darwin-$arch" "rnx-darwin-$arch-release/rnx"
+            
+            # Copy admin UI files (built UI and server dependencies)
+            cp -r admin "rnx-darwin-$arch-release/"
+            
+            # Remove dev dependencies but keep built assets
+            rm -rf "rnx-darwin-$arch-release/admin/ui/node_modules"
+            
+            # Create Homebrew-compatible archive
+            tar -czf "rnx-v${{ steps.version.outputs.tag_version }}-darwin-$arch.tar.gz" \
+              -C "rnx-darwin-$arch-release" .
+          done
+
       - name: Create archives
         run: |
-          # Create CLI archives
+          # Create CLI-only archives for non-macOS platforms
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-linux-amd64.tar.gz rnx-linux-amd64
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-linux-arm64.tar.gz rnx-linux-arm64
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-linux-386.tar.gz rnx-linux-386
+          
+          # Legacy macOS archives (CLI-only)
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-darwin-amd64.tar.gz rnx-darwin-amd64
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-darwin-arm64.tar.gz rnx-darwin-arm64
           
@@ -181,6 +224,7 @@ jobs:
             *.deb
             *.rpm
             rnx-${{ steps.version.outputs.tag_version }}-*.tar.gz
+            rnx-v${{ steps.version.outputs.tag_version }}-darwin-*.tar.gz
             rnx-${{ steps.version.outputs.tag_version }}-*.zip
             joblet-${{ steps.version.outputs.tag_version }}-checksums.txt
           body: |
@@ -317,3 +361,22 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
           make_latest: true
+
+      - name: Trigger Homebrew Update
+        if: ${{ !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'alpha') }}
+        run: |
+          echo "🍺 Triggering Homebrew formula update..."
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.HOMEBREW_UPDATE_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/repos/ehsaniara/homebrew-joblet/dispatches \
+            -d '{
+              "event_type": "new-release",
+              "client_payload": {
+                "version": "${{ steps.version.outputs.tag_version }}",
+                "clean_version": "${{ steps.version.outputs.version }}",
+                "amd64_url": "https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-amd64.tar.gz",
+                "arm64_url": "https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-arm64.tar.gz"
+              }
+            }' || echo "⚠️  Homebrew update failed - this is expected if homebrew repository doesn't exist yet"

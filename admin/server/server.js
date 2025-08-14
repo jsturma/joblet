@@ -1,3 +1,14 @@
+// Node.js version check - ensure we have Node.js 18+
+const nodeVersion = process.version;
+const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
+
+if (majorVersion < 18) {
+    console.error(`❌ Node.js ${nodeVersion} detected, but Node.js 18+ is required`);
+    console.error(`💡 Please upgrade Node.js to version 18 or later`);
+    console.error(`   Visit: https://nodejs.org/`);
+    process.exit(1);
+}
+
 import express from 'express';
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';

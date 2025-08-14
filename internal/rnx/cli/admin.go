@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -36,18 +37,65 @@ func runAdminServer(port int, bindAddress string) error {
 	}
 
 	rnxDir := filepath.Dir(executable)
+	adminServerDir := ""
 
-	// Try production layout first: /opt/joblet/bin/rnx -> /opt/joblet/admin/server
-	adminServerDir := filepath.Join(rnxDir, "..", "admin", "server")
+	// Try different installation layouts in order of preference
 
-	// If not found, try development layout: ./bin/rnx -> ./admin/server
-	if _, err := os.Stat(adminServerDir); os.IsNotExist(err) {
-		adminServerDir = filepath.Join(rnxDir, "..", "admin", "server")
+	// 1. Dynamic homebrew detection: get homebrew prefix and check share/rnx/admin
+	if homebrewPrefix := getHomebrewPrefix(); homebrewPrefix != "" {
+		homebrewPath := filepath.Join(homebrewPrefix, "share", "rnx", "admin", "server")
+		if _, err := os.Stat(homebrewPath); err == nil {
+			adminServerDir = homebrewPath
+		}
+	}
+
+	// 2. Static homebrew paths (fallback)
+	if adminServerDir == "" {
+		homebrewPaths := []string{
+			"/opt/homebrew/share/rnx/admin/server", // Apple Silicon homebrew
+			"/usr/local/share/rnx/admin/server",    // Intel homebrew
+		}
+
+		for _, path := range homebrewPaths {
+			if _, err := os.Stat(path); err == nil {
+				adminServerDir = path
+				break
+			}
+		}
+	}
+
+	// 3. Relative to binary location (production/development)
+	if adminServerDir == "" {
+		// Production layout: /opt/joblet/bin/rnx -> /opt/joblet/admin/server
+		prodPath := filepath.Join(rnxDir, "..", "admin", "server")
+		if _, err := os.Stat(prodPath); err == nil {
+			adminServerDir = prodPath
+		} else {
+			// Development layout: ./bin/rnx -> ./admin/server
+			devPath := filepath.Join(rnxDir, "..", "admin", "server")
+			if _, err := os.Stat(devPath); err == nil {
+				adminServerDir = devPath
+			}
+		}
 	}
 
 	// Check if admin server directory exists
-	if _, err := os.Stat(adminServerDir); os.IsNotExist(err) {
-		return fmt.Errorf("admin server not found at %s", adminServerDir)
+	if adminServerDir == "" || func() bool {
+		_, err := os.Stat(adminServerDir)
+		return os.IsNotExist(err)
+	}() {
+		return fmt.Errorf(`admin UI not found - the admin UI may not be installed
+
+Possible solutions:
+• If using Homebrew: brew reinstall rnx --with-admin
+• If using packages: ensure admin UI was included in installation
+• Checked locations:
+  - Homebrew: %s
+  - Production: %s
+  - Development: %s`,
+			getHomebrewAdminPath(),
+			filepath.Join(rnxDir, "..", "admin", "server"),
+			filepath.Join(rnxDir, "..", "admin", "server"))
 	}
 
 	// Check if package.json exists
@@ -76,4 +124,36 @@ func runAdminServer(port int, bindAddress string) error {
 	cmd.Stdin = os.Stdin
 
 	return cmd.Run()
+}
+
+// getHomebrewPrefix dynamically detects the homebrew installation prefix
+func getHomebrewPrefix() string {
+	// Try to run 'brew --prefix' to get the actual homebrew prefix
+	cmd := exec.Command("brew", "--prefix")
+	output, err := cmd.Output()
+	if err == nil {
+		prefix := strings.TrimSpace(string(output))
+		if prefix != "" {
+			return prefix
+		}
+	}
+
+	// Fallback: check if we can detect from the PATH
+	if brewPath, err := exec.LookPath("brew"); err == nil {
+		// brew is typically at PREFIX/bin/brew, so get parent of parent
+		brewDir := filepath.Dir(brewPath)
+		if filepath.Base(brewDir) == "bin" {
+			return filepath.Dir(brewDir)
+		}
+	}
+
+	return ""
+}
+
+// getHomebrewAdminPath returns the expected homebrew admin path for error messages
+func getHomebrewAdminPath() string {
+	if prefix := getHomebrewPrefix(); prefix != "" {
+		return filepath.Join(prefix, "share", "rnx", "admin", "server")
+	}
+	return "/opt/homebrew/share/rnx/admin/server or /usr/local/share/rnx/admin/server"
 }

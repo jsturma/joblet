@@ -1,0 +1,274 @@
+name: Update Formula
+
+on:
+  repository_dispatch:
+    types: [new-release]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+      clean_version:
+        description: 'Clean version (e.g., 1.0.0)'
+        required: true
+        type: string
+      amd64_url:
+        description: 'AMD64 download URL'
+        required: true
+        type: string
+      arm64_url:
+        description: 'ARM64 download URL'  
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update-formula:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client_payload.version }}"
+            CLEAN_VERSION="${{ github.event.client_payload.clean_version }}"
+            AMD64_URL="${{ github.event.client_payload.amd64_url }}"
+            ARM64_URL="${{ github.event.client_payload.arm64_url }}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+            CLEAN_VERSION="${{ github.event.inputs.clean_version }}"
+            AMD64_URL="${{ github.event.inputs.amd64_url }}"
+            ARM64_URL="${{ github.event.inputs.arm64_url }}"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "clean_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT  
+          echo "amd64_url=$AMD64_URL" >> $GITHUB_OUTPUT
+          echo "arm64_url=$ARM64_URL" >> $GITHUB_OUTPUT
+          
+          echo "Updating to version: $VERSION"
+          echo "Clean version: $CLEAN_VERSION"
+          echo "AMD64 URL: $AMD64_URL"
+          echo "ARM64 URL: $ARM64_URL"
+
+      - name: Download and verify checksums
+        id: checksums
+        run: |
+          echo "📦 Downloading release archives to calculate checksums..."
+          
+          # Download AMD64 version
+          curl -sL "${{ steps.vars.outputs.amd64_url }}" -o rnx-darwin-amd64.tar.gz
+          AMD64_SHA=$(shasum -a 256 rnx-darwin-amd64.tar.gz | cut -d' ' -f1)
+          echo "AMD64 SHA256: $AMD64_SHA"
+          
+          # Download ARM64 version  
+          curl -sL "${{ steps.vars.outputs.arm64_url }}" -o rnx-darwin-arm64.tar.gz
+          ARM64_SHA=$(shasum -a 256 rnx-darwin-arm64.tar.gz | cut -d' ' -f1)
+          echo "ARM64 SHA256: $ARM64_SHA"
+          
+          # Test extraction to ensure archives are valid
+          echo "🧪 Testing archive extraction..."
+          mkdir -p test-amd64 test-arm64
+          
+          if ! tar -tzf rnx-darwin-amd64.tar.gz >/dev/null 2>&1; then
+            echo "❌ AMD64 archive is corrupted"
+            exit 1
+          fi
+          
+          if ! tar -tzf rnx-darwin-arm64.tar.gz >/dev/null 2>&1; then
+            echo "❌ ARM64 archive is corrupted"  
+            exit 1
+          fi
+          
+          # Quick extraction test
+          tar -xzf rnx-darwin-amd64.tar.gz -C test-amd64
+          tar -xzf rnx-darwin-arm64.tar.gz -C test-arm64
+          
+          # Verify essential files exist
+          for arch in amd64 arm64; do
+            if [ ! -f "test-$arch/rnx" ]; then
+              echo "❌ rnx binary missing in $arch archive"
+              exit 1
+            fi
+            
+            if [ ! -d "test-$arch/admin" ]; then
+              echo "❌ admin directory missing in $arch archive"
+              exit 1
+            fi
+            
+            if [ ! -f "test-$arch/admin/server/package.json" ]; then
+              echo "❌ admin server package.json missing in $arch archive"
+              exit 1
+            fi
+            
+            if [ ! -d "test-$arch/admin/ui/dist" ]; then
+              echo "❌ admin UI build missing in $arch archive"
+              exit 1
+            fi
+          done
+          
+          echo "✅ Both archives verified successfully"
+          
+          echo "amd64_sha=$AMD64_SHA" >> $GITHUB_OUTPUT
+          echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
+
+      - name: Update formula
+        run: |
+          echo "📝 Updating Formula/rnx.rb..."
+          
+          # Create a backup of the current formula
+          cp Formula/rnx.rb Formula/rnx.rb.backup
+          
+          # Update URLs - handle both initial placeholders and existing URLs
+          # AMD64 URL update
+          if grep -q "darwin-amd64.tar.gz" Formula/rnx.rb; then
+            sed -i '' 's|url "https://github.com/ehsaniara/joblet/releases/download/[^"]*darwin-amd64.tar.gz"|url "${{ steps.vars.outputs.amd64_url }}"|' Formula/rnx.rb
+          fi
+          
+          # ARM64 URL update
+          if grep -q "darwin-arm64.tar.gz" Formula/rnx.rb; then
+            sed -i '' 's|url "https://github.com/ehsaniara/joblet/releases/download/[^"]*darwin-arm64.tar.gz"|url "${{ steps.vars.outputs.arm64_url }}"|' Formula/rnx.rb
+          fi
+          
+          # Update SHA256 checksums - find and replace existing SHA values by position
+          # Get current SHA values to identify lines
+          AMD64_LINE=$(grep -n "if Hardware::CPU.intel?" Formula/rnx.rb | cut -d: -f1)
+          ARM64_LINE=$(grep -n "else" Formula/rnx.rb | tail -1 | cut -d: -f1)
+          
+          # Update AMD64 SHA (first sha256 after intel check)
+          sed -i '' "${AMD64_LINE},/sha256/s/sha256 \"[^\"]*\"/sha256 \"${{ steps.checksums.outputs.amd64_sha }}\"/" Formula/rnx.rb
+          
+          # Update ARM64 SHA (first sha256 after else)
+          sed -i '' "${ARM64_LINE},/sha256/s/sha256 \"[^\"]*\"/sha256 \"${{ steps.checksums.outputs.arm64_sha }}\"/" Formula/rnx.rb
+          
+          # Verify the changes were made
+          if ! grep -q "${{ steps.checksums.outputs.amd64_sha }}" Formula/rnx.rb; then
+            echo "❌ Failed to update AMD64 SHA256"
+            echo "Restoring backup..."
+            mv Formula/rnx.rb.backup Formula/rnx.rb
+            exit 1
+          fi
+          
+          if ! grep -q "${{ steps.checksums.outputs.arm64_sha }}" Formula/rnx.rb; then
+            echo "❌ Failed to update ARM64 SHA256"
+            echo "Restoring backup..."
+            mv Formula/rnx.rb.backup Formula/rnx.rb
+            exit 1
+          fi
+          
+          echo "✅ Formula updated successfully"
+          
+          # Show what changed
+          echo "📋 Changes made:"
+          diff Formula/rnx.rb.backup Formula/rnx.rb || true
+
+      - name: Test formula syntax
+        run: |
+          echo "🧪 Testing formula syntax..."
+          
+          # Install Homebrew if not present (shouldn't happen on macos-latest but just in case)
+          if ! command -v brew &> /dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+          fi
+          
+          # Test formula syntax
+          brew audit --strict --online Formula/rnx.rb
+          
+          echo "✅ Formula syntax is valid"
+
+      - name: Test installation
+        run: |
+          echo "🧪 Testing formula installation..."
+          
+          # Test CLI-only installation 
+          echo "Testing CLI-only installation..."
+          HOMEBREW_NO_INSTALL_FROM_API=1 brew install --build-from-source ./Formula/rnx.rb --without-admin
+          
+          # Verify installation
+          if ! command -v rnx &> /dev/null; then
+            echo "❌ rnx command not found after installation"
+            exit 1
+          fi
+          
+          # Test basic functionality
+          rnx --version
+          rnx --help | head -5
+          
+          echo "✅ Formula installation test passed"
+          
+          # Clean up
+          brew uninstall rnx
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add Formula/rnx.rb
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update rnx formula to ${{ steps.vars.outputs.version }}
+            
+            - Updated download URLs for both Intel and Apple Silicon
+            - Updated SHA256 checksums  
+            - Version: ${{ steps.vars.outputs.clean_version }}
+            - AMD64 SHA: ${{ steps.checksums.outputs.amd64_sha }}
+            - ARM64 SHA: ${{ steps.checksums.outputs.arm64_sha }}
+            
+            Auto-generated by GitHub Actions"
+            
+            git push origin main
+            echo "✅ Formula updated and pushed to main branch"
+          fi
+
+      - name: Create release notes
+        run: |
+          echo "📋 Creating release summary..."
+          cat > release-summary.md << EOF
+          # RNX Homebrew Formula Updated
+          
+          **Version:** ${{ steps.vars.outputs.version }}  
+          **Clean Version:** ${{ steps.vars.outputs.clean_version }}
+          
+          ## Installation Options
+          
+          ### CLI Only
+          \`\`\`bash
+          brew install ehsaniara/joblet/rnx --without-admin
+          \`\`\`
+          
+          ### Full Installation (CLI + Admin UI)  
+          \`\`\`bash
+          brew install ehsaniara/joblet/rnx --with-admin
+          \`\`\`
+          
+          ### Interactive Installation (Auto-detects Node.js)
+          \`\`\`bash
+          brew install ehsaniara/joblet/rnx
+          \`\`\`
+          
+          ## Checksums Verified
+          - **AMD64:** \`${{ steps.checksums.outputs.amd64_sha }}\`
+          - **ARM64:** \`${{ steps.checksums.outputs.arm64_sha }}\`
+          
+          ## Usage
+          - **CLI:** \`rnx --help\`
+          - **Admin UI:** \`rnx admin\` (if installed with admin UI)
+          
+          ---
+          *Auto-updated from [ehsaniara/joblet](${{ steps.vars.outputs.amd64_url }})*
+          EOF
+          
+          echo "Release summary created at release-summary.md"
