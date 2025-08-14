@@ -61,6 +61,7 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: ${{ env.GO_VERSION }}
+        cache: false
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -85,15 +86,23 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 0
       run: |
+        # Clean any cached builds
+        go clean -cache -modcache -testcache
+        
         # Create dist directory
         mkdir -p dist
         
-        # Build rnx CLI
-        go build -ldflags="-s -w" -o dist/rnx${{ matrix.ext }} ./cmd/rnx
+        # Build rnx CLI with build timestamp
+        go build -ldflags="-s -w -X main.buildTime=$(date -u +%Y%m%d%H%M%S)" -o dist/rnx${{ matrix.ext }} ./cmd/rnx
         
         # Build joblet server (Linux only for now)
         if [ "${{ matrix.goos }}" = "linux" ]; then
-          go build -ldflags="-s -w" -o dist/joblet${{ matrix.ext }} ./cmd/joblet
+          go build -ldflags="-s -w -X main.buildTime=$(date -u +%Y%m%d%H%M%S)" -o dist/joblet${{ matrix.ext }} ./cmd/joblet
+        fi
+        
+        # Verify volume command is built into the binary (on Linux only for testing)
+        if [ "${{ matrix.goos }}" = "linux" ]; then
+          ./dist/rnx${{ matrix.ext }} volume --help > /dev/null || echo "WARNING: volume command not found in binary"
         fi
 
     - name: Create release package
@@ -137,15 +146,16 @@ jobs:
           # Create zip for Windows
           7z a rnx-${{ matrix.platform }}.zip rnx-${{ matrix.platform }}/
         else
-          # Create tar.gz for Unix-like systems
+          # Create tar.gz for Unix-like systems with version
           tar -czf rnx-${{ matrix.platform }}.tar.gz rnx-${{ matrix.platform }}/
         fi
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: rnx-${{ matrix.platform }}
+        name: rnx-${{ matrix.platform }}-${{ github.sha }}
         path: release/rnx-${{ matrix.platform }}.*
+        retention-days: 1
 
   create-release:
     name: Create Release
@@ -158,6 +168,8 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: release-artifacts
+        pattern: rnx-*-${{ github.sha }}
+        merge-multiple: true
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -217,13 +229,14 @@ jobs:
           ### macOS Client Installation
           ```bash
           # 1. Download and extract for your architecture
-          tar -xzf rnx-darwin-arm64.tar.gz  # or darwin-amd64
+          curl -L https://github.com/ehsaniara/joblet/releases/latest/download/rnx-darwin-arm64.tar.gz | tar xz  # or darwin-amd64
           
           # 2. Install the binary
           chmod +x rnx-darwin-arm64/bin/rnx
           sudo mv rnx-darwin-arm64/bin/rnx /usr/local/bin/
           
           # 3. Copy configuration from your Joblet server
+          mkdir -p ~/.rnx
           scp user@your-joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
           ```
           
