@@ -193,8 +193,8 @@ rnx admin                          # Launch web interface at http://localhost:51
 > **📋 Complete Installation Guide**: See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed installation
 > instructions covering all platforms (Ubuntu, RHEL, Amazon Linux, macOS, Windows) and deployment scenarios.
 >
-> **🍺 macOS Homebrew**: See [ehsaniara/homebrew-joblet](https://github.com/ehsaniara/homebrew-joblet) for 
-> comprehensive Homebrew installation guide including web admin UI setup.
+> **🍺 macOS Homebrew**: Full Homebrew tap support with interactive installation and web admin UI.
+> Repository will be available at [ehsaniara/homebrew-joblet](https://github.com/ehsaniara/homebrew-joblet) after first release.
 
 ## 🚀 Basic Usage
 
