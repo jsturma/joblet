@@ -37,10 +37,6 @@ class Rnx < Formula
   # Dynamic URLs based on latest release
   arch_suffix = Hardware::CPU.intel? ? 'amd64' : 'arm64'
   url "https://github.com/ehsaniara/joblet/releases/download/#{latest_version}/rnx-#{latest_version}-darwin-#{arch_suffix}.tar.gz"
-  
-  # Skip SHA256 verification for dynamic URLs (security trade-off for convenience)
-  # Alternatively, we could parse the release assets to get checksums
-  sha256 :no_check
 
   # Optional Node.js dependency for admin UI
   depends_on "node" => :optional
