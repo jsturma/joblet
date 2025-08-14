@@ -200,14 +200,14 @@ rnx run echo "Hello World"
 rnx run --max-cpu=50 --max-memory=512 python3 script.py
 
 # Pre-built runtimes for instant startup (no package installation delays)
-rnx run --runtime=python-3.11-ml python data_analysis.py    # 2-3 seconds vs 5-45 minutes
-rnx run --runtime=java-17 javac HelloWorld.java && java HelloWorld
-rnx run --runtime=java-21 java VirtualThreadsApp.java       # Modern Java features
-rnx run --runtime=nodejs-18 node server.js                  # 2-3 seconds vs 60-300 seconds
+rnx run --runtime=python:3.11-ml python data_analysis.py    # 2-3 seconds vs 5-45 minutes
+rnx run --runtime=java:17 javac HelloWorld.java && java HelloWorld
+rnx run --runtime=java:21 java VirtualThreadsApp.java       # Modern Java features
+rnx run --runtime=nodejs:18 node server.js                  # 2-3 seconds vs 60-300 seconds
 
 # Upload files and run processing
 rnx run --upload=data.csv --upload=script.py python3 script.py
-rnx run --runtime=python-3.11-ml --upload=analysis.py python analysis.py
+rnx run --runtime=python:3.11-ml --upload=analysis.py python analysis.py
 
 # Network isolation modes
 rnx run --network=none secure_task.sh           # No network access
@@ -224,11 +224,11 @@ rnx run --schedule="2025-12-25T00:00:00" maintenance.py
 
 # Runtime management
 rnx runtime list                              # Show available runtimes
-rnx runtime info python-3.11-ml             # Runtime details and packages
-rnx runtime test java-17                     # Test runtime functionality
+rnx runtime info python:3.11-ml             # Runtime details and packages
+rnx runtime test java:17                     # Test runtime functionality
 
 # Runtime deployment (all sizes)
-sudo unzip python-3.11-ml-runtime.zip -d /opt/joblet/runtimes/
+sudo unzip python:3.11-ml-runtime.zip -d /opt/joblet/runtimes/
 ```
 
 > **📚 Complete Documentation**: For detailed guides covering all features, see the comprehensive documentation
@@ -334,8 +334,8 @@ rnx monitor status         # System metrics
 --max-cpu=50              # CPU limit (50%)
 --max-memory=1024         # Memory limit (1GB)
 --cpu-cores="0-3"         # Bind to specific cores  
---runtime=python-3.11-ml  # Use pre-built runtime
---runtime=nodejs-18       # Node.js 18 LTS runtime
+--runtime=python:3.11-ml  # Use pre-built runtime
+--runtime=nodejs:18       # Node.js 18 LTS runtime
 --network=mynet           # Custom network
 --volume=data             # Mount volume
 --upload=file.py          # Upload files

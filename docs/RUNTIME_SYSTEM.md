@@ -16,7 +16,7 @@ rnx run 'apt-get update && apt-get install python3-pip && pip install pandas num
 
 ```bash
 # Runtime approach: 2-3 seconds total
-rnx run --runtime=python-3.11-ml python analysis.py
+rnx run --runtime=python:3.11-ml python analysis.py
 ```
 
 ## 📋 Table of Contents
@@ -53,8 +53,8 @@ rnx run --runtime=python-3.11-ml python analysis.py
 
 ```bash
 # Usage examples
-rnx run --runtime=python-3.11-ml python -c "import pandas; print('Ready!')"
-rnx run --runtime=python-3.11-ml --upload=analysis.py python analysis.py
+rnx run --runtime=python:3.11-ml python -c "import pandas; print('Ready!')"
+rnx run --runtime=python:3.11-ml --upload=analysis.py python analysis.py
 rnx runtime info python-3.11-ml  # See all packages and details
 ```
 
@@ -86,9 +86,9 @@ rnx runtime info python-3.11-ml  # See all packages and details
 
 ```bash
 # Usage examples
-rnx run --runtime=java-17 java -version
-rnx run --runtime=java-17 --upload=HelloWorld.java javac HelloWorld.java && java HelloWorld
-rnx run --runtime=java-17 --upload=pom.xml --upload=src/ mvn compile exec:java
+rnx run --runtime=java:17 java -version
+rnx run --runtime=java:17 --upload=HelloWorld.java javac HelloWorld.java && java HelloWorld
+rnx run --runtime=java:17 --upload=pom.xml --upload=src/ mvn compile exec:java
 ```
 
 ### Node.js 18 LTS (`nodejs-18`)
@@ -108,9 +108,9 @@ rnx run --runtime=java-17 --upload=pom.xml --upload=src/ mvn compile exec:java
 
 ```bash
 # Usage examples
-rnx run --runtime=nodejs-18 node --version
-rnx run --runtime=nodejs-18 --upload=server.js node server.js
-rnx run --runtime=nodejs-18 --upload=app.ts --upload=tsconfig.json tsc app.ts && node app.js
+rnx run --runtime=nodejs:18 node --version
+rnx run --runtime=nodejs:18 --upload=server.js node server.js
+rnx run --runtime=nodejs:18 --upload=app.ts --upload=tsconfig.json tsc app.ts && node app.js
 rnx runtime info nodejs-18  # See all packages and details
 ```
 
@@ -132,8 +132,8 @@ rnx runtime info nodejs-18  # See all packages and details
 
 ```bash
 # Usage examples
-rnx run --runtime=java-21 --upload=VirtualThreadsApp.java javac VirtualThreadsApp.java && java VirtualThreadsApp
-rnx run --runtime=java-21 jshell  # Interactive modern Java shell
+rnx run --runtime=java:21 --upload=VirtualThreadsApp.java javac VirtualThreadsApp.java && java VirtualThreadsApp
+rnx run --runtime=java:21 jshell  # Interactive modern Java shell
 ```
 
 ## 🚀 Getting Started
@@ -199,7 +199,7 @@ Pre-installed Packages:
   - scipy>=1.11.0,<1.12
 
 Usage:
-  rnx run --runtime=python-3.11-ml <command>
+  rnx run --runtime=python:3.11-ml <command>
 ```
 
 ### 4. Test Runtime Functionality
@@ -217,7 +217,7 @@ Testing runtime: python-3.11-ml
 Output: Runtime resolution successful
 
 To test the runtime in a job:
-  rnx run --runtime=python-3.11-ml python --version
+  rnx run --runtime=python:3.11-ml python --version
 ```
 
 ## 📦 Runtime Deployment
@@ -291,16 +291,16 @@ rnx runtime test <runtime-name>
 rnx run --runtime=<runtime-name> <command>
 
 # With file uploads
-rnx run --runtime=python-3.11-ml --upload=script.py python script.py
+rnx run --runtime=python:3.11-ml --upload=script.py python script.py
 
 # With resource limits
-rnx run --runtime=java-17 --max-memory=2048 --max-cpu=50 java BigApplication
+rnx run --runtime=java:17 --max-memory=2048 --max-cpu=50 java BigApplication
 
 # With networks and volumes
-rnx run --runtime=python-3.11-ml --volume=datasets --network=isolated python analysis.py
+rnx run --runtime=python:3.11-ml --volume=datasets --network=isolated python analysis.py
 
 # Scheduled execution
-rnx run --runtime=java-21 --schedule="1hour" java MaintenanceJob
+rnx run --runtime=java:21 --schedule="1hour" java MaintenanceJob
 ```
 
 ### Runtime Naming
@@ -309,10 +309,10 @@ Runtime names support multiple formats:
 
 ```bash
 # Hyphen-separated format (recommended)
---runtime=python-3.11-ml
---runtime=java-17
---runtime=java-21
---runtime=nodejs-18
+--runtime=python:3.11-ml
+--runtime=java:17
+--runtime=java:21
+--runtime=nodejs:18
 
 # Colon-separated format (legacy)
 --runtime=python:3.11+ml
@@ -347,7 +347,7 @@ rnx run 'apt-get update && apt-get install -y python3-pip && pip install pandas 
 
 ```bash
 # 2-3 seconds total
-rnx run --runtime=python-3.11-ml python analysis.py
+rnx run --runtime=python:3.11-ml python analysis.py
 ```
 
 #### Java Development
@@ -363,7 +363,7 @@ rnx run 'apt-get update && apt-get install -y openjdk-17-jdk maven && javac Hell
 
 ```bash
 # 2-3 seconds total
-rnx run --runtime=java-17 bash -c "javac HelloWorld.java && java HelloWorld"
+rnx run --runtime=java:17 bash -c "javac HelloWorld.java && java HelloWorld"
 ```
 
 #### Node.js Web Development
@@ -379,7 +379,7 @@ rnx run 'curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get in
 
 ```bash
 # 2-3 seconds total
-rnx run --runtime=nodejs-18 node server.js
+rnx run --runtime=nodejs:18 node server.js
 ```
 
 ## 🏗️ Architecture
@@ -567,19 +567,19 @@ EOF
 1. **Memory Allocation**: Allocate sufficient memory for runtime environments
    ```bash
    # Python ML jobs typically need 1-4GB
-   rnx run --runtime=python-3.11-ml --max-memory=2048 python analysis.py
+   rnx run --runtime=python:3.11-ml --max-memory=2048 python analysis.py
    ```
 
 2. **CPU Allocation**: Use appropriate CPU limits
    ```bash
    # CPU-intensive ML workloads
-   rnx run --runtime=python-3.11-ml --max-cpu=75 --cpu-cores="0-3" python training.py
+   rnx run --runtime=python:3.11-ml --max-cpu=75 --cpu-cores="0-3" python training.py
    ```
 
 3. **Storage**: Use volumes for large datasets
    ```bash
    rnx volume create datasets --size=10GB
-   rnx run --runtime=python-3.11-ml --volume=datasets python process_data.py
+   rnx run --runtime=python:3.11-ml --volume=datasets python process_data.py
    ```
 
 ### Security Considerations
@@ -593,17 +593,17 @@ EOF
 
 1. **Development Phase**: Use runtimes for fast iteration
    ```bash
-   rnx run --runtime=python-3.11-ml --upload=experiment.py python experiment.py
+   rnx run --runtime=python:3.11-ml --upload=experiment.py python experiment.py
    ```
 
 2. **Testing Phase**: Test with resource limits
    ```bash
-   rnx run --runtime=python-3.11-ml --max-memory=512 --upload=test.py python test.py
+   rnx run --runtime=python:3.11-ml --max-memory=512 --upload=test.py python test.py
    ```
 
 3. **Production Phase**: Use volumes and networks
    ```bash
-   rnx run --runtime=python-3.11-ml --volume=data --network=prod python production.py
+   rnx run --runtime=python:3.11-ml --volume=data --network=prod python production.py
    ```
 
 ## 🔧 Troubleshooting
@@ -643,7 +643,7 @@ sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
 
 ```bash
 # ML jobs typically need 1-4GB
-rnx run --runtime=python-3.11-ml --max-memory=2048 python analysis.py
+rnx run --runtime=python:3.11-ml --max-memory=2048 python analysis.py
 ```
 
 #### 4. Package Compatibility
@@ -654,7 +654,7 @@ rnx run --runtime=python-3.11-ml --max-memory=2048 python analysis.py
 
 ```bash
 # Don't install additional packages - use what's pre-installed
-rnx run --runtime=python-3.11-ml python -c "import numpy; print(numpy.__version__)"
+rnx run --runtime=python:3.11-ml python -c "import numpy; print(numpy.__version__)"
 ```
 
 ### Diagnostic Commands
@@ -670,7 +670,7 @@ rnx runtime test python-3.11-ml
 rnx runtime info python-3.11-ml
 
 # Verify job execution
-rnx run --runtime=python-3.11-ml python -c "import sys; print(sys.executable)"
+rnx run --runtime=python:3.11-ml python -c "import sys; print(sys.executable)"
 
 # Check server logs (on server)
 sudo journalctl -u joblet.service -f

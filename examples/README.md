@@ -145,7 +145,7 @@ rnx runtime list
 
 # 3. Try instant ML demo (2-3 seconds total)
 cd python-3.11-ml/
-rnx run --runtime=python-3.11-ml python example_data_analysis.py
+rnx run --runtime=python:3.11-ml python example_data_analysis.py
 
 # 4. Try Java development (instant compilation)
 cd ../java-17/
@@ -291,10 +291,10 @@ These examples use commonly available tools:
 # See Prerequisites section above
 
 # 2. Try ML demo (2-3 seconds)
-cd python-3.11-ml/ && rnx run --runtime=python-3.11-ml python example_data_analysis.py
+cd python-3.11-ml/ && rnx run --runtime=python:3.11-ml python example_data_analysis.py
 
 # 3. Try Java development (2-3 seconds)
-cd ../java-17/ && rnx run --runtime=java-17 --upload=HelloJoblet.java javac HelloJoblet.java && java HelloJoblet
+cd ../java-17/ && rnx run --runtime=java:17 --upload=HelloJoblet.java javac HelloJoblet.java && java HelloJoblet
 ```
 
 ### 📋 Traditional Path (No Setup Required)
@@ -349,7 +349,7 @@ cd ../basic-usage/ && ./run_demos.sh
 
 ```bash
 # View Python ML results
-rnx run --runtime=python-3.11-ml --volume=ml-data cat /volumes/ml-data/results.json
+rnx run --runtime=python:3.11-ml --volume=ml-data cat /volumes/ml-data/results.json
 
 # Check runtime availability
 rnx runtime list

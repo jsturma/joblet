@@ -112,7 +112,7 @@ rnx runtime test python-3.11-ml
 rnx runtime info python-3.11-ml
 
 # Run jobs using deployed runtime
-rnx run --runtime=python-3.11-ml python script.py
+rnx run --runtime=python:3.11-ml python script.py
 ```
 
 ## 🎯 Available Runtimes
@@ -240,7 +240,7 @@ After extraction, the runtime is immediately available:
 ```bash
 rnx runtime list              # Runtime appears in list
 rnx runtime test python-3.11-ml  # Test the runtime
-rnx run --runtime=python-3.11-ml python script.py  # Use it
+rnx run --runtime=python:3.11-ml python script.py  # Use it
 ```
 
 ### Deployment Verification
@@ -253,7 +253,7 @@ rnx runtime list | grep python-3.11-ml
 rnx runtime test python-3.11-ml
 
 # Run simple test job
-rnx run --runtime=python-3.11-ml python -c "import numpy; print('✅ Runtime working')"
+rnx run --runtime=python:3.11-ml python -c "import numpy; print('✅ Runtime working')"
 ```
 
 ### Common Issues

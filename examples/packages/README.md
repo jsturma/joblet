@@ -165,7 +165,7 @@ rnx runtime test python-3.11-ml
 # Run test commands
 rnx run --runtime=java:17 java -version
 rnx run --runtime=java:21 java -version
-rnx run --runtime=python-3.11-ml python --version
+rnx run --runtime=python:3.11-ml python --version
 ```
 
 ### Test Runtime Functionality
@@ -180,7 +180,7 @@ Thread.startVirtualThread(() -> System.out.println("Virtual Thread works!")).joi
 EOF
 
 # Python ML - Test packages
-rnx run --runtime=python-3.11-ml python -c "import numpy as np; import pandas as pd; print(f'NumPy {np.__version__}, Pandas {pd.__version__}')"
+rnx run --runtime=python:3.11-ml python -c "import numpy as np; import pandas as pd; print(f'NumPy {np.__version__}, Pandas {pd.__version__}')"
 ```
 
 ## 📊 Performance Comparison

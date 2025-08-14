@@ -18,7 +18,11 @@ Complete reference for the RNX command-line interface, including all commands, o
 - [Network Commands](#network-commands)
     - [network create](#rnx-network-create)
     - [network list](#rnx-network-list)
-    - [network delete](#rnx-network-delete)
+    - [network remove](#rnx-network-remove)
+- [Runtime Commands](#runtime-commands)
+    - [runtime list](#rnx-runtime-list)
+    - [runtime info](#rnx-runtime-info)
+    - [runtime test](#rnx-runtime-test)
 - [System Commands](#system-commands)
     - [monitor](#rnx-monitor)
     - [nodes](#rnx-nodes)
@@ -441,22 +445,81 @@ rnx network list
 rnx network list --json
 ```
 
-### `rnx network delete`
+### `rnx network remove`
 
-Delete a network.
+Remove a custom network. Built-in networks cannot be removed.
 
 ```bash
-rnx network delete <name>
+rnx network remove <name>
 ```
 
 #### Examples
 
 ```bash
-# Delete network
-rnx network delete mynet
+# Remove network
+rnx network remove mynet
 
-# Delete all custom networks
-rnx network list --json | jq -r '.[] | select(.name != "bridge") | .name' | xargs -I {} rnx network delete {}
+# Remove all custom networks (keep built-in networks)
+rnx network list --json | jq -r '.networks[] | select(.builtin == false) | .name' | xargs -I {} rnx network remove {}
+```
+
+## Runtime Commands
+
+### `rnx runtime list`
+
+List all available runtime environments.
+
+```bash
+rnx runtime list [flags]
+```
+
+#### Flags
+
+| Flag     | Description           | Default |
+|----------|-----------------------|---------|
+| `--json` | Output in JSON format | false   |
+
+#### Examples
+
+```bash
+# List all runtimes
+rnx runtime list
+
+# JSON output
+rnx runtime list --json
+```
+
+### `rnx runtime info`
+
+Get detailed information about a specific runtime environment.
+
+```bash
+rnx runtime info <runtime-spec>
+```
+
+#### Examples
+
+```bash
+# Get runtime details
+rnx runtime info python:3.11-ml
+rnx runtime info java:17
+rnx runtime info nodejs:18
+```
+
+### `rnx runtime test`
+
+Test a runtime environment to verify it's working correctly.
+
+```bash
+rnx runtime test <runtime-spec>
+```
+
+#### Examples
+
+```bash
+# Test runtime functionality
+rnx runtime test python:3.11-ml
+rnx runtime test java:17
 ```
 
 ## System Commands
@@ -502,11 +565,17 @@ rnx monitor --json --interval=10
 
 ### `rnx nodes`
 
-List configured nodes.
+List configured nodes from the client configuration file.
 
 ```bash
-rnx nodes
+rnx nodes [flags]
 ```
+
+#### Flags
+
+| Flag     | Description           | Default |
+|----------|-----------------------|---------|
+| `--json` | Output in JSON format | false   |
 
 #### Examples
 
@@ -514,7 +583,10 @@ rnx nodes
 # List all nodes
 rnx nodes
 
-# Use specific node
+# JSON output
+rnx nodes --json
+
+# Use specific node for commands
 rnx --node=production list
 rnx --node=staging run echo "test"
 ```

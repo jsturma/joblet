@@ -52,7 +52,7 @@ cd python-ml/
 
 # Data Analysis Example
 cd python-3.11-ml/
-rnx run --runtime=python-3.11-ml --upload=example_data_analysis.py python example_data_analysis.py
+rnx run --runtime=python:3.11-ml --upload=example_data_analysis.py python example_data_analysis.py
 ```
 
 **Java Development:**
@@ -60,11 +60,11 @@ rnx run --runtime=python-3.11-ml --upload=example_data_analysis.py python exampl
 ```bash
 # Java 17 LTS Example
 cd java-17/
-rnx run --runtime=java-17 --upload=HelloJoblet.java javac HelloJoblet.java && java HelloJoblet
+rnx run --runtime=java:17 --upload=HelloJoblet.java javac HelloJoblet.java && java HelloJoblet
 
 # Java 21 with Modern Features
 cd java-21/
-rnx run --runtime=java-21 --upload=VirtualThreadExample.java javac VirtualThreadExample.java && java VirtualThreadExample
+rnx run --runtime=java:21 --upload=VirtualThreadExample.java javac VirtualThreadExample.java && java VirtualThreadExample
 ```
 
 #### 📋 Traditional Examples (System Dependencies)

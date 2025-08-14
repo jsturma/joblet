@@ -117,7 +117,7 @@ rnx runtime list
 rnx runtime info python-3.11-ml
 
 # Test ML stack availability
-rnx run --runtime=python-3.11-ml python -c "
+rnx run --runtime=python:3.11-ml python -c "
 import sys
 print(f'Python {sys.version} on {sys.platform}')
 
@@ -166,7 +166,7 @@ print(f"\nCorrelation between x and y: {correlation.iloc[0,1]:.3f}")
 print("✅ Data analysis completed successfully!")
 EOF
 
-rnx run --runtime=python-3.11-ml --upload=data_analysis_demo.py python data_analysis_demo.py
+rnx run --runtime=python:3.11-ml --upload=data_analysis_demo.py python data_analysis_demo.py
 ```
 
 ### Machine Learning Example
@@ -209,7 +209,7 @@ print(f"\nTop 5 important features: {top_features}")
 print("✅ ML classification completed successfully!")
 EOF
 
-rnx run --runtime=python-3.11-ml --upload=ml_classification_demo.py python ml_classification_demo.py
+rnx run --runtime=python:3.11-ml --upload=ml_classification_demo.py python ml_classification_demo.py
 ```
 
 ### Template-Based Usage
@@ -259,7 +259,7 @@ rnx run --template=jobs.yaml:model-training
 ```bash
 # Should work out-of-box with full ML stack
 # Test all ML packages
-rnx run --runtime=python-3.11-ml python -c "
+rnx run --runtime=python:3.11-ml python -c "
 import numpy as np
 import pandas as pd  
 import sklearn
@@ -274,45 +274,45 @@ print(f'Scikit-learn: {sklearn.__version__}')
 
 ```bash
 # Verify ARM64 ML packages
-rnx run --runtime=python-3.11-ml python -c "
+rnx run --runtime=python:3.11-ml python -c "
 import numpy as np
 print(f'NumPy on ARM64: {np.__version__}')
 print(f'BLAS info: {np.show_config()}')
 "
 
 # If scikit-learn compilation issues
-rnx run --runtime=python-3.11-ml pip install --no-binary=scikit-learn scikit-learn
+rnx run --runtime=python:3.11-ml pip install --no-binary=scikit-learn scikit-learn
 ```
 
 ### ARM32/armhf Issues
 
 ```bash
 # Check available packages on ARM32
-rnx run --runtime=python-3.11-ml pip list
+rnx run --runtime=python:3.11-ml pip list
 
 # ARM32 typically only has NumPy
-rnx run --runtime=python-3.11-ml python -c "
+rnx run --runtime=python:3.11-ml python -c "
 import numpy as np
 print(f'NumPy ARM32: {np.__version__}')
 print('ARM32 ML runtime ready for basic numerical computing')
 "
 
 # For additional packages on ARM32, try source installation
-rnx run --runtime=python-3.11-ml pip install --no-binary=pandas pandas
+rnx run --runtime=python:3.11-ml pip install --no-binary=pandas pandas
 ```
 
 ### ML Package Compatibility Issues
 
 ```bash
 # NumPy 2.0 compatibility check (runtime uses NumPy 1.x)
-rnx run --runtime=python-3.11-ml python -c "
+rnx run --runtime=python:3.11-ml python -c "
 import numpy as np
 print(f'NumPy version: {np.__version__}')
 assert np.__version__.startswith('1.'), 'Using stable NumPy 1.x branch'
 "
 
 # Pandas compatibility verification
-rnx run --runtime=python-3.11-ml python -c "
+rnx run --runtime=python:3.11-ml python -c "
 import pandas as pd
 import numpy as np
 df = pd.DataFrame({'test': [1, 2, 3]})

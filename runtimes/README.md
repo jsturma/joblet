@@ -192,7 +192,7 @@ rnx runtime test java:17
 rnx runtime test java:21
 
 # Use runtimes (optimized for your architecture)
-rnx run --runtime=python-3.11-ml python -c "import numpy; print(f'NumPy {numpy.__version__} on {numpy.__config__.get_info(\"cpu_baseline\")}')"
+rnx run --runtime=python:3.11-ml python -c "import numpy; print(f'NumPy {numpy.__version__} on {numpy.__config__.get_info(\"cpu_baseline\")}')"
 rnx run --runtime=java:17 java --version
 rnx run --runtime=java:21 java --version
 ```
