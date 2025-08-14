@@ -299,7 +299,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                     <div className="space-y-6">
                         {/* Basic Configuration */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-white mb-2">
                                 Command *
                             </label>
                             <input
@@ -317,7 +317,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Job Name */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-white mb-2">
                                 Job Name
                             </label>
                             <input
@@ -331,7 +331,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* File Uploads */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-white mb-2">
                                 Files & Directories
                             </label>
                             <div
@@ -434,10 +434,10 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Resource Limits */}
                         <div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Resource Limits</h3>
+                            <h3 className="text-lg font-medium text-gray-500 mb-4">Resource Limits</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-white mb-2">
                                         CPU Limit (%)
                                     </label>
                                     <input
@@ -454,7 +454,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-white mb-2">
                                         Memory Limit (MB)
                                     </label>
                                     <input
@@ -471,7 +471,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-white mb-2">
                                         CPU Cores
                                     </label>
                                     <input
@@ -487,7 +487,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-white mb-2">
                                         I/O Limit (bytes/sec)
                                     </label>
                                     <input
@@ -507,10 +507,10 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Environment */}
                         <div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Environment</h3>
+                            <h3 className="text-lg font-medium text-gray-500 mb-4">Environment</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-white mb-2">
                                         Runtime
                                     </label>
                                     <select
@@ -527,7 +527,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label className="block text-sm font-medium text-white mb-2">
                                         Network
                                     </label>
                                     <select
@@ -545,7 +545,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Volumes */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-white mb-2">
                                 Volumes
                             </label>
                             <div className="flex space-x-2 mb-2">
@@ -604,7 +604,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                             {showAdvanced && (
                                 <div className="mt-4 space-y-4 pt-4 border-t border-gray-200">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="block text-sm font-medium text-white mb-2">
                                             Working Directory
                                         </label>
                                         <input
@@ -617,7 +617,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="block text-sm font-medium text-white mb-2">
                                             Schedule (cron format)
                                         </label>
                                         <input
@@ -633,7 +633,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="block text-sm font-medium text-white mb-2">
                                             Environment Variables
                                         </label>
                                         {Object.entries(config.envVars).map(([key, value]) => (
@@ -715,7 +715,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Command Preview */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-white mb-2">
                                 Command Preview
                             </label>
                             <pre

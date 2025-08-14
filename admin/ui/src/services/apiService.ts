@@ -1,10 +1,12 @@
 import {Job, JobExecuteRequest, SystemMetrics, WorkflowTemplate} from '../types';
 
 interface Volume {
-    id: string;
+    id?: string;
     name: string;
-    size: number;
-    mountPath: string;
+    size: string;
+    type: string;
+    created_time?: string;
+    mountPath?: string;
 }
 
 interface Network {
@@ -12,6 +14,14 @@ interface Network {
     name: string;
     type: string;
     subnet: string;
+}
+
+interface Runtime {
+    id: string;
+    name: string;
+    version: string;
+    size: string;
+    description: string;
 }
 
 interface Node {
@@ -77,9 +87,20 @@ class APIService {
         return this.request<{ volumes: Volume[] }>('/volumes');
     }
 
+    async deleteVolume(volumeName: string): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>(`/volumes/${encodeURIComponent(volumeName)}`, {
+            method: 'DELETE',
+        });
+    }
+
     // Network operations
     async getNetworks(): Promise<{ networks: Network[] }> {
         return this.request<{ networks: Network[] }>('/networks');
+    }
+
+    // Runtime operations
+    async getRuntimes(): Promise<{ runtimes: Runtime[] }> {
+        return this.request<{ runtimes: Runtime[] }>('/runtimes');
     }
 
     // Template operations

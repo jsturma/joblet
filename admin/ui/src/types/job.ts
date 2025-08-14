@@ -9,7 +9,6 @@ export type JobStatus =
 
 export interface Job {
     id: string;
-    name: string;
     command: string;
     args: string[];
     status: JobStatus;

@@ -1,8 +1,8 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useJobs} from '../hooks/useJobs';
 import {useLogStream} from '../hooks/useLogStream';
-import {Play, Plus, RotateCcw, Square, FileText, X} from 'lucide-react';
+import {FileText, Play, Plus, RotateCcw, Square, X} from 'lucide-react';
 
 const Jobs: React.FC = () => {
     const {jobs, loading, error, refreshJobs} = useJobs();
@@ -55,8 +55,8 @@ const Jobs: React.FC = () => {
             <div className="mb-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Jobs</h1>
-                        <p className="mt-2 text-gray-600">Manage and monitor job execution</p>
+                        <h1 className="text-3xl font-bold text-white">Jobs</h1>
+                        <p className="mt-2 text-gray-300">Manage and monitor job execution</p>
                     </div>
                     <div className="flex space-x-3">
                         <button
@@ -78,21 +78,21 @@ const Jobs: React.FC = () => {
             </div>
 
             {loading ? (
-                <div className="bg-white rounded-lg shadow">
+                <div className="bg-gray-800 rounded-lg shadow">
                     <div className="p-6">
-                        <p className="text-gray-500">Loading jobs...</p>
+                        <p className="text-white">Loading jobs...</p>
                     </div>
                 </div>
             ) : error ? (
-                <div className="bg-white rounded-lg shadow">
+                <div className="bg-gray-800 rounded-lg shadow">
                     <div className="p-6">
                         <p className="text-red-500">Error: {error}</p>
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200">
-                        <h3 className="text-lg font-medium text-gray-900">
+                        <h3 className="text-lg font-medium text-white">
                             All Jobs ({jobs.length})
                         </h3>
                     </div>
@@ -105,37 +105,34 @@ const Jobs: React.FC = () => {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-auto">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Job
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Command
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Duration
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Started
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Actions
                                     </th>
                                 </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-auto divide-y divide-gray-200">
                                 {jobs.map((job) => (
-                                    <tr key={job.id} className="hover:bg-gray-50">
+                                    <tr key={job.id} className="hover:bg-gray-700">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div>
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {job.name || job.id.slice(0, 8)}
-                                                </div>
-                                                <div className="text-sm text-gray-500">
+                                                <div className="text-sm text-white">
                                                     {job.id}
                                                 </div>
                                             </div>
@@ -147,21 +144,21 @@ const Jobs: React.FC = () => {
                         </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900 max-w-xs truncate">
+                                            <div className="text-sm text-white max-w-xs truncate">
                                                 {job.command} {job.args.join(' ')}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                                             {formatDuration(job.duration)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                                             {job.startTime ? new Date(job.startTime).toLocaleString() : '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div className="flex space-x-2">
-                                                <button 
+                                                <button
                                                     onClick={() => setSelectedJobId(job.id)}
-                                                    className="text-green-600 hover:text-green-900"
+                                                    className="text-green-600 hover:text-green-300"
                                                     title="View Logs"
                                                 >
                                                     <FileText className="h-4 w-4"/>
@@ -171,7 +168,7 @@ const Jobs: React.FC = () => {
                                                         <Square className="h-4 w-4"/>
                                                     </button>
                                                 ) : (
-                                                    <button className="text-blue-600 hover:text-blue-900">
+                                                    <button className="text-blue-600 hover:text-blue-300">
                                                         <Play className="h-4 w-4"/>
                                                     </button>
                                                 )}
@@ -189,7 +186,8 @@ const Jobs: React.FC = () => {
             {/* Log Modal */}
             {selectedJobId && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                    <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+                    <div
+                        className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
                         <div className="flex items-center justify-between pb-3 border-b">
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                                 Job Logs - {selectedJobId}
@@ -204,17 +202,19 @@ const Jobs: React.FC = () => {
                                 <X className="h-5 w-5"/>
                             </button>
                         </div>
-                        
+
                         <div className="py-4">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center space-x-2">
-                                        <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                        <div
+                                            className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                                         <span className="text-sm text-gray-600 dark:text-gray-400">
                                             {connected ? 'Connected' : 'Disconnected'}
                                         </span>
                                     </div>
-                                    <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                                    <label
+                                        className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                                         <input
                                             type="checkbox"
                                             checked={autoScroll}
@@ -231,14 +231,15 @@ const Jobs: React.FC = () => {
                                     Clear Logs
                                 </button>
                             </div>
-                            
+
                             {logError && (
-                                <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded">
+                                <div
+                                    className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded">
                                     Error: {logError}
                                 </div>
                             )}
-                            
-                            <div 
+
+                            <div
                                 ref={logContainerRef}
                                 className="bg-black text-green-400 p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm"
                             >

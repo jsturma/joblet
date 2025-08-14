@@ -269,6 +269,32 @@ app.get('/api/volumes', async (req, res) => {
   }
 });
 
+// Delete volume
+app.delete('/api/volumes/:volumeName', async (req, res) => {
+  try {
+    const { volumeName } = req.params;
+    const node = req.query.node;
+    
+    if (!volumeName) {
+      return res.status(400).json({ error: 'Volume name is required' });
+    }
+    
+    const output = await execRnx(['volume', 'remove', volumeName], { node });
+    
+    res.json({
+      success: true,
+      message: `Volume ${volumeName} deleted successfully`,
+      output: output
+    });
+  } catch (error) {
+    console.error(`Failed to delete volume ${req.params.volumeName}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to delete volume', 
+      message: error.message 
+    });
+  }
+});
+
 // List networks
 app.get('/api/networks', async (req, res) => {
   try {
@@ -319,6 +345,74 @@ app.get('/api/networks', async (req, res) => {
       ],
       message: `Network service not available: ${error.message}`
     });
+  }
+});
+
+// List runtimes
+app.get('/api/runtimes', async (req, res) => {
+  try {
+    const node = req.query.node;
+    // Try with --json first, fallback to parsing text output
+    let output;
+    let useJson = true;
+    
+    try {
+      output = await execRnx(['runtime', 'list', '--json'], { node });
+    } catch (error) {
+      // If --json flag fails, try without it
+      if (error.message.includes('unknown flag')) {
+        useJson = false;
+        output = await execRnx(['runtime', 'list'], { node });
+      } else {
+        throw error;
+      }
+    }
+    
+    let result;
+    if (output && output.trim()) {
+      if (useJson) {
+        try {
+          result = JSON.parse(output);
+          // Ensure runtimes field exists and is an array
+          if (!result.runtimes || !Array.isArray(result.runtimes)) {
+            result = { runtimes: [], message: 'No runtimes found' };
+          }
+        } catch (e) {
+          console.warn('Failed to parse JSON from runtime list:', e.message);
+          result = { runtimes: [], message: 'Runtime service not available' };
+        }
+      } else {
+        // Parse text output
+        const lines = output.split('\n').filter(line => line.trim());
+        const runtimes = [];
+        
+        // Skip header lines (first 2 lines are header and separator)
+        for (let i = 2; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line && !line.startsWith('Use \'rnx runtime info')) {
+            const parts = line.split(/\s+/);
+            if (parts.length >= 4) {
+              runtimes.push({
+                id: parts[0],
+                name: parts[0],
+                version: parts[1],
+                size: parts[2],
+                description: parts.slice(3).join(' ')
+              });
+            }
+          }
+        }
+        
+        result = { runtimes };
+      }
+    } else {
+      result = { runtimes: [], message: 'Runtime service not available' };
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Failed to list runtimes:', error);
+    res.json({ runtimes: [], message: `Runtime service not available: ${error.message}` });
   }
 });
 

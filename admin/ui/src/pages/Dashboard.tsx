@@ -43,7 +43,7 @@ const Dashboard: React.FC = () => {
         <div className="p-6">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">Overview of your Joblet system</p>
+                <p className="mt-2 text-gray-600 dark:text-gray-300">Overview of your Joblet system</p>
             </div>
 
             {/* Stats Grid */}
@@ -113,10 +113,10 @@ const Dashboard: React.FC = () => {
                     )}
                 </div>
 
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Jobs</h3>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Jobs</h3>
                     {jobsLoading ? (
-                        <p className="text-gray-500">Loading jobs...</p>
+                        <p className="text-white-500">Loading jobs...</p>
                     ) : jobsError ? (
                         <p className="text-red-500">Error: {jobsError}</p>
                     ) : jobs.length > 0 ? (
@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
                                 <div key={job.id}
                                      className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                                     <div>
-                                        <p className="text-sm font-medium text-gray-900">{job.name || job.id.slice(0, 8)}</p>
+                                        <p className="text-sm font-medium text-white-900">{job.name || job.id.slice(0, 8)}</p>
                                         <p className="text-sm text-gray-500">{job.command}</p>
                                     </div>
                                     <span
@@ -147,21 +147,21 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Link to="/jobs/create"
-                          className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                          className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-500 transition-colors">
                         <Zap className="h-5 w-5 mr-2 text-blue-600"/>
                         Run New Job
                     </Link>
                     <Link to="/jobs"
-                          className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                          className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-500 transition-colors">
                         <Activity className="h-5 w-5 mr-2 text-green-600"/>
                         View All Jobs
                     </Link>
                     <Link to="/resources"
-                          className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                          className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-500 transition-colors">
                         <HardDrive className="h-5 w-5 mr-2 text-purple-600"/>
                         Manage Resources
                     </Link>

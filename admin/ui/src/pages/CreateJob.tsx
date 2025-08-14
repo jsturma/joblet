@@ -22,19 +22,19 @@ const CreateJob: React.FC = () => {
     };
 
     return (
-        <div className="min-h-full bg-gray-50">
+        <div className="min-h-full bg-gray-700">
             {/* Header */}
-            <div className="bg-white shadow">
+            <div className="bg-blue-950 shadow">
                 <div className="px-6 py-4">
                     <div className="flex items-center">
                         <button
                             onClick={handleClose}
-                            className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
+                            className="flex items-center text-gray-300 hover:text-white mr-4"
                         >
                             <ArrowLeft className="w-5 h-5 mr-1"/>
                             Back to Jobs
                         </button>
-                        <h1 className="text-2xl font-bold text-gray-900">Create New Job</h1>
+                        <h1 className="text-2xl font-bold text-white">Create New Job</h1>
                     </div>
                 </div>
             </div>

@@ -54,8 +54,8 @@ const Workflows: React.FC = () => {
             <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Workflows</h1>
-                        <p className="mt-2 text-gray-600">Visual workflow management and orchestration</p>
+                        <h1 className="text-3xl font-bold text-white">Workflows</h1>
+                        <p className="mt-2 text-gray-300">Visual workflow management and orchestration</p>
                     </div>
                     <div className="flex items-center space-x-3">
                         <button
