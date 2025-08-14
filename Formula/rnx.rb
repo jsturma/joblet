@@ -74,10 +74,15 @@ class Rnx < Formula
       ohai "   brew reinstall rnx --with-admin"
     end
 
-    # Create bash completion
-    generate_completions_from_executable(bin/"rnx", "completion", "bash")
-    generate_completions_from_executable(bin/"rnx", "completion", "zsh")
-    generate_completions_from_executable(bin/"rnx", "completion", "fish")
+    # Create shell completions
+    output = Utils.safe_popen_read(bin/"rnx", "completion", "bash")
+    (bash_completion/"rnx").write output
+    
+    output = Utils.safe_popen_read(bin/"rnx", "completion", "zsh")
+    (zsh_completion/"_rnx").write output
+    
+    output = Utils.safe_popen_read(bin/"rnx", "completion", "fish")
+    (fish_completion/"rnx.fish").write output
   end
 
   def test
