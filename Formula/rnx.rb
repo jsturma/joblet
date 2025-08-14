@@ -48,7 +48,7 @@ class Rnx < Formula
     assert_match version.to_s, shell_output("#{bin}/rnx --version")
     
     # Test admin UI if installed
-    admin_dir = prefix/"admin"
+    admin_dir = share/"rnx/admin"
     if admin_dir.exist?
       assert admin_dir.join("server/package.json").exist?, "Admin server package.json should exist"
       assert admin_dir.join("ui/dist/index.html").exist?, "Admin UI build should exist"
@@ -103,8 +103,8 @@ class Rnx < Formula
   def setup_admin_ui
     ohai "🔧 Setting up admin UI..."
     
-    # Create admin directory structure
-    admin_dir = prefix/"admin"
+    # Create admin directory structure (following homebrew conventions)
+    admin_dir = share/"rnx/admin"
     admin_dir.mkpath
     
     # Install admin files from release archive
@@ -147,7 +147,7 @@ class Rnx < Formula
     admin_script.write <<~EOS
       #!/bin/bash
       # RNX Admin UI Launcher
-      ADMIN_DIR="#{prefix}/admin"
+      ADMIN_DIR="#{share}/rnx/admin"
       
       if [ ! -d "$ADMIN_DIR" ]; then
         echo "❌ Admin UI not installed. Install with: brew reinstall rnx --with-admin"
@@ -201,7 +201,7 @@ class Rnx < Formula
   end
 
   def caveats
-    admin_dir = prefix/"admin"
+    admin_dir = share/"rnx/admin"
     
     if admin_dir.exist?
       <<~EOS

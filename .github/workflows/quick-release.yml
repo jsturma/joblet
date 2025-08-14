@@ -362,21 +362,18 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
           make_latest: true
 
-      - name: Trigger Homebrew Update
+      - name: Display Homebrew Instructions
         if: ${{ !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'alpha') }}
         run: |
-          echo "🍺 Triggering Homebrew formula update..."
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.HOMEBREW_UPDATE_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Content-Type: application/json" \
-            https://api.github.com/repos/ehsaniara/homebrew-joblet/dispatches \
-            -d '{
-              "event_type": "new-release",
-              "client_payload": {
-                "version": "${{ steps.version.outputs.tag_version }}",
-                "clean_version": "${{ steps.version.outputs.version }}",
-                "amd64_url": "https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-amd64.tar.gz",
-                "arm64_url": "https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-arm64.tar.gz"
-              }
-            }' || echo "⚠️  Homebrew update failed - this is expected if homebrew repository doesn't exist yet"
+          echo "🍺 Homebrew Formula Update Instructions"
+          echo "========================================"
+          echo ""
+          echo "The Homebrew formula needs to be updated with the new release."
+          echo ""
+          echo "After this release completes, update Formula/rnx.rb with:"
+          echo "  - AMD64 URL: https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-amd64.tar.gz"
+          echo "  - ARM64 URL: https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-arm64.tar.gz"
+          echo ""
+          echo "Users can then install with:"
+          echo "  brew tap ehsaniara/joblet https://github.com/ehsaniara/joblet"
+          echo "  brew install rnx"

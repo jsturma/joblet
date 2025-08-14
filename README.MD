@@ -124,8 +124,10 @@ sudo mv rnx-linux-amd64/bin/rnx /usr/local/bin/
 
 **Option 1: Homebrew (Recommended)**
 ```bash
+# Add the tap (specifying the full GitHub URL)
+brew tap ehsaniara/joblet https://github.com/ehsaniara/joblet
+
 # Install with interactive setup (detects Node.js for optional web UI)
-brew tap ehsaniara/joblet
 brew install rnx
 
 # Or specify installation type:
@@ -193,8 +195,8 @@ rnx admin                          # Launch web interface at http://localhost:51
 > **📋 Complete Installation Guide**: See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed installation
 > instructions covering all platforms (Ubuntu, RHEL, Amazon Linux, macOS, Windows) and deployment scenarios.
 >
-> **🍺 macOS Homebrew**: Full Homebrew tap support with interactive installation and web admin UI.
-> Repository will be available at [ehsaniara/homebrew-joblet](https://github.com/ehsaniara/homebrew-joblet) after first release.
+> **🍺 macOS Homebrew**: The Homebrew formula is available in this repository's `Formula` directory.
+> The tap supports interactive installation with optional web admin UI.
 
 ## 🚀 Basic Usage
 
