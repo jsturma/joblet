@@ -164,44 +164,73 @@ class Rnx < Formula
   def determine_admin_installation
     # Check for explicit options first
     return true if build.with? "admin"
-    return false if build.with? "without-admin"
+    return false if build.without? "admin"
 
-    # Auto-detection and interactive prompt
-    node_available = system("which", "node", out: File::NULL, err: File::NULL)
-    
-    if node_available
-      node_version = `node --version 2>/dev/null`.strip
-      ohai "✅ Node.js detected: #{node_version}"
+    # Try to detect Node.js
+    begin
+      # Use which_formula to check if node formula is installed
+      node_installed = Formula["node"].any_version_installed? rescue false
       
-      # Verify Node.js version compatibility
-      verify_nodejs_version
+      # Also check if node command is available in PATH
+      node_in_path = !`which node 2>/dev/null`.strip.empty?
       
-      # Interactive prompt with default Yes
-      print "🤔 Would you like to install the web admin UI? (Y/n): "
-      response = STDIN.gets.strip.downcase
-      return response.empty? || response.start_with?("y")
-    else
-      ohai "❌ Node.js not detected"
+      node_available = node_installed || node_in_path
       
-      # Interactive prompt with default No
-      print "🤔 Would you like to install Node.js and the web admin UI? (y/N): "
-      response = STDIN.gets.strip.downcase
-      
-      if response.start_with?("y")
-        # Install Node.js as a dependency
-        Formula["node"].install
-        # Verify Node.js version after installation
-        verify_nodejs_version
-        return true
+      if node_available
+        node_version = `node --version 2>/dev/null`.strip
+        if node_version && !node_version.empty?
+          ohai "✅ Node.js detected: #{node_version}"
+          
+          # Verify Node.js version compatibility
+          verify_nodejs_version
+          
+          # Interactive prompt with default Yes
+          if ENV["HOMEBREW_NO_ENV_HINTS"] != "1" && ENV["CI"].nil?
+            print "🤔 Would you like to install the web admin UI? (Y/n): "
+            response = STDIN.gets
+            if response
+              return response.strip.downcase.empty? || response.strip.downcase.start_with?("y")
+            else
+              ohai "No input received, installing CLI only"
+              return false
+            end
+          else
+            ohai "Non-interactive mode, installing CLI only"
+            return false
+          end
+        else
+          ohai "Node.js command found but version check failed"
+          return false
+        end
       else
-        return false
+        ohai "❌ Node.js not detected"
+        
+        # Interactive prompt with default No
+        if ENV["HOMEBREW_NO_ENV_HINTS"] != "1" && ENV["CI"].nil?
+          print "🤔 Would you like to install Node.js and the web admin UI? (y/N): "
+          response = STDIN.gets
+          
+          if response && response.strip.downcase.start_with?("y")
+            # Install Node.js as a dependency
+            ohai "Installing Node.js..."
+            Formula["node"].install
+            # Verify Node.js version after installation
+            verify_nodejs_version
+            return true
+          else
+            return false
+          end
+        else
+          ohai "Non-interactive mode, installing CLI only"
+          return false
+        end
       end
+    rescue => e
+      # Fallback to CLI-only installation if anything goes wrong
+      opoo "Installation detection failed: #{e.message}"
+      opoo "Installing CLI only (use --with-admin to force admin UI installation)"
+      false
     end
-  rescue => e
-    # Fallback to CLI-only installation if anything goes wrong
-    opoo "Installation prompt failed: #{e.message}"
-    opoo "Falling back to CLI-only installation"
-    false
   end
 
   def setup_admin_ui
