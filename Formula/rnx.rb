@@ -169,7 +169,7 @@ class Rnx < Formula
       return true
     end
     
-    if build.include? "cli-only"
+    if build.with? "cli-only"
       ohai "Installing CLI only (--cli-only specified)"
       return false
     end
