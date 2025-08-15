@@ -86,15 +86,27 @@ class Rnx < Formula
       ohai "   brew reinstall rnx --with-admin"
     end
 
-    # Create shell completions
-    output = Utils.safe_popen_read(bin/"rnx", "completion", "bash")
-    (bash_completion/"rnx").write output
+    # Create shell completions (with error handling)
+    begin
+      output = Utils.safe_popen_read(bin/"rnx", "completion", "bash")
+      (bash_completion/"rnx").write output if output && !output.empty?
+    rescue => e
+      opoo "Could not generate bash completions: #{e.message}"
+    end
     
-    output = Utils.safe_popen_read(bin/"rnx", "completion", "zsh")
-    (zsh_completion/"_rnx").write output
+    begin
+      output = Utils.safe_popen_read(bin/"rnx", "completion", "zsh")
+      (zsh_completion/"_rnx").write output if output && !output.empty?
+    rescue => e
+      opoo "Could not generate zsh completions: #{e.message}"
+    end
     
-    output = Utils.safe_popen_read(bin/"rnx", "completion", "fish")
-    (fish_completion/"rnx.fish").write output
+    begin
+      output = Utils.safe_popen_read(bin/"rnx", "completion", "fish")
+      (fish_completion/"rnx.fish").write output if output && !output.empty?
+    rescue => e
+      opoo "Could not generate fish completions: #{e.message}"
+    end
   end
 
   def test
