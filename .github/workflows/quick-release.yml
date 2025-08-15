@@ -251,12 +251,12 @@ jobs:
             echo "🔍 Full directory structure:"
             ls -laR "rnx-darwin-$arch-release/"
             
-            tar -czf "rnx-v${{ steps.version.outputs.tag_version }}-darwin-$arch.tar.gz" \
+            tar -czf "rnx-v${{ steps.version.outputs.version }}-darwin-$arch.tar.gz" \
               -C "rnx-darwin-$arch-release" .
             
             # Verify archive was created correctly
             echo "🔍 Verifying archive contents:"
-            tar -tzf "rnx-v${{ steps.version.outputs.tag_version }}-darwin-$arch.tar.gz" | head -20
+            tar -tzf "rnx-v${{ steps.version.outputs.version }}-darwin-$arch.tar.gz" | head -20
           done
 
       - name: Create archives
@@ -314,7 +314,7 @@ jobs:
             *.deb
             *.rpm
             rnx-${{ steps.version.outputs.tag_version }}-*.tar.gz
-            rnx-v${{ steps.version.outputs.tag_version }}-darwin-*.tar.gz
+            rnx-v${{ steps.version.outputs.version }}-darwin-*.tar.gz
             rnx-${{ steps.version.outputs.tag_version }}-*.zip
             joblet-${{ steps.version.outputs.tag_version }}-checksums.txt
           body: |
@@ -461,8 +461,8 @@ jobs:
           echo "The Homebrew formula needs to be updated with the new release."
           echo ""
           echo "After this release completes, update Formula/rnx.rb with:"
-          echo "  - AMD64 URL: https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-amd64.tar.gz"
-          echo "  - ARM64 URL: https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.tag_version }}-darwin-arm64.tar.gz"
+          echo "  - AMD64 URL: https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.version }}-darwin-amd64.tar.gz"
+          echo "  - ARM64 URL: https://github.com/ehsaniara/joblet/releases/download/${{ steps.version.outputs.tag_version }}/rnx-v${{ steps.version.outputs.version }}-darwin-arm64.tar.gz"
           echo ""
           echo "Users can then install with:"
           echo "  brew tap ehsaniara/joblet https://github.com/ehsaniara/joblet"
