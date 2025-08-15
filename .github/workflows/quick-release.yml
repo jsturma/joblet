@@ -201,9 +201,9 @@ jobs:
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-linux-arm64.tar.gz rnx-linux-arm64
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-linux-386.tar.gz rnx-linux-386
           
-          # Legacy macOS archives (CLI-only)
-          tar -czf rnx-${{ steps.version.outputs.tag_version }}-darwin-amd64.tar.gz rnx-darwin-amd64
-          tar -czf rnx-${{ steps.version.outputs.tag_version }}-darwin-arm64.tar.gz rnx-darwin-arm64
+          # CLI-only macOS archives (for non-homebrew users)
+          tar -czf rnx-${{ steps.version.outputs.tag_version }}-darwin-amd64-cli.tar.gz rnx-darwin-amd64
+          tar -czf rnx-${{ steps.version.outputs.tag_version }}-darwin-arm64-cli.tar.gz rnx-darwin-arm64
           
           # Universal macOS archive
           mkdir -p universal-macos
