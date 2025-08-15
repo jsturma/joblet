@@ -187,29 +187,70 @@ class Rnx < Formula
       node_available = node_installed || node_in_path
       
       if node_available
-        node_version = `node --version 2>/dev/null`.strip
-        if node_version && !node_version.empty?
+        # Get Node.js version more reliably
+        node_path = `which node 2>/dev/null`.strip
+        node_version = nil
+        
+        if !node_path.empty?
+          node_version = `#{node_path} --version 2>/dev/null`.strip
+        end
+        
+        if node_version && !node_version.empty? && node_version.start_with?("v")
           ohai "✅ Node.js detected: #{node_version}"
           
           # Verify Node.js version compatibility
-          verify_nodejs_version
+          begin
+            verify_nodejs_version
+          rescue => e
+            opoo "Node.js version check warning: #{e.message}"
+          end
           
-          # Interactive prompt with default Yes
-          if ENV["HOMEBREW_NO_ENV_HINTS"] != "1" && ENV["CI"].nil?
-            print "🤔 Would you like to install the web admin UI? (Y/n): "
-            response = STDIN.gets
-            if response
-              return response.strip.downcase.empty? || response.strip.downcase.start_with?("y")
-            else
-              ohai "No input received, installing CLI only"
+          # Always prompt if Node.js is available (unless in CI)
+          if ENV["CI"].nil?
+            ohai "🎨 The admin UI provides a web interface for managing jobs"
+            
+            # Use a simple approach that should always work
+            print "\n🤔 Would you like to install the web admin UI? [Y/n]: "
+            $stdout.flush
+            
+            # Try to read input - if it fails, default to no
+            begin
+              # Give user 10 seconds to respond
+              require 'io/console'
+              response = nil
+              
+              # Simple timeout approach
+              thread = Thread.new { response = $stdin.gets }
+              thread.join(10) # Wait up to 10 seconds
+              
+              if response
+                answer = response.strip.downcase
+                if answer.empty? || answer == 'y' || answer == 'yes'
+                  ohai "Installing with admin UI..."
+                  return true
+                else
+                  ohai "Installing CLI only"
+                  return false
+                end
+              else
+                ohai "No response received, defaulting to CLI only"
+                ohai "To install with admin UI later, use: brew reinstall rnx --with-admin"
+                return false
+              end
+            rescue => e
+              opoo "Could not read input: #{e.message}"
+              ohai "Installing CLI only (use --with-admin to force admin UI)"
               return false
             end
           else
-            ohai "Non-interactive mode, installing CLI only"
+            ohai "CI environment detected, installing CLI only"
             return false
           end
         else
-          ohai "Node.js command found but version check failed"
+          ohai "Node.js found but unable to determine version"
+          ohai "Node path: #{node_path}" if !node_path.empty?
+          ohai "Version output: #{node_version}" if node_version
+          ohai "Installing CLI only (use --with-admin to force admin UI)"
           return false
         end
       else
