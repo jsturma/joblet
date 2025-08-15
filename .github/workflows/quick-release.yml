@@ -450,7 +450,6 @@ jobs:
             Perfect for modern cloud environments including **AWS Graviton**, **Azure ARM**, and traditional **Intel/AMD** servers.
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
-          make_latest: true
 
       - name: Display Homebrew Instructions
         if: ${{ !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'alpha') }}
