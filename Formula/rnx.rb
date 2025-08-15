@@ -306,14 +306,19 @@ class Rnx < Formula
     ohai "📁 Installing admin UI files..."
     cp_r "admin/.", admin_dir
     
-    # Install Node.js dependencies for server
-    ohai "📦 Installing admin server dependencies..."
-    cd admin_dir/"server" do
-      system "npm", "install", "--production", "--silent"
-      unless $?.success?
-        onoe "Failed to install admin server dependencies"
-        raise "Admin UI setup failed"
+    # Verify Node.js dependencies are present (pre-installed in release)
+    ohai "📦 Verifying admin server dependencies..."
+    unless (admin_dir/"server/node_modules").exist?
+      onoe "Admin server dependencies not found - installing..."
+      cd admin_dir/"server" do
+        system "npm", "install", "--production", "--silent"
+        unless $?.success?
+          onoe "Failed to install admin server dependencies"
+          raise "Admin UI setup failed"
+        end
       end
+    else
+      ohai "✅ Admin server dependencies already included"
     end
     
     # Verify admin UI build exists
