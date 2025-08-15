@@ -120,6 +120,45 @@ class Rnx < Formula
     end
   end
 
+  def caveats
+    admin_dir = share/"rnx/admin"
+    
+    if admin_dir.exist?
+      <<~EOS
+        🎉 RNX with Admin UI installed successfully!
+        
+        📋 Usage:
+          CLI commands:     rnx --help
+          Web Admin UI:     rnx admin  (or rnx-admin)
+        
+        🔧 Configuration:
+          Copy your rnx-config.yml to: ~/.rnx/
+        
+        🌐 Admin UI will be available at: http://localhost:5173
+        
+        💡 Tips:
+          - The admin UI provides a visual interface for job management
+          - All CLI commands are still available alongside the web interface
+          - Admin UI spawns local rnx CLI commands to communicate with joblet servers
+      EOS
+    else
+      <<~EOS
+        📱 RNX CLI installed successfully!
+        
+        📋 Usage: rnx --help
+        
+        🔧 Configuration:
+          Copy your rnx-config.yml to: ~/.rnx/
+        
+        🌐 To install the web admin UI:
+          brew reinstall rnx --with-admin
+        
+        💡 The web admin UI provides a visual interface for managing jobs,
+           viewing logs, and monitoring your joblet servers.
+      EOS
+    end
+  end
+
   private
 
   def determine_admin_installation
@@ -263,44 +302,5 @@ class Rnx < Formula
     end
     
     ohai "✅ Node.js #{node_version} is compatible"
-  end
-
-  def caveats
-    admin_dir = share/"rnx/admin"
-    
-    if admin_dir.exist?
-      <<~EOS
-        🎉 RNX with Admin UI installed successfully!
-        
-        📋 Usage:
-          CLI commands:     rnx --help
-          Web Admin UI:     rnx admin  (or rnx-admin)
-        
-        🔧 Configuration:
-          Copy your rnx-config.yml to: ~/.rnx/
-        
-        🌐 Admin UI will be available at: http://localhost:5173
-        
-        💡 Tips:
-          - The admin UI provides a visual interface for job management
-          - All CLI commands are still available alongside the web interface
-          - Admin UI spawns local rnx CLI commands to communicate with joblet servers
-      EOS
-    else
-      <<~EOS
-        📱 RNX CLI installed successfully!
-        
-        📋 Usage: rnx --help
-        
-        🔧 Configuration:
-          Copy your rnx-config.yml to: ~/.rnx/
-        
-        🌐 To install the web admin UI:
-          brew reinstall rnx --with-admin
-        
-        💡 The web admin UI provides a visual interface for managing jobs,
-           viewing logs, and monitoring your joblet servers.
-      EOS
-    end
   end
 end
