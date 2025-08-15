@@ -302,7 +302,7 @@ jobs:
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-freebsd-arm64.tar.gz rnx-freebsd-arm64
           
           # Generate checksums
-          sha256sum *.deb *.rpm *.tar.gz *.zip > joblet-${{ steps.version.outputs.tag_version }}-checksums.txt
+          sha256sum *.deb *.rpm *.tar.gz *.zip > joblet-v${{ steps.version.outputs.version }}-checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -313,10 +313,9 @@ jobs:
           files: |
             *.deb
             *.rpm
-            rnx-${{ steps.version.outputs.tag_version }}-*.tar.gz
-            rnx-v${{ steps.version.outputs.version }}-darwin-*.tar.gz
-            rnx-${{ steps.version.outputs.tag_version }}-*.zip
-            joblet-${{ steps.version.outputs.tag_version }}-checksums.txt
+            rnx-v${{ steps.version.outputs.version }}-*.tar.gz
+            rnx-v${{ steps.version.outputs.version }}-*.zip
+            joblet-v${{ steps.version.outputs.version }}-checksums.txt
           body: |
             ** 🚀 Complete Joblet release** ${{ github.ref_name }} with both Linux server packages and cross-platform RNX CLI.
             
@@ -434,7 +433,7 @@ jobs:
             ```bash
             # Verify all checksums
             curl -L https://github.com/ehsaniara/joblet/releases/download/${{ github.ref_name }}/joblet-${{ steps.version.outputs.tag_version }}-checksums.txt
-            sha256sum -c joblet-${{ steps.version.outputs.tag_version }}-checksums.txt
+            sha256sum -c joblet-v${{ steps.version.outputs.version }}-checksums.txt
             ```
             
             ---
