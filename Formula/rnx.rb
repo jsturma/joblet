@@ -189,10 +189,13 @@ class Rnx < Formula
       if node_available
         # Get Node.js version more reliably
         node_path = `which node 2>/dev/null`.strip
+        ohai "Node.js path found: #{node_path}" if !node_path.empty?
+        
         node_version = nil
         
         if !node_path.empty?
           node_version = `#{node_path} --version 2>/dev/null`.strip
+          ohai "Node.js version output: '#{node_version}'"
         end
         
         if node_version && !node_version.empty? && node_version.start_with?("v")
@@ -286,6 +289,14 @@ class Rnx < Formula
 
   def setup_admin_ui
     ohai "🔧 Setting up admin UI..."
+    
+    # Check if admin files exist in the archive
+    if !Dir.exist?("admin")
+      opoo "Admin UI files not found in this release"
+      opoo "The release may have been built without admin UI support"
+      opoo "Please report this issue or try a different release version"
+      return false
+    end
     
     # Create admin directory structure (following homebrew conventions)
     admin_dir = share/"rnx/admin"
