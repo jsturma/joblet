@@ -132,6 +132,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dpkg-dev build-essential rpm
           
+          # Backup admin directory before package building (critical for Homebrew)
+          echo "🔄 Backing up admin directory..."
+          if [ -d "admin" ]; then
+            cp -r admin admin-backup
+            echo "✅ Admin directory backed up"
+          else
+            echo "⚠️ No admin directory to backup"
+          fi
+          
           # Make scripts executable
           chmod +x scripts/build-deb.sh
           chmod +x scripts/build-rpm.sh
@@ -161,6 +170,16 @@ jobs:
             mv *.deb joblet_${{ steps.version.outputs.version }}_$arch.deb || true
             mv *.rpm joblet-${{ steps.version.outputs.version }}-1.$rpm_arch.rpm || true
           done
+          
+          # Restore admin directory after package building
+          echo "🔄 Restoring admin directory..."
+          if [ -d "admin-backup" ]; then
+            rm -rf admin 2>/dev/null || true
+            mv admin-backup admin
+            echo "✅ Admin directory restored"
+          else
+            echo "⚠️ No admin backup to restore"
+          fi
 
       - name: Package RNX with Admin UI for Homebrew
         run: |
@@ -172,6 +191,26 @@ jobs:
           ls -la admin/ui/ || echo "❌ admin/ui directory not found"
           ls -la admin/ui/dist/ || echo "❌ admin/ui/dist directory not found"
           ls -la admin/server/ || echo "❌ admin/server directory not found"
+          
+          # Critical check: Verify admin UI build exists
+          if [ ! -f "admin/ui/dist/index.html" ]; then
+            echo "❌ CRITICAL ERROR: Admin UI build not found!"
+            echo "🔍 Searching for admin UI files..."
+            find . -name "index.html" -type f 2>/dev/null || echo "No index.html found anywhere"
+            echo "🔍 Admin directory contents:"
+            find admin/ -type f 2>/dev/null | head -20 || echo "Admin directory is empty or missing"
+            exit 1
+          fi
+          
+          # Critical check: Verify admin server files exist
+          if [ ! -f "admin/server/package.json" ]; then
+            echo "❌ CRITICAL ERROR: Admin server files not found!"
+            echo "🔍 Server directory contents:"
+            find admin/server/ -type f 2>/dev/null | head -20 || echo "Server directory is empty or missing"
+            exit 1
+          fi
+          
+          echo "✅ All admin files verified successfully"
           
           # Create macOS packages with admin UI
           for arch in amd64 arm64; do
