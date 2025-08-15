@@ -53,9 +53,9 @@ class Rnx < Formula
   # Optional Node.js dependency for admin UI
   depends_on "node" => :optional
 
-  # Installation options
-  option "with-admin", "Install with web admin UI (requires Node.js)"
-  option "without-admin", "Install CLI only"
+  # Installation option - admin UI is auto-detected by default
+  option "with-admin", "Force installation with web admin UI (requires Node.js)"
+  option "cli-only", "Install CLI only (skip admin UI prompt)"
 
   def install
     # Install base rnx binary (handle different naming conventions)
@@ -76,6 +76,7 @@ class Rnx < Formula
     end
 
     # Determine installation type
+    ohai "Checking for Node.js installation..."
     install_admin = determine_admin_installation
 
     if install_admin
@@ -163,9 +164,18 @@ class Rnx < Formula
 
   def determine_admin_installation
     # Check for explicit options first
-    return true if build.with? "admin"
-    return false if build.without? "admin"
+    if build.with? "admin"
+      ohai "Installing with admin UI (--with-admin specified)"
+      return true
+    end
+    
+    if build.include? "cli-only"
+      ohai "Installing CLI only (--cli-only specified)"
+      return false
+    end
 
+    ohai "Detecting Node.js for optional admin UI installation..."
+    
     # Try to detect Node.js
     begin
       # Use which_formula to check if node formula is installed
