@@ -86,9 +86,23 @@ jobs:
           npm ci
           npm run build
           
+          # Verify the build succeeded
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Admin UI build failed - dist/index.html not found"
+            exit 1
+          fi
+          echo "✅ Admin UI build successful"
+          
           echo "🚀 Installing Admin Server dependencies..."
           cd ../server
           npm ci --omit=dev
+          
+          # Verify server dependencies installed
+          if [ ! -d "node_modules" ]; then
+            echo "❌ Server dependencies installation failed"
+            exit 1
+          fi
+          echo "✅ Server dependencies installed"
 
       - name: Build all binaries
         run: |
@@ -160,6 +174,17 @@ jobs:
             
             # Copy admin UI files (built UI and server dependencies)
             cp -r admin "rnx-darwin-$arch-release/"
+            
+            # Verify admin files were copied
+            if [ ! -f "rnx-darwin-$arch-release/admin/ui/dist/index.html" ]; then
+              echo "❌ Admin UI files not found in package for $arch"
+              exit 1
+            fi
+            if [ ! -f "rnx-darwin-$arch-release/admin/server/package.json" ]; then
+              echo "❌ Admin server files not found in package for $arch"
+              exit 1
+            fi
+            echo "✅ Admin UI files copied successfully for $arch"
             
             # Remove dev dependencies but keep built assets
             rm -rf "rnx-darwin-$arch-release/admin/ui/node_modules"
