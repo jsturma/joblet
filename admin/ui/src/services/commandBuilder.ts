@@ -15,8 +15,7 @@ export class CommandBuilder {
             .setResource('cores', config.cpuCores)
             .setResource('io', config.maxIobps)
             .setEnvironment(config.runtime, config.network, config.workdir)
-            .setSchedule(config.schedule)
-            .setName(config.name);
+            .setSchedule(config.schedule);
 
         // Add file uploads
         config.files.forEach(filePath => builder.addUpload(filePath));
@@ -94,10 +93,6 @@ export class CommandBuilder {
         return this;
     }
 
-    setName(name: string): this {
-        if (name) this.flags.set('name', name);
-        return this;
-    }
 
     build(): GeneratedCommand {
         const parts: string[] = ['rnx run'];
@@ -106,7 +101,7 @@ export class CommandBuilder {
         // Build flag arguments with proper ordering
         const flagOrder = [
             'upload', 'upload-dir', 'max-cpu', 'max-memory', 'cpu-cores', 'max-iobps',
-            'runtime', 'network', 'volume', 'env', 'workdir', 'schedule', 'name'
+            'runtime', 'network', 'volume', 'env', 'workdir', 'schedule'
         ];
 
         flagOrder.forEach(flagName => {

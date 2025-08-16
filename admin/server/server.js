@@ -139,7 +139,6 @@ app.post('/api/jobs/execute', async (req, res) => {
       uploadDirs = [],
       envVars = {},
       schedule,
-      name,
       workdir,
       node
     } = req.body;
@@ -158,7 +157,6 @@ app.post('/api/jobs/execute', async (req, res) => {
     if (cpuCores) rnxArgs.push('--cpu-cores', cpuCores);
     if (runtime) rnxArgs.push('--runtime', runtime);
     if (network) rnxArgs.push('--network', network);
-    if (name) rnxArgs.push('--name', name);
     if (workdir) rnxArgs.push('--workdir', workdir);
     if (schedule) rnxArgs.push('--schedule', schedule);
     
@@ -227,13 +225,41 @@ app.get('/api/jobs/:jobId', async (req, res) => {
 app.get('/api/monitor', async (req, res) => {
   try {
     const node = req.query.node;
-    const output = await execRnx(['monitor'], { node });
+    const output = await execRnx(['monitor', 'status', '--json'], { node });
     
     let metrics;
     try {
-      metrics = JSON.parse(output);
+      const monitorData = JSON.parse(output);
+      
+      // Transform the monitor status data to match the expected frontend format
+      metrics = {
+        timestamp: monitorData.timestamp || new Date().toISOString(),
+        cpu: {
+          cores: monitorData.cpu?.cores || 0,
+          usage: monitorData.cpu?.usagePercent || 0,
+          loadAverage: monitorData.cpu?.loadAverage || [0, 0, 0]
+        },
+        memory: {
+          total: monitorData.memory?.totalBytes || 0,
+          used: monitorData.memory?.usedBytes || 0,
+          available: monitorData.memory?.availableBytes || 0,
+          percent: monitorData.memory?.usagePercent || 0
+        },
+        disk: {
+          readBps: 0,  // Not provided by monitor status, would need monitor top
+          writeBps: 0, // Not provided by monitor status, would need monitor top
+          iops: 0      // Not provided by monitor status, would need monitor top
+        },
+        jobs: {
+          total: 0,    // Would need to get from jobs list
+          running: 0,  // Would need to get from jobs list
+          completed: 0,// Would need to get from jobs list
+          failed: 0    // Would need to get from jobs list
+        }
+      };
     } catch (e) {
       // Return basic metrics if command fails
+      console.warn('Failed to parse monitor data:', e.message);
       metrics = {
         timestamp: new Date().toISOString(),
         cpu: { cores: 0, usage: 0, loadAverage: [0, 0, 0] },

@@ -29,7 +29,6 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
         volumes: [],
         envVars: {},
         schedule: '',
-        name: '',
         workdir: '/work'
     });
 
@@ -228,7 +227,6 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                 uploadDirs: config.directories, // These are now actual directory paths
                 envVars: config.envVars,
                 schedule: config.schedule || undefined,
-                name: config.name || undefined,
                 workdir: config.workdir
             };
 
@@ -249,7 +247,6 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                 volumes: [],
                 envVars: {},
                 schedule: '',
-                name: '',
                 workdir: '/work'
             });
             setUploadedFiles([]);
@@ -273,7 +270,6 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
             volumes: [],
             envVars: {},
             schedule: '',
-            name: '',
             workdir: '/work'
         });
     }, []);
@@ -315,19 +311,6 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                             </p>
                         </div>
 
-                        {/* Job Name */}
-                        <div>
-                            <label className="block text-sm font-medium text-white mb-2">
-                                Job Name
-                            </label>
-                            <input
-                                type="text"
-                                value={config.name}
-                                onChange={(e) => updateConfig({name: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="my-training-job"
-                            />
-                        </div>
 
                         {/* File Uploads */}
                         <div>

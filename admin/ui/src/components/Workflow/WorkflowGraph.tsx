@@ -193,21 +193,21 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             <div className="absolute top-4 right-4 z-20 flex space-x-2">
                 <button
                     onClick={handleZoomIn}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50"
+                    className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
                     title="Zoom In"
                 >
                     <ZoomIn className="w-4 h-4"/>
                 </button>
                 <button
                     onClick={handleZoomOut}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50"
+                    className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
                     title="Zoom Out"
                 >
                     <ZoomOut className="w-4 h-4"/>
                 </button>
                 <button
                     onClick={handleResetView}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50"
+                    className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
                     title="Reset View"
                 >
                     <RotateCcw className="w-4 h-4"/>
@@ -215,7 +215,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             </div>
 
             {/* Zoom Level */}
-            <div className="absolute top-4 left-4 z-20 bg-white rounded-lg shadow-md px-3 py-2 text-sm">
+            <div className="absolute top-4 left-4 z-20 bg-gray-400 rounded-lg shadow-md px-3 py-2 text-sm">
                 {Math.round(zoom * 100)}%
             </div>
 
