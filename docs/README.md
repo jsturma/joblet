@@ -15,6 +15,7 @@ configuring, and using Joblet - a Linux-native job execution platform with advan
 
 - [**RNX CLI Reference**](./RNX_CLI_REFERENCE.md) - Complete command reference with examples
 - [**Job Execution Guide**](./JOB_EXECUTION.md) - Running jobs with resource limits and isolation
+- [**Workflows Guide**](./WORKFLOWS.md) - YAML workflows with dependencies, validation, and orchestration
 - [**Runtime System**](./RUNTIME_SYSTEM.md) - Pre-built environments for instant job execution
 - [**Volume Management**](./VOLUME_MANAGEMENT.md) - Persistent and temporary storage for jobs
 - [**Network Management**](./NETWORK_MANAGEMENT.md) - Network isolation and custom networks

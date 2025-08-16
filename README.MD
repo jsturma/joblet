@@ -222,7 +222,17 @@ rnx status <workflow-id>                      # Unified status for jobs/workflow
 
 # Discover available jobs in any example directory
 cat jobs.yaml                                 # Shows all configured jobs
+
+# Workflow validation (prevents runtime failures)
+rnx run --workflow=complex-pipeline.yaml     # Validates dependencies, networks, volumes, runtimes
 ```
+
+**🛡️ Workflow Validation**: Joblet performs comprehensive validation before execution:
+- ✅ **Circular Dependencies**: Detects dependency loops
+- ✅ **Network Validation**: Confirms all networks exist (built-in + custom)
+- ✅ **Volume Validation**: Verifies all volumes are available  
+- ✅ **Runtime Validation**: Checks runtime availability
+- ✅ **Job Dependencies**: Ensures all dependencies reference existing jobs
 
 ### 💻 Traditional Commands
 

@@ -129,6 +129,33 @@ rnx run \
   python3 main.py --process-data
 ```
 
+#### Workflow Validation
+
+When using `--workflow`, Joblet performs comprehensive pre-execution validation:
+
+```bash
+$ rnx run --workflow=my-workflow.yaml
+🔍 Validating workflow prerequisites...
+✅ No circular dependencies found
+✅ All required volumes exist
+✅ All required networks exist
+✅ All required runtimes exist
+✅ All job dependencies are valid
+🎉 Workflow validation completed successfully!
+```
+
+**Validation Checks:**
+- **Circular Dependencies**: Prevents infinite dependency loops
+- **Network Validation**: Confirms all specified networks exist (built-in: none, isolated, bridge + custom networks)
+- **Volume Validation**: Verifies all referenced volumes are available
+- **Runtime Validation**: Checks runtime availability with name normalization
+- **Job Dependencies**: Ensures all dependencies reference existing jobs
+
+**Error Example:**
+```bash
+Error: workflow validation failed: network validation failed: missing networks: [non-existent-network]. Available networks: [bridge isolated none custom-net]
+```
+
 ### `rnx list`
 
 List all jobs on the server.

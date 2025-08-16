@@ -274,6 +274,53 @@ rnx run \
   nginx -c /work/nginx.conf
 ```
 
+### Workflow Network Configuration
+
+Workflows support per-job network configuration with comprehensive validation:
+
+```yaml
+# microservices-workflow.yaml
+jobs:
+  database:
+    command: "postgres"
+    args: ["--config=/config/postgresql.conf"]
+    network: "backend"
+    volumes: ["db-data"]
+    
+  api-service:
+    command: "python3"
+    args: ["api.py"]
+    runtime: "python:3.11-ml"
+    network: "backend"
+    uploads:
+      files: ["api.py", "requirements.txt"]
+    requires:
+      - database: "COMPLETED"
+    
+  web-frontend:
+    command: "node"
+    args: ["server.js"]
+    runtime: "nodejs:18"
+    network: "frontend"
+    uploads:
+      files: ["server.js", "package.json"]
+    requires:
+      - api-service: "COMPLETED"
+```
+
+**Workflow Network Validation:**
+```bash
+$ rnx run --workflow=microservices-workflow.yaml
+🔍 Validating workflow prerequisites...
+✅ All required networks exist
+```
+
+**Benefits:**
+- **Network Validation**: Confirms all networks exist before execution
+- **Per-Job Networks**: Each job can use different networks
+- **Dependency Coordination**: Network setup happens before job dependencies
+- **Error Prevention**: Catches network misconfigurations early
+
 ## Network Security
 
 ### Firewall Rules (Conceptual)
