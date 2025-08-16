@@ -190,7 +190,7 @@ esac
 echo ""
 info "📚 Next Steps:"
 info "  1. Test: ssh $USER@$HOST 'rnx run --runtime=python-3.11-ml python --version'"
-info "  2. Try template: ssh $USER@$HOST 'cd /opt/joblet/examples/python-3.11-ml && rnx run --template=jobs.yaml:ml-analysis'"
+info "  2. Try template: ssh $USER@$HOST 'cd /opt/joblet/examples/python-3.11-ml && rnx run --workflow=jobs.yaml:ml-analysis'"
 if [[ "$ML_SUPPORT" == "full" || "$ML_SUPPORT" == "most" ]]; then
     info "  3. Test ML: ssh $USER@$HOST 'rnx run --runtime=python-3.11-ml python -c \"from sklearn.ensemble import RandomForestClassifier; print(\\\"ML ready!\\\")\"'"
 fi

@@ -173,7 +173,7 @@ EOF
     echo ""
     echo "📚 Example usage:"
     echo "   cd /opt/joblet/examples/java-21"
-    echo "   rnx run --template=jobs.yaml:hello-joblet"
+    echo "   rnx run --workflow=jobs.yaml:hello-joblet"
     echo ""
 }
 

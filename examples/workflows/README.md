@@ -25,17 +25,7 @@ ETL data processing workflow with file uploads and shared volumes.
 - **Scripts**: 5 Python ETL scripts with JSON data flow
 - **Test**: `cd examples/workflows/data-pipeline && rnx run --workflow=data-pipeline.yaml:extract-data`
 
-### 3. `web-service/`
-
-Generic deployment workflow with build system.
-
-- **Location**: `examples/workflows/web-service/`
-- **Commands**: `make` (with real Makefile), `tar`, `echo` (simulated deployment)
-- **Features**: Build → Test → Package → Deploy → Verify pattern
-- **Scripts**: Real Makefile for build/test operations
-- **Test**: `cd examples/workflows/web-service && rnx run --workflow=web-service.yaml:compile-code`
-
-### 4. `multi-workflow/`
+### 3. `multi-workflow/`
 
 Multiple named workflows in one file.
 
@@ -45,7 +35,7 @@ Multiple named workflows in one file.
 - **Scripts**: Same 5 ML scripts as ml-pipeline
 - **Test**: `cd examples/workflows/multi-workflow && rnx run --workflow=multi-workflow.yaml:data-prep`
 
-### 5. `parallel-jobs/`
+### 4. `parallel-jobs/`
 
 Parallel batch processing without dependencies.
 
@@ -54,6 +44,45 @@ Parallel batch processing without dependencies.
 - **Features**: Independent parallel jobs, different processing times
 - **Scripts**: 3 batch processing scripts with simulated work
 - **Test**: `cd examples/workflows/parallel-jobs && rnx run --workflow=parallel-jobs.yaml:batch1`
+
+### 5. `basic-usage/`
+
+Simple workflow examples demonstrating basic functionality.
+
+- **Location**: `examples/workflows/basic-usage/`
+- **Commands**: `echo`, `python3`, `nginx`, `bash`
+- **Features**: Hello world, analytics, webserver, backup jobs
+- **Scripts**: Python analytics script with sample data
+- **Test**: `cd examples/workflows/basic-usage && rnx run --workflow=basic-jobs.yaml:hello`
+
+### 6. `java-microservices/`
+
+Java-based microservices architecture examples.
+
+- **Location**: `examples/workflows/java-microservices/`
+- **Commands**: `java` with various JVM configurations
+- **Features**: API gateway, user service, payment processing, database migration
+- **Scripts**: JAR files for Spring Boot microservices
+- **Test**: `cd examples/workflows/java-microservices && rnx run --workflow=java-services.yaml:api-gateway`
+
+### 7. `etl-processing/`
+
+Advanced ETL pipeline with job dependencies.
+
+- **Location**: `examples/workflows/etl-processing/`
+- **Commands**: `python3`, `bash`, `rsync`, `pg_dump`
+- **Features**: Complex ETL → validation → compression → reporting workflow
+- **Scripts**: ETL processing scripts with dependency chain
+- **Test**: `cd examples/workflows/etl-processing && rnx run --workflow=etl-pipeline.yaml:etl`
+
+### 8. `verification/`
+
+Negative test cases for workflow validation.
+
+- **Location**: `examples/workflows/verification/`
+- **Purpose**: Test error scenarios (missing volumes, circular dependencies, etc.)
+- **Features**: Validation testing, error handling demonstrations
+- **Test**: `cd examples/workflows/verification && rnx run --workflow=test-missing-volume.yaml` (should fail)
 
 ## Realistic Joblet Features Used
 

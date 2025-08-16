@@ -12,8 +12,11 @@ import (
 	"joblet/internal/joblet/adapters"
 	auth2 "joblet/internal/joblet/auth"
 	"joblet/internal/joblet/core/interfaces"
+	"joblet/internal/joblet/core/validation"
+	"joblet/internal/joblet/core/volume"
 	"joblet/internal/joblet/domain"
 	"joblet/internal/joblet/mappers"
+	"joblet/internal/joblet/runtime"
 	"joblet/internal/joblet/workflow"
 	"joblet/internal/joblet/workflow/types"
 	"joblet/pkg/logger"
@@ -39,24 +42,31 @@ const (
 
 type WorkflowServiceServer struct {
 	pb.UnimplementedJobServiceServer
-	auth            auth2.GrpcAuthorization
-	jobStore        adapters.JobStoreAdapter
-	joblet          interfaces.Joblet
-	workflowManager *workflow.WorkflowManager
-	logger          *logger.Logger
+	auth              auth2.GrpcAuthorization
+	jobStore          adapters.JobStoreAdapter
+	joblet            interfaces.Joblet
+	workflowManager   *workflow.WorkflowManager
+	workflowValidator *validation.WorkflowValidator
+	logger            *logger.Logger
 }
 
 // NewWorkflowServiceServer creates a new gRPC service server for workflow operations.
 // This server handles workflow creation, status monitoring, and job orchestration.
 // It requires authentication, job store access, joblet interface for job execution,
-// and a workflow manager for dependency tracking and job coordination.
-func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet, workflowManager *workflow.WorkflowManager) *WorkflowServiceServer {
+// a workflow manager for dependency tracking and job coordination, and managers for validation.
+func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet, workflowManager *workflow.WorkflowManager, volumeManager *volume.Manager, runtimeManager *runtime.Manager, runtimeResolver *runtime.Resolver) *WorkflowServiceServer {
+	// Create workflow validator with adapters
+	volumeAdapter := validation.NewVolumeManagerAdapter(volumeManager)
+	runtimeAdapter := validation.NewRuntimeManagerAdapter(runtimeManager, runtimeResolver)
+	workflowValidator := validation.NewWorkflowValidator(volumeAdapter, runtimeAdapter)
+
 	return &WorkflowServiceServer{
-		auth:            auth,
-		jobStore:        jobStore,
-		joblet:          joblet,
-		workflowManager: workflowManager,
-		logger:          logger.WithField("component", "workflow-grpc"),
+		auth:              auth,
+		jobStore:          jobStore,
+		joblet:            joblet,
+		workflowManager:   workflowManager,
+		workflowValidator: workflowValidator,
+		logger:            logger.WithField("component", "workflow-grpc"),
 	}
 }
 
@@ -359,6 +369,14 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, 
 		return 0, fmt.Errorf("failed to parse workflow YAML: %w", err)
 	}
 
+	// Validate workflow before execution
+	log.Info("performing server-side workflow validation")
+	if err := s.workflowValidator.ValidateWorkflow(*workflowYAML); err != nil {
+		log.Error("workflow validation failed", "error", err)
+		return 0, fmt.Errorf("workflow validation failed: %w", err)
+	}
+	log.Info("workflow validation passed")
+
 	jobs := make(map[string]*workflow.JobDependency)
 	var jobOrder []string
 
@@ -465,7 +483,7 @@ func (s *WorkflowServiceServer) executeWorkflowJob(ctx context.Context, workflow
 			} else {
 				// For server-side workflows, we can't read files without knowing the path
 				// This is a limitation - server-side workflows should use client-side upload
-				return fmt.Errorf("server-side workflow file reading not supported. Use 'rnx run --template' with client-side file upload")
+				return fmt.Errorf("server-side workflow file reading not supported. Use 'rnx run --workflow' with client-side file upload")
 			}
 			uploads = append(uploads, domain.FileUpload{
 				Path:    file,
@@ -473,6 +491,12 @@ func (s *WorkflowServiceServer) executeWorkflowJob(ctx context.Context, workflow
 				Size:    int64(len(content)),
 			})
 		}
+	}
+
+	// Determine network to use
+	network := jobSpec.Network
+	if network == "" {
+		network = defaultNetworkName
 	}
 
 	jobRequest := interfaces.StartJobRequest{
@@ -485,7 +509,7 @@ func (s *WorkflowServiceServer) executeWorkflowJob(ctx context.Context, workflow
 			CPUCores:  jobSpec.Resources.CPUCores,
 		},
 		Uploads: uploads,
-		Network: defaultNetworkName,
+		Network: network,
 		Volumes: jobSpec.Volumes,
 		Runtime: jobSpec.Runtime,
 	}
@@ -569,6 +593,14 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse workflow YAML content: %w", err)
 	}
+
+	// Validate workflow before execution
+	log.Info("performing server-side workflow validation")
+	if err := s.workflowValidator.ValidateWorkflow(*workflowYAML); err != nil {
+		log.Error("workflow validation failed", "error", err)
+		return 0, fmt.Errorf("workflow validation failed: %w", err)
+	}
+	log.Info("workflow validation passed")
 
 	// Store uploaded files in memory map for job execution
 	uploadedFiles := make(map[string][]byte)

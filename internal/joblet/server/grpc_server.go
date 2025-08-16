@@ -8,6 +8,7 @@ import (
 	"joblet/internal/joblet/core/interfaces"
 	"joblet/internal/joblet/core/volume"
 	"joblet/internal/joblet/monitoring"
+	"joblet/internal/joblet/runtime"
 	"joblet/internal/joblet/workflow"
 	"joblet/pkg/config"
 	"joblet/pkg/logger"
@@ -82,9 +83,23 @@ func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet
 	auth := auth2.NewGrpcAuthorization()
 	serverLogger.Debug("authorization module initialized")
 
-	// Create workflow manager and unified job service
+	// Create runtime manager for workflow validation
+	var runtimeManager *runtime.Manager
+	var runtimeResolver *runtime.Resolver
+	if cfg.Runtime.Enabled {
+		serverLogger.Info("runtime support enabled for workflow validation", "basePath", cfg.Runtime.BasePath)
+		runtimeManager = runtime.NewManager(cfg.Runtime.BasePath, platform)
+		runtimeResolver = runtime.NewResolver(cfg.Runtime.BasePath, platform)
+	} else {
+		serverLogger.Info("runtime support disabled - workflow validation will use fallback")
+		// Create minimal runtime components for validation interface compliance
+		runtimeManager = runtime.NewManager("", platform)
+		runtimeResolver = runtime.NewResolver("", platform)
+	}
+
+	// Create workflow manager and unified job service with validation
 	workflowManager := workflow.NewWorkflowManager()
-	jobService := NewWorkflowServiceServer(auth, jobStore, joblet, workflowManager)
+	jobService := NewWorkflowServiceServer(auth, jobStore, joblet, workflowManager, volumeManager, runtimeManager, runtimeResolver)
 	pb.RegisterJobServiceServer(grpcServer, jobService)
 
 	// Create and register network service

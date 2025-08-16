@@ -157,7 +157,7 @@ esac
 echo ""
 info "📚 Next Steps:"
 info "  1. Test: ssh $USER@$HOST 'rnx run --runtime=python:3.11 python --version'"
-info "  2. Try template: ssh $USER@$HOST 'cd /opt/joblet/examples/python-analytics && rnx run --template=jobs.yaml:sales-analysis'"
+info "  2. Try template: ssh $USER@$HOST 'cd /opt/joblet/examples/python-analytics && rnx run --workflow=jobs.yaml:sales-analysis'"
 info "  3. Install packages: ssh $USER@$HOST 'rnx run --runtime=python:3.11 pip install requests'"
 info "  4. View runtime info: ssh $USER@$HOST 'rnx runtime info python:3.11'"
 echo ""

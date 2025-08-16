@@ -123,7 +123,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		network    string
 		volumes    []string
 		runtime    string
-		template   string
+		workflow   string
 	)
 
 	commandStartIndex := -1
@@ -133,14 +133,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 		arg := args[i]
 
 		if strings.HasPrefix(arg, "--workflow=") {
-			template = strings.TrimPrefix(arg, "--workflow=")
+			workflow = strings.TrimPrefix(arg, "--workflow=")
 		} else if arg == "--workflow" && i+1 < len(args) {
-			template = args[i+1]
-			i++ // Skip the next argument since we consumed it
-		} else if strings.HasPrefix(arg, "--template=") {
-			template = strings.TrimPrefix(arg, "--template=")
-		} else if arg == "--template" && i+1 < len(args) {
-			template = args[i+1]
+			workflow = args[i+1]
 			i++ // Skip the next argument since we consumed it
 		} else if strings.HasPrefix(arg, "--config=") {
 			common.ConfigPath = strings.TrimPrefix(arg, "--config=")
@@ -195,50 +190,50 @@ func runRun(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Handle template loading if provided
-	if template != "" {
-		// Parse template spec to separate file and selector
-		templateParts := strings.SplitN(template, ":", 2)
-		templateFile := templateParts[0]
-		var templateSelector string
-		if len(templateParts) > 1 {
-			templateSelector = templateParts[1]
+	// Handle workflow loading if provided
+	if workflow != "" {
+		// Parse workflow spec to separate file and selector
+		workflowParts := strings.SplitN(workflow, ":", 2)
+		workflowFile := workflowParts[0]
+		var workflowSelector string
+		if len(workflowParts) > 1 {
+			workflowSelector = workflowParts[1]
 		}
 
-		// First check if this is a workflow template and no job selector is provided
-		if templateSelector == "" {
-			mode, _, err := tryWorkflowDetection(templateFile)
+		// First check if this is a workflow file and no job selector is provided
+		if workflowSelector == "" {
+			mode, _, err := tryWorkflowDetection(workflowFile)
 			if err == nil && mode != templates.ModeSingleJob {
 				// This is a workflow - handle it differently
 				var cmdArgs []string
 				if commandStartIndex >= 0 && commandStartIndex < len(args) {
 					cmdArgs = args[commandStartIndex:]
 				}
-				return handleWorkflowExecution(templateFile, mode, "", cmdArgs)
+				return handleWorkflowExecution(workflowFile, mode, "", cmdArgs)
 			}
 		} else {
 			// If selector provided, check if it's a workflow selector in a multi-workflow template
-			config, err := templates.LoadWorkflowConfig(templateFile)
+			config, err := templates.LoadWorkflowConfig(workflowFile)
 			if err == nil && config.Workflows != nil && len(config.Workflows) > 0 {
 				// Check if selector refers to a workflow name
-				if _, exists := config.Workflows[templateSelector]; exists {
+				if _, exists := config.Workflows[workflowSelector]; exists {
 					var cmdArgs []string
 					if commandStartIndex >= 0 && commandStartIndex < len(args) {
 						cmdArgs = args[commandStartIndex:]
 					}
-					return handleWorkflowExecution(templateFile, templates.ModeNamedWorkflow, templateSelector, cmdArgs)
+					return handleWorkflowExecution(workflowFile, templates.ModeNamedWorkflow, workflowSelector, cmdArgs)
 				}
 				// If not a workflow name, let it fall through to regular job execution
 			}
 		}
 
-		// Continue with regular single job template handling
-		jobConfig, err := loadTemplateConfig(template)
+		// Continue with regular single job workflow handling
+		jobConfig, err := loadTemplateConfig(workflow)
 		if err != nil {
-			return fmt.Errorf("failed to load template: %w", err)
+			return fmt.Errorf("failed to load workflow: %w", err)
 		}
 
-		// Apply template configuration
+		// Apply workflow configuration
 		if jobConfig.Resources.MaxCPU > 0 && maxCPU == 0 {
 			maxCPU = int32(jobConfig.Resources.MaxCPU)
 		}
@@ -261,14 +256,14 @@ func runRun(cmd *cobra.Command, args []string) error {
 			schedule = jobConfig.Schedule
 		}
 
-		// Append volumes from template
+		// Append volumes from workflow
 		volumes = append(volumes, jobConfig.Volumes...)
 
-		// Append uploads from template
+		// Append uploads from workflow
 		uploads = append(uploads, jobConfig.Uploads.Files...)
 		uploadDirs = append(uploadDirs, jobConfig.Uploads.Directories...)
 
-		// If no command provided in args, use template command
+		// If no command provided in args, use workflow command
 		if commandStartIndex < 0 && jobConfig.Command != "" {
 			commandArgs := []string{jobConfig.Command}
 			commandArgs = append(commandArgs, jobConfig.Args...)
@@ -658,6 +653,13 @@ func tryWorkflowDetection(templateFile string) (templates.WorkflowExecutionMode,
 
 // handleWorkflowExecution handles workflow-based template execution
 func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecutionMode, selector string, commandArgs []string) error {
+	// Load client configuration for workflow execution
+	var err error
+	common.NodeConfig, err = pkgconfig.LoadClientConfig(common.ConfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to load client config for workflow: %w", err)
+	}
+
 	// Re-check the mode with the selector to determine actual execution path
 	config, err := templates.LoadWorkflowConfig(templateFile)
 	if err != nil {
@@ -673,7 +675,7 @@ func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecuti
 			}
 		}
 
-		return fmt.Errorf("workflow '%s' not found in template", selector)
+		return fmt.Errorf("workflow '%s' not found in file", selector)
 	}
 
 	// No selector provided
@@ -689,7 +691,7 @@ func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecuti
 			for name := range config.Workflows {
 				workflowNames = append(workflowNames, name)
 			}
-			return fmt.Errorf("multiple workflows found: %s. Please specify which to run with template:workflow-name", strings.Join(workflowNames, ", "))
+			return fmt.Errorf("multiple workflows found: %s. Please specify which to run with workflow-file:workflow-name", strings.Join(workflowNames, ", "))
 		}
 		return fmt.Errorf("unsupported workflow mode")
 	}
@@ -736,11 +738,11 @@ func executeWorkflow(templatePath string, workflowName string, commandArgs []str
 func executeParallelJobs(templatePath string, commandArgs []string) error {
 	config, err := templates.LoadWorkflowConfig(templatePath)
 	if err != nil {
-		return fmt.Errorf("failed to load template config: %w", err)
+		return fmt.Errorf("failed to load workflow config: %w", err)
 	}
 
 	if len(config.Jobs) == 0 {
-		return fmt.Errorf("no jobs found in template")
+		return fmt.Errorf("no jobs found in workflow")
 	}
 
 	// Execute parallel jobs as a workflow
@@ -758,6 +760,11 @@ func executeWorkflowViaService(templatePath string, workflowName string) error {
 	var workflow types.WorkflowYAML
 	if err := yaml.Unmarshal(yamlContent, &workflow); err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	// Validate workflow before submission
+	if err := validateWorkflowPreRequisites(workflow); err != nil {
+		return fmt.Errorf("workflow validation failed: %w", err)
 	}
 
 	// Extract and upload all files referenced in jobs
@@ -851,4 +858,343 @@ func extractWorkflowFiles(yamlPath string, workflow types.WorkflowYAML) ([]*pb.F
 	}
 
 	return uploads, nil
+}
+
+// validateWorkflowPreRequisites performs comprehensive validation of workflow before submission
+func validateWorkflowPreRequisites(workflow types.WorkflowYAML) error {
+	// Fail-fast validation - stop immediately on first error
+
+	// 1. Check for circular dependencies
+	if err := validateNonCircularDependencies(workflow); err != nil {
+		return fmt.Errorf("circular dependency detected: %w", err)
+	}
+
+	// 2. Validate all volumes exist
+	if err := validateVolumesExist(workflow); err != nil {
+		return fmt.Errorf("volume validation failed: %w", err)
+	}
+
+	// 3. Validate all networks exist
+	if err := validateNetworksExist(workflow); err != nil {
+		return fmt.Errorf("network validation failed: %w", err)
+	}
+
+	// 4. Validate all runtimes exist
+	if err := validateRuntimesExist(workflow); err != nil {
+		return fmt.Errorf("runtime validation failed: %w", err)
+	}
+
+	// 5. Validate job dependencies reference existing jobs
+	if err := validateJobDependencies(workflow); err != nil {
+		return fmt.Errorf("job dependency validation failed: %w", err)
+	}
+
+	// Only show success output if ALL validations pass
+	fmt.Println("🔍 Validating workflow prerequisites...")
+	fmt.Println("✅ No circular dependencies found")
+	fmt.Println("✅ All required volumes exist")
+	fmt.Println("✅ All required networks exist")
+	fmt.Println("✅ All required runtimes exist")
+	fmt.Println("✅ All job dependencies are valid")
+	fmt.Println("🎉 Workflow validation completed successfully!")
+	return nil
+}
+
+// validateNonCircularDependencies checks for circular dependencies using DFS
+func validateNonCircularDependencies(workflow types.WorkflowYAML) error {
+	// Build dependency graph
+	graph := make(map[string][]string)
+	for jobName, job := range workflow.Jobs {
+		graph[jobName] = []string{}
+		for _, req := range job.Requires {
+			// req is map[string]string, iterate through key-value pairs
+			for depJob := range req {
+				if depJob != "expression" { // Skip expression entries for now
+					graph[jobName] = append(graph[jobName], depJob)
+				}
+			}
+		}
+	}
+
+	// Use DFS to detect cycles
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+
+	var detectCycle func(string) error
+	detectCycle = func(node string) error {
+		visited[node] = true
+		recStack[node] = true
+
+		for _, dep := range graph[node] {
+			if !visited[dep] {
+				if err := detectCycle(dep); err != nil {
+					return err
+				}
+			} else if recStack[dep] {
+				return fmt.Errorf("circular dependency: %s -> %s", node, dep)
+			}
+		}
+
+		recStack[node] = false
+		return nil
+	}
+
+	for jobName := range workflow.Jobs {
+		if !visited[jobName] {
+			if err := detectCycle(jobName); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// extractJobNamesFromExpression parses dependency expressions to extract job names
+func extractJobNamesFromExpression(expr string) []string {
+	var jobNames []string
+	// Simple parsing - look for patterns like "job-name=STATUS" or "job-name IN (...)"
+	tokens := strings.Fields(expr)
+	for _, token := range tokens {
+		// Remove operators and status values
+		if strings.Contains(token, "=") {
+			parts := strings.Split(token, "=")
+			if len(parts) > 0 {
+				jobName := strings.TrimSpace(parts[0])
+				if jobName != "" && !isStatusOrOperator(jobName) {
+					jobNames = append(jobNames, jobName)
+				}
+			}
+		}
+	}
+	return jobNames
+}
+
+// isStatusOrOperator checks if a token is a status value or operator
+func isStatusOrOperator(token string) bool {
+	statuses := []string{"COMPLETED", "FAILED", "CANCELED", "STOPPED", "RUNNING", "PENDING", "SCHEDULED"}
+	operators := []string{"AND", "OR", "NOT", "IN", "NOT_IN", "&&", "||", "!"}
+
+	for _, status := range statuses {
+		if token == status {
+			return true
+		}
+	}
+	for _, op := range operators {
+		if token == op {
+			return true
+		}
+	}
+	return false
+}
+
+// validateVolumesExist checks that all referenced volumes exist
+func validateVolumesExist(workflow types.WorkflowYAML) error {
+	requiredVolumes := make(map[string]bool)
+
+	// Collect all volumes referenced in jobs
+	for _, job := range workflow.Jobs {
+		for _, volume := range job.Volumes {
+			requiredVolumes[volume] = true
+		}
+	}
+
+	if len(requiredVolumes) == 0 {
+		return nil // No volumes required
+	}
+
+	// Get existing volumes from server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	volumeClient := pb.NewVolumeServiceClient(client.GetConn())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	listRes, err := volumeClient.ListVolumes(ctx, &pb.EmptyRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to list volumes: %w", err)
+	}
+
+	existingVolumes := make(map[string]bool)
+	for _, volume := range listRes.Volumes {
+		existingVolumes[volume.Name] = true
+	}
+
+	// Check if all required volumes exist
+	var missingVolumes []string
+	for volume := range requiredVolumes {
+		if !existingVolumes[volume] {
+			missingVolumes = append(missingVolumes, volume)
+		}
+	}
+
+	if len(missingVolumes) > 0 {
+		return fmt.Errorf("missing volumes: %v", missingVolumes)
+	}
+
+	return nil
+}
+
+// validateNetworksExist checks that all referenced networks exist
+func validateNetworksExist(workflow types.WorkflowYAML) error {
+	requiredNetworks := make(map[string]bool)
+
+	// Collect all networks referenced in jobs
+	for _, job := range workflow.Jobs {
+		if job.Network != "" {
+			requiredNetworks[job.Network] = true
+		}
+	}
+
+	if len(requiredNetworks) == 0 {
+		return nil // No custom networks required
+	}
+
+	// Get available networks from server
+	availableNetworks := make(map[string]bool)
+
+	// Built-in networks are always available
+	builtinNetworks := []string{"none", "isolated", "bridge"}
+	for _, network := range builtinNetworks {
+		availableNetworks[network] = true
+	}
+
+	// Try to get custom networks from server
+	jobClient, err := common.NewJobClient()
+	if err != nil {
+		// If we can't connect to server, just validate against built-in networks
+		fmt.Printf("⚠️  Could not connect to server for network validation: %v\n", err)
+	} else {
+		defer jobClient.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		resp, err := jobClient.ListNetworks(ctx)
+		if err != nil {
+			fmt.Printf("⚠️  Could not fetch custom networks: %v\n", err)
+		} else {
+			// Add custom networks to available list
+			for _, network := range resp.Networks {
+				availableNetworks[network.Name] = true
+			}
+		}
+	}
+
+	// Check each required network exists
+	var missingNetworks []string
+	for networkName := range requiredNetworks {
+		if !availableNetworks[networkName] {
+			missingNetworks = append(missingNetworks, networkName)
+		}
+	}
+
+	if len(missingNetworks) > 0 {
+		return fmt.Errorf("missing networks: %v. Available networks: %v",
+			missingNetworks, getNetworkNames(availableNetworks))
+	}
+
+	return nil
+}
+
+// getNetworkNames extracts network names from a map for display
+func getNetworkNames(networks map[string]bool) []string {
+	var names []string
+	for name := range networks {
+		names = append(names, name)
+	}
+	return names
+}
+
+// validateRuntimesExist checks that all referenced runtimes exist
+func validateRuntimesExist(workflow types.WorkflowYAML) error {
+	requiredRuntimes := make(map[string]bool)
+
+	// Collect all runtimes referenced in jobs
+	for _, job := range workflow.Jobs {
+		if job.Runtime != "" {
+			requiredRuntimes[job.Runtime] = true
+		}
+	}
+
+	if len(requiredRuntimes) == 0 {
+		return nil // No custom runtimes required
+	}
+
+	// Get existing runtimes from server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	runtimeClient := pb.NewRuntimeServiceClient(client.GetConn())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	listRes, err := runtimeClient.ListRuntimes(ctx, &pb.EmptyRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to list runtimes: %w", err)
+	}
+
+	existingRuntimes := make(map[string]bool)
+	for _, runtime := range listRes.Runtimes {
+		// Store both original name and normalized name (colon format)
+		existingRuntimes[runtime.Name] = true
+		// Convert hyphen format to colon format (python-3.11-ml -> python:3.11-ml)
+		normalizedName := strings.Replace(runtime.Name, "-", ":", 1)
+		existingRuntimes[normalizedName] = true
+	}
+
+	// Check if all required runtimes exist
+	var missingRuntimes []string
+	for runtime := range requiredRuntimes {
+		if !existingRuntimes[runtime] {
+			missingRuntimes = append(missingRuntimes, runtime)
+		}
+	}
+
+	if len(missingRuntimes) > 0 {
+		return fmt.Errorf("missing runtimes: %v", missingRuntimes)
+	}
+
+	return nil
+}
+
+// validateJobDependencies checks that all job dependencies reference existing jobs
+func validateJobDependencies(workflow types.WorkflowYAML) error {
+	// Get all job names
+	allJobs := make(map[string]bool)
+	for jobName := range workflow.Jobs {
+		allJobs[jobName] = true
+	}
+
+	// Check dependencies
+	for jobName, job := range workflow.Jobs {
+		for _, req := range job.Requires {
+			// req is map[string]string, iterate through key-value pairs
+			for depJob, status := range req {
+				if depJob == "expression" {
+					// Handle expression-based dependencies
+					deps := extractJobNamesFromExpression(status)
+					for _, dep := range deps {
+						if !allJobs[dep] {
+							return fmt.Errorf("job '%s' has expression dependency on non-existent job '%s'", jobName, dep)
+						}
+					}
+				} else {
+					// Handle direct job dependencies
+					if !allJobs[depJob] {
+						return fmt.Errorf("job '%s' depends on non-existent job '%s'", jobName, depJob)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

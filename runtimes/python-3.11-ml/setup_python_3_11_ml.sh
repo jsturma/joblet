@@ -441,7 +441,7 @@ show_installation_summary() {
     echo ""
     echo "📚 Example usage:"
     echo "   cd /opt/joblet/examples/python-3.11-ml"
-    echo "   rnx run --template=jobs.yaml:ml-analysis"
+    echo "   rnx run --workflow=jobs.yaml:ml-analysis"
     echo ""
     
     if [[ $ML_SUPPORT == "limited" ]]; then

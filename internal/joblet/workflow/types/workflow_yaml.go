@@ -33,6 +33,8 @@ type JobSpec struct {
 	Args []string `yaml:"args"`
 	// Runtime specifies the execution environment (e.g., "python:3.11-ml")
 	Runtime string `yaml:"runtime"`
+	// Network specifies the network for job isolation (e.g., "bridge", "isolated", "none", "custom-network")
+	Network string `yaml:"network"`
 	// Uploads defines files to be uploaded to the job's workspace
 	Uploads *JobUploads `yaml:"uploads"`
 	// Volumes lists the volumes to mount for data persistence

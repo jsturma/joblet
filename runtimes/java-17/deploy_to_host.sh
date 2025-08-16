@@ -126,6 +126,6 @@ esac
 echo ""
 info "📚 Next Steps:"
 info "  1. Test: ssh $USER@$HOST 'rnx run --runtime=java:17 java --version'"
-info "  2. Try template: ssh $USER@$HOST 'cd /opt/joblet/examples/java-17 && rnx run --template=jobs.yaml:hello-joblet'"
+info "  2. Try template: ssh $USER@$HOST 'cd /opt/joblet/examples/java-17 && rnx run --workflow=jobs.yaml:hello-joblet'"
 info "  3. View runtime info: ssh $USER@$HOST 'rnx runtime info java:17'"
 echo ""

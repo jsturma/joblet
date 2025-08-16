@@ -214,7 +214,7 @@ EOF
     echo ""
     echo "📚 Example usage:"
     echo "   cd /opt/joblet/examples/python-analytics"
-    echo "   rnx run --template=jobs.yaml:sales-analysis"
+    echo "   rnx run --workflow=jobs.yaml:sales-analysis"
     echo ""
 }
 
