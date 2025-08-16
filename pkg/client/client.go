@@ -15,7 +15,7 @@ import (
 )
 
 type JobClient struct {
-	jobClient        pb.JobletServiceClient
+	jobClient        pb.JobServiceClient
 	networkClient    pb.NetworkServiceClient
 	volumeClient     pb.VolumeServiceClient
 	monitoringClient pb.MonitoringServiceClient
@@ -47,7 +47,7 @@ func NewJobClient(node *config.Node) (*JobClient, error) {
 	}
 
 	return &JobClient{
-		jobClient:        pb.NewJobletServiceClient(conn),
+		jobClient:        pb.NewJobServiceClient(conn),
 		networkClient:    pb.NewNetworkServiceClient(conn),
 		volumeClient:     pb.NewVolumeServiceClient(conn),
 		monitoringClient: pb.NewMonitoringServiceClient(conn),
@@ -67,7 +67,7 @@ func (c *JobClient) GetConn() *grpc.ClientConn {
 	return c.conn
 }
 
-func (c *JobClient) RunJob(ctx context.Context, job *pb.RunJobReq) (*pb.RunJobRes, error) {
+func (c *JobClient) RunJob(ctx context.Context, job *pb.RunJobRequest) (*pb.RunJobResponse, error) {
 	return c.jobClient.RunJob(ctx, job)
 }
 
@@ -95,7 +95,7 @@ func (c *JobClient) ListJobs(ctx context.Context) (*pb.Jobs, error) {
 	return c.jobClient.ListJobs(ctx, &pb.EmptyRequest{})
 }
 
-func (c *JobClient) GetJobLogs(ctx context.Context, id string) (pb.JobletService_GetJobLogsClient, error) {
+func (c *JobClient) GetJobLogs(ctx context.Context, id string) (pb.JobService_GetJobLogsClient, error) {
 	stream, err := c.jobClient.GetJobLogs(ctx, &pb.GetJobLogsReq{Id: id})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start log stream: %v", err)

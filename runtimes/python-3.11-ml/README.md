@@ -215,11 +215,11 @@ rnx run --runtime=python:3.11-ml --upload=ml_classification_demo.py python ml_cl
 ### Template-Based Usage
 
 ```bash
-# Use YAML templates for ML workflows (if available)
+# Use YAML Workflows for ML workflows (if available)
 cd /opt/joblet/examples/python-3.11-ml
-rnx run --template=jobs.yaml:ml-analysis
-rnx run --template=jobs.yaml:data-visualization
-rnx run --template=jobs.yaml:model-training
+rnx run --workflow=jobs.yaml:ml-analysis
+rnx run --workflow=jobs.yaml:data-visualization
+rnx run --workflow=jobs.yaml:model-training
 ```
 
 ## ⚡ Architecture-Specific Performance

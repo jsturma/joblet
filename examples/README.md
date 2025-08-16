@@ -5,10 +5,10 @@ coordination patterns.
 
 ## ⚡ Recent Improvements
 
-### 🎯 YAML Template System
+### 🎯 YAML Workflow System
 
 Each example directory now includes a `jobs.yaml` file that defines multiple job configurations. Instead of complex
-multi-flag commands, you can run jobs with simple template references:
+multi-flag commands, you can run jobs with simple workflow references:
 
 **Before (Complex):**
 
@@ -19,7 +19,7 @@ rnx run --runtime=python:3.11-ml --upload=script.py --volume=data --volume=resul
 **After (Simple):**
 
 ```bash
-rnx run --template=jobs.yaml:ml-analysis
+rnx run --workflow=jobs.yaml:ml-analysis
 ```
 
 **Template Benefits:**
@@ -101,24 +101,24 @@ rnx run --template=jobs.yaml:ml-analysis
 
 ## 🚀 Quick Start
 
-### 🎯 YAML Templates (NEW - Recommended)
+### 🎯 YAML Workflows (NEW - Recommended)
 
-All examples now support YAML templates for simplified job execution:
+All examples now support YAML Workflows for simplified job execution:
 
 ```bash
-# Run examples using YAML templates (simple one-liner)
+# Run examples using YAML Workflows (simple one-liner)
 cd python-3.11-ml/
-rnx run --template=jobs.yaml:ml-analysis      # Data analysis with pre-installed ML libs
+rnx run --workflow=jobs.yaml:ml-analysis      # Data analysis with pre-installed ML libs
 
 cd ../java-17/
-rnx run --template=jobs.yaml:hello-joblet     # Compile and run Java application
+rnx run --workflow=jobs.yaml:hello-joblet     # Compile and run Java application
 
 cd ../basic-usage/
-rnx run --template=jobs.yaml:hello-world      # Basic hello world
-rnx run --template=jobs.yaml:file-ops         # File operations demo
+rnx run --workflow=jobs.yaml:hello-world      # Basic hello world
+rnx run --workflow=jobs.yaml:file-ops         # File operations demo
 
 cd ../python-analytics/
-rnx run --template=jobs.yaml:sales-analysis   # Sales data analysis
+rnx run --workflow=jobs.yaml:sales-analysis   # Sales data analysis
 ```
 
 ### 🏃‍♂️ Traditional Method

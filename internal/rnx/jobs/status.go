@@ -242,7 +242,7 @@ func getWorkflowStatus(workflowID int) error {
 	if len(res.Jobs) > 0 {
 		fmt.Printf("\nJobs:\n")
 		for _, job := range res.Jobs {
-			fmt.Printf("  - %s: %s\n", job.Name, job.Status)
+			fmt.Printf("  - %s: %s\n", job.JobId, job.Status)
 			if len(job.Dependencies) > 0 {
 				fmt.Printf("    Dependencies: %v\n", job.Dependencies)
 			}
@@ -272,7 +272,7 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 	// Add job details
 	for _, job := range res.Jobs {
 		jobData := map[string]interface{}{
-			"name":   job.Name,
+			"name":   job.JobId,
 			"status": job.Status,
 		}
 		if len(job.Dependencies) > 0 {

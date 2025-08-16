@@ -16,17 +16,17 @@ dependencies. All examples use only Python 3's standard library.
 
 ## 🚀 Quick Start
 
-### Using YAML Templates (NEW - Recommended)
+### Using YAML Workflows (NEW - Recommended)
 
 ```bash
-# Run specific analytics examples using the template
-rnx run --template=jobs.yaml:sales-analysis        # Sales data statistical analysis
-rnx run --template=jobs.yaml:customer-segmentation # K-means clustering from scratch
-rnx run --template=jobs.yaml:time-series          # Time series data processing
-rnx run --template=jobs.yaml:complete-analytics   # Full analytics pipeline
+# Run specific analytics examples using the workflow
+rnx run --workflow=jobs.yaml:sales-analysis        # Sales data statistical analysis
+rnx run --workflow=jobs.yaml:customer-segmentation # K-means clustering from scratch
+rnx run --workflow=jobs.yaml:time-series          # Time series data processing
+rnx run --workflow=jobs.yaml:complete-analytics   # Full analytics pipeline
 
 # Setup volumes first (handled automatically by templates)
-rnx run --template=jobs.yaml:setup-volumes
+rnx run --workflow=jobs.yaml:setup-volumes
 ```
 
 ### Traditional Method

@@ -18,16 +18,16 @@ cutting-edge Java features.
 
 ## 🚀 Quick Start
 
-### Using YAML Templates (NEW - Recommended)
+### Using YAML Workflows (NEW - Recommended)
 
 ```bash
-# Run specific Java 21 example using the template
-rnx run --template=jobs.yaml:virtual-threads      # Virtual threads demo
-rnx run --template=jobs.yaml:java21-features      # Java 21 language features
-rnx run --template=jobs.yaml:virtual-server       # HTTP server with virtual threads
-rnx run --template=jobs.yaml:thread-comparison    # Platform vs Virtual threads comparison
-rnx run --template=jobs.yaml:structured-concurrency  # Structured concurrency patterns
-rnx run --template=jobs.yaml:graalvm-ready        # GraalVM-optimized application
+# Run specific Java 21 example using the workflow
+rnx run --workflow=jobs.yaml:virtual-threads      # Virtual threads demo
+rnx run --workflow=jobs.yaml:java21-features      # Java 21 language features
+rnx run --workflow=jobs.yaml:virtual-server       # HTTP server with virtual threads
+rnx run --workflow=jobs.yaml:thread-comparison    # Platform vs Virtual threads comparison
+rnx run --workflow=jobs.yaml:structured-concurrency  # Structured concurrency patterns
+rnx run --workflow=jobs.yaml:graalvm-ready        # GraalVM-optimized application
 ```
 
 ### Prerequisites

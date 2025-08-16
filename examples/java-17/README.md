@@ -12,16 +12,16 @@ Enterprise Java development with the `java:17` runtime environment - instant com
 
 ## 🚀 Quick Start
 
-### Using YAML Templates (NEW - Recommended)
+### Using YAML Workflows (NEW - Recommended)
 
 ```bash
-# Run specific Java 17 example using the template
-rnx run --template=jobs.yaml:hello-joblet      # Compile and run HelloJoblet
-rnx run --template=jobs.yaml:optimized-jvm     # Run with JVM optimization
-rnx run --template=jobs.yaml:java17-features   # Demonstrate Java 17 features
-rnx run --template=jobs.yaml:jar-package       # Package as JAR and run
-rnx run --template=jobs.yaml:performance-test  # Performance testing
-rnx run --template=jobs.yaml:data-persistence  # Persistent storage example
+# Run specific Java 17 example using the workflow
+rnx run --workflow=jobs.yaml:hello-joblet      # Compile and run HelloJoblet
+rnx run --workflow=jobs.yaml:optimized-jvm     # Run with JVM optimization
+rnx run --workflow=jobs.yaml:java17-features   # Demonstrate Java 17 features
+rnx run --workflow=jobs.yaml:jar-package       # Package as JAR and run
+rnx run --workflow=jobs.yaml:performance-test  # Performance testing
+rnx run --workflow=jobs.yaml:data-persistence  # Persistent storage example
 ```
 
 ### Prerequisites

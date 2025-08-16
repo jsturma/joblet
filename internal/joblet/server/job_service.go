@@ -18,7 +18,7 @@ import (
 
 // JobServiceServer uses the new request object pattern and improved interfaces
 type JobServiceServer struct {
-	pb.UnimplementedJobletServiceServer
+	pb.UnimplementedJobServiceServer
 	auth     auth2.GrpcAuthorization
 	jobStore adapters.JobStoreAdapter // Uses the new adapter interface
 	joblet   interfaces.Joblet        // Uses the new interface
@@ -36,7 +36,7 @@ func NewJobServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.JobStor
 }
 
 // RunJob implements the gRPC service using the new request object pattern
-func (s *JobServiceServer) RunJob(ctx context.Context, req *pb.RunJobReq) (*pb.RunJobRes, error) {
+func (s *JobServiceServer) RunJob(ctx context.Context, req *pb.RunJobRequest) (*pb.RunJobResponse, error) {
 	log := s.logger.WithFields(
 		"operation", "RunJob",
 		"command", req.Command,
@@ -173,7 +173,7 @@ func (s *JobServiceServer) GetJobStatus(ctx context.Context, req *pb.GetJobStatu
 }
 
 // convertToJobRequest converts protobuf request to domain request object
-func (s *JobServiceServer) convertToJobRequest(req *pb.RunJobReq) (*interfaces.StartJobRequest, error) {
+func (s *JobServiceServer) convertToJobRequest(req *pb.RunJobRequest) (*interfaces.StartJobRequest, error) {
 	// Validate required fields
 	if req.Command == "" {
 		return nil, fmt.Errorf("command is required")
@@ -211,9 +211,9 @@ func (s *JobServiceServer) convertToJobRequest(req *pb.RunJobReq) (*interfaces.S
 		Command: req.Command,
 		Args:    req.Args,
 		Resources: interfaces.ResourceLimits{
-			MaxCPU:    req.MaxCPU,
+			MaxCPU:    req.MaxCpu,
 			MaxMemory: req.MaxMemory,
-			MaxIOBPS:  req.MaxIOBPS,
+			MaxIOBPS:  req.MaxIobps,
 			CPUCores:  req.CpuCores,
 		},
 		Uploads:  domainUploads,
@@ -393,7 +393,7 @@ func (s *JobServiceServer) ListJobs(ctx context.Context, req *pb.EmptyRequest) (
 }
 
 // GetJobLogs streams job logs to the client
-func (s *JobServiceServer) GetJobLogs(req *pb.GetJobLogsReq, stream pb.JobletService_GetJobLogsServer) error {
+func (s *JobServiceServer) GetJobLogs(req *pb.GetJobLogsReq, stream pb.JobService_GetJobLogsServer) error {
 	log := s.logger.WithFields("operation", "GetJobLogs", "jobId", req.GetId())
 	log.Debug("get job logs request received")
 
@@ -421,7 +421,7 @@ func (s *JobServiceServer) GetJobLogs(req *pb.GetJobLogsReq, stream pb.JobletSer
 
 // grpcToDomainStreamer adapts gRPC stream to domain streamer interface
 type grpcToDomainStreamer struct {
-	stream pb.JobletService_GetJobLogsServer
+	stream pb.JobService_GetJobLogsServer
 }
 
 func (g *grpcToDomainStreamer) SendData(data []byte) error {

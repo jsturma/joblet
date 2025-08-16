@@ -1,28 +1,28 @@
-# Joblet YAML Templates
+# Joblet YAML Workflows
 
-This directory contains example YAML template files for running jobs with Joblet using the `--template` flag.
+This directory contains example YAML Workflow files for running jobs with Joblet using the `--workflow` flag.
 
 ## Usage
 
-Run a job using a template:
+Run a job using a workflow:
 
 ```bash
-# Run a specific job from a template file
-rnx run --template=basic-jobs.yaml:analytics
+# Run a specific job from a workflow file
+rnx run --workflow=basic-jobs.yaml:analytics
 
-# If the template has only one job, you can omit the job name
-rnx run --template=single-job.yaml
+# If the workflow has only one job, you can omit the job name
+rnx run --workflow=single-job.yaml
 
-# Override template settings with command-line flags
-rnx run --template=basic-jobs.yaml:webserver --max-memory=256 --network=custom
+# Override workflow settings with command-line flags
+rnx run --workflow=basic-jobs.yaml:webserver --max-memory=256 --network=custom
 
 # Pass additional arguments to the command
-rnx run --template=ml-pipeline.yaml:train -- --epochs=200 --batch-size=64
+rnx run --workflow=ml-pipeline.yaml:train -- --epochs=200 --batch-size=64
 ```
 
 ## Template Structure
 
-Each YAML template file follows this structure:
+Each YAML Workflow file follows this structure:
 
 ```yaml
 version: "1.0"
@@ -107,11 +107,11 @@ Data processing and ETL jobs:
 - `sync` - Data synchronization
 - `cleanup` - Cleanup old files and logs
 
-## Creating Your Own Templates
+## Creating Your Own Workflows
 
 1. Create a new YAML file following the structure above
 2. Define your jobs with appropriate resource limits
-3. Use the template with: `rnx run --template=your-template.yaml:job-name`
+3. Use the workflow with: `rnx run --workflow=your-workflow.yaml:job-name`
 
 ## Best Practices
 
@@ -183,17 +183,17 @@ jobs:
 
 ```bash
 # Run Python analytics job
-rnx run --template=basic-jobs.yaml:analytics
+rnx run --workflow=basic-jobs.yaml:analytics
 
 # Run ML training with custom epochs
-rnx run --template=ml-pipeline.yaml:train -- --epochs=200
+rnx run --workflow=ml-pipeline.yaml:train -- --epochs=200
 
 # Run Java service with override
-rnx run --template=java-services.yaml:api-gateway --max-memory=1024
+rnx run --workflow=java-services.yaml:api-gateway --max-memory=1024
 
 # Run scheduled ETL pipeline
-rnx run --template=data-pipeline.yaml:etl
+rnx run --workflow=data-pipeline.yaml:etl
 
 # Run cleanup job immediately (override schedule)
-rnx run --template=data-pipeline.yaml:cleanup --schedule=""
+rnx run --workflow=data-pipeline.yaml:cleanup --schedule=""
 ```

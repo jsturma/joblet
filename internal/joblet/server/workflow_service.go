@@ -13,6 +13,7 @@ import (
 	auth2 "joblet/internal/joblet/auth"
 	"joblet/internal/joblet/core/interfaces"
 	"joblet/internal/joblet/domain"
+	"joblet/internal/joblet/mappers"
 	"joblet/internal/joblet/workflow"
 	"joblet/internal/joblet/workflow/types"
 	"joblet/pkg/logger"
@@ -59,18 +60,18 @@ func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.Jo
 	}
 }
 
-// CreateWorkflow handles gRPC requests to create and execute workflows.
+// RunWorkflow handles gRPC requests to execute template-based jobs and workflows.
 // Supports both template-based workflows and client-uploaded YAML content.
 // For client uploads, automatically processes uploaded files and starts orchestration.
-// Returns the workflow ID for monitoring progress and status.
-func (s *WorkflowServiceServer) CreateWorkflow(ctx context.Context, req *pb.CreateWorkflowRequest) (*pb.CreateWorkflowResponse, error) {
+// Returns the workflow ID and status for monitoring progress.
+func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWorkflowRequest) (*pb.RunWorkflowResponse, error) {
 	log := s.logger.WithFields(
-		"operation", "CreateWorkflow",
+		"operation", "RunWorkflow",
 		"name", req.Name,
 		"template", req.Template,
 		"totalJobs", req.TotalJobs,
 	)
-	log.Debug("create workflow request received")
+	log.Debug("run job template request received")
 
 	if err := s.auth.Authorized(ctx, auth2.RunJobOp); err != nil {
 		log.Warn("authorization failed", "error", err)
@@ -84,15 +85,16 @@ func (s *WorkflowServiceServer) CreateWorkflow(ctx context.Context, req *pb.Crea
 	// Check if we have YAML content (client-side upload) or just a template path
 	if req.YamlContent != "" {
 		log.Info("detected client-side YAML content, starting workflow orchestration with uploaded files")
-		workflowID, err := s.StartWorkflowOrchestrationWithContent(ctx, req.YamlContent, req.WorkflowFiles)
+		workflowID, err := s.StartWorkflowOrchestrationWithContent(ctx, req.YamlContent, req.TemplateFiles)
 		if err != nil {
 			log.Error("failed to start workflow orchestration with content", "error", err)
 			return nil, status.Errorf(codes.Internal, "failed to start workflow orchestration: %v", err)
 		}
 
 		log.Info("workflow orchestration started successfully with uploaded content", "workflowId", workflowID)
-		return &pb.CreateWorkflowResponse{
+		return &pb.RunWorkflowResponse{
 			WorkflowId: int32(workflowID),
+			Status:     "STARTED",
 		}, nil
 	}
 
@@ -106,8 +108,9 @@ func (s *WorkflowServiceServer) CreateWorkflow(ctx context.Context, req *pb.Crea
 		}
 
 		log.Info("workflow orchestration started successfully", "workflowId", workflowID)
-		return &pb.CreateWorkflowResponse{
+		return &pb.RunWorkflowResponse{
 			WorkflowId: int32(workflowID),
+			Status:     "STARTED",
 		}, nil
 	}
 
@@ -119,8 +122,9 @@ func (s *WorkflowServiceServer) CreateWorkflow(ctx context.Context, req *pb.Crea
 	}
 
 	log.Info("workflow created successfully", "workflowId", workflowID)
-	return &pb.CreateWorkflowResponse{
+	return &pb.RunWorkflowResponse{
 		WorkflowId: int32(workflowID),
+		Status:     "STARTED",
 	}, nil
 }
 
@@ -200,34 +204,12 @@ func (s *WorkflowServiceServer) GetWorkflowJobs(ctx context.Context, req *pb.Get
 	}, nil
 }
 
-func (s *WorkflowServiceServer) CancelWorkflow(ctx context.Context, req *pb.CancelWorkflowRequest) (*pb.CancelWorkflowResponse, error) {
-	log := s.logger.WithFields("operation", "CancelWorkflow", "workflowId", req.WorkflowId)
-	log.Debug("cancel workflow request received")
-
-	if err := s.auth.Authorized(ctx, auth2.StopJobOp); err != nil {
-		log.Warn("authorization failed", "error", err)
-		return nil, err
-	}
-
-	err := s.workflowManager.CancelWorkflow(int(req.WorkflowId))
-	if err != nil {
-		log.Error("failed to cancel workflow", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to cancel workflow: %v", err)
-	}
-
-	log.Info("workflow canceled successfully", "workflowId", req.WorkflowId)
-	return &pb.CancelWorkflowResponse{
-		Success: true,
-		Message: "Workflow canceled successfully",
-	}, nil
-}
-
 func (s *WorkflowServiceServer) RunJob(ctx context.Context, req *pb.RunJobRequest) (*pb.RunJobResponse, error) {
 	log := s.logger.WithFields(
 		"operation", "RunJob",
 		"command", req.Command,
 		"workflowId", req.WorkflowId,
-		"jobName", req.JobName,
+		"jobId", req.JobId,
 	)
 	log.Debug("run job request received for workflow")
 
@@ -246,13 +228,13 @@ func (s *WorkflowServiceServer) RunJob(ctx context.Context, req *pb.RunJobReques
 		readyJobs := s.workflowManager.GetReadyJobs(int(req.WorkflowId))
 		canRun := false
 		for _, readyJobID := range readyJobs {
-			if readyJobID == req.JobName {
+			if readyJobID == req.JobId {
 				canRun = true
 				break
 			}
 		}
-		if !canRun && req.JobName != "" {
-			log.Warn("job not ready to run due to dependencies", "jobName", req.JobName)
+		if !canRun && req.JobId != "" {
+			log.Warn("job not ready to run due to dependencies", "jobId", req.JobId)
 			return &pb.RunJobResponse{
 				JobId:  "",
 				Status: "WAITING",
@@ -344,12 +326,11 @@ func (s *WorkflowServiceServer) convertJobDependenciesToWorkflowJobs(jobs map[st
 	for jobID, jobDep := range jobs {
 		wfJob := &pb.WorkflowJob{
 			JobId:  jobID,
-			Name:   jobID,
 			Status: string(jobDep.Status),
 		}
 
 		for _, req := range jobDep.Requirements {
-			wfJob.Dependencies = append(wfJob.Dependencies, req.JobName)
+			wfJob.Dependencies = append(wfJob.Dependencies, req.JobId)
 		}
 
 		workflowJobs = append(workflowJobs, wfJob)
@@ -394,9 +375,9 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, 
 		var requirements []workflow.Requirement
 		for depJob, status := range dependencies {
 			requirements = append(requirements, workflow.Requirement{
-				Type:    workflow.RequirementSimple,
-				JobName: depJob,
-				Status:  status,
+				Type:   workflow.RequirementSimple,
+				JobId:  depJob,
+				Status: status,
 			})
 		}
 		jobs[jobName] = &workflow.JobDependency{
@@ -484,7 +465,7 @@ func (s *WorkflowServiceServer) executeWorkflowJob(ctx context.Context, workflow
 			} else {
 				// For server-side workflows, we can't read files without knowing the path
 				// This is a limitation - server-side workflows should use client-side upload
-				return fmt.Errorf("server-side workflow file reading not supported. Use 'rnx workflow run' with client-side file upload")
+				return fmt.Errorf("server-side workflow file reading not supported. Use 'rnx run --template' with client-side file upload")
 			}
 			uploads = append(uploads, domain.FileUpload{
 				Path:    file,
@@ -613,9 +594,9 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 		var requirements []workflow.Requirement
 		for depJob, status := range dependencies {
 			requirements = append(requirements, workflow.Requirement{
-				Type:    workflow.RequirementSimple,
-				JobName: depJob,
-				Status:  status,
+				Type:   workflow.RequirementSimple,
+				JobId:  depJob,
+				Status: status,
 			})
 		}
 
@@ -720,4 +701,150 @@ func (s *WorkflowServiceServer) autoCreateWorkflowVolumes(workflowYAML *Workflow
 	}
 
 	return nil
+}
+
+// ListJobs implements the JobService interface
+func (s *WorkflowServiceServer) ListJobs(ctx context.Context, req *pb.EmptyRequest) (*pb.Jobs, error) {
+	log := s.logger.WithField("operation", "ListJobs")
+	log.Debug("list jobs request received")
+
+	// Authorization check
+	if err := s.auth.Authorized(ctx, auth2.GetJobOp); err != nil {
+		log.Warn("authorization failed", "error", err)
+		return nil, err
+	}
+
+	// Get all jobs from store
+	jobs := s.jobStore.ListJobs()
+
+	// Convert to protobuf
+	mapper := mappers.NewJobMapper()
+	pbJobs := make([]*pb.Job, len(jobs))
+	for i, job := range jobs {
+		pbJobs[i] = mapper.DomainToProtobuf(job)
+	}
+
+	log.Debug("jobs retrieved successfully", "count", len(jobs))
+	return &pb.Jobs{Jobs: pbJobs}, nil
+}
+
+// GetJobStatus implements the JobService interface
+func (s *WorkflowServiceServer) GetJobStatus(ctx context.Context, req *pb.GetJobStatusReq) (*pb.GetJobStatusRes, error) {
+	log := s.logger.WithFields("operation", "GetJobStatus", "jobId", req.GetId())
+	log.Debug("get job status request received")
+
+	// Authorization check
+	if err := s.auth.Authorized(ctx, auth2.GetJobOp); err != nil {
+		log.Warn("authorization failed", "error", err)
+		return nil, err
+	}
+
+	// Retrieve job from store
+	job, exists := s.jobStore.GetJob(req.GetId())
+	if !exists {
+		log.Error("job not found", "jobId", req.GetId())
+		return nil, status.Errorf(codes.NotFound, "job %s not found", req.GetId())
+	}
+
+	// Convert to protobuf using mapper
+	mapper := mappers.NewJobMapper()
+	pbJob := mapper.DomainToProtobuf(job)
+
+	log.Debug("job status retrieved successfully", "status", job.Status)
+	return &pb.GetJobStatusRes{
+		Id:            pbJob.Id,
+		Command:       pbJob.Command,
+		Args:          pbJob.Args,
+		MaxCPU:        pbJob.MaxCPU,
+		CpuCores:      pbJob.CpuCores,
+		MaxMemory:     pbJob.MaxMemory,
+		MaxIOBPS:      pbJob.MaxIOBPS,
+		Status:        pbJob.Status,
+		StartTime:     pbJob.StartTime,
+		EndTime:       pbJob.EndTime,
+		ExitCode:      pbJob.ExitCode,
+		ScheduledTime: pbJob.ScheduledTime,
+	}, nil
+}
+
+// StopJob implements the JobService interface
+func (s *WorkflowServiceServer) StopJob(ctx context.Context, req *pb.StopJobReq) (*pb.StopJobRes, error) {
+	log := s.logger.WithFields("operation", "StopJob", "jobId", req.GetId())
+	log.Debug("stop job request received")
+
+	// Authorization check
+	if err := s.auth.Authorized(ctx, auth2.StopJobOp); err != nil {
+		log.Warn("authorization failed", "error", err)
+		return nil, err
+	}
+
+	// Create stop request object
+	stopRequest := interfaces.StopJobRequest{
+		JobID: req.GetId(),
+	}
+
+	log.Info("stopping job", "jobId", stopRequest.JobID)
+
+	// Use the joblet interface to stop the job
+	err := s.joblet.StopJob(ctx, stopRequest)
+	if err != nil {
+		log.Error("job stop failed", "error", err)
+		return nil, status.Errorf(codes.Internal, "job stop failed: %v", err)
+	}
+
+	log.Info("job stopped successfully", "jobId", stopRequest.JobID)
+
+	return &pb.StopJobRes{
+		Id: stopRequest.JobID,
+	}, nil
+}
+
+// GetJobLogs implements the JobService interface
+func (s *WorkflowServiceServer) GetJobLogs(req *pb.GetJobLogsReq, stream pb.JobService_GetJobLogsServer) error {
+	log := s.logger.WithFields("operation", "GetJobLogs", "jobId", req.GetId())
+	log.Debug("get job logs request received")
+
+	// Authorization check
+	if err := s.auth.Authorized(stream.Context(), auth2.GetJobOp); err != nil {
+		log.Warn("authorization failed", "error", err)
+		return err
+	}
+
+	// Create a domain streamer adapter
+	streamer := &workflowGrpcToDomainStreamer{stream: stream}
+
+	// Stream logs using the job store
+	err := s.jobStore.SendUpdatesToClient(stream.Context(), req.GetId(), streamer)
+	if err != nil {
+		log.Error("failed to stream logs", "error", err)
+		if err.Error() == "job not found" {
+			return status.Errorf(codes.NotFound, "job not found: %s", req.GetId())
+		}
+		return status.Errorf(codes.Internal, "failed to stream logs: %v", err)
+	}
+
+	log.Debug("log streaming completed successfully")
+	return nil
+}
+
+// workflowGrpcToDomainStreamer adapts gRPC stream to domain streamer interface
+type workflowGrpcToDomainStreamer struct {
+	stream pb.JobService_GetJobLogsServer
+}
+
+func (g *workflowGrpcToDomainStreamer) SendData(data []byte) error {
+	return g.stream.Send(&pb.DataChunk{
+		Payload: data,
+	})
+}
+
+func (g *workflowGrpcToDomainStreamer) SendKeepalive() error {
+	// Send an empty chunk as keepalive
+	return g.stream.Send(&pb.DataChunk{
+		Payload: []byte{},
+	})
+}
+
+func (g *workflowGrpcToDomainStreamer) Context() context.Context {
+	return g.stream.Context()
 }

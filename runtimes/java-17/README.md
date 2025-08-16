@@ -109,10 +109,10 @@ rnx run --runtime=java:17 --upload=HelloWorld.java bash -c "javac HelloWorld.jav
 ### Template-Based Usage
 
 ```bash
-# Use YAML templates for common tasks (if available)
+# Use YAML Workflows for common tasks (if available)
 cd /opt/joblet/examples/java-17
-rnx run --template=jobs.yaml:hello-joblet
-rnx run --template=jobs.yaml:java-compile
+rnx run --workflow=jobs.yaml:hello-joblet
+rnx run --workflow=jobs.yaml:java-compile
 ```
 
 ### Advanced Examples

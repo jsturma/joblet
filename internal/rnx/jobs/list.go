@@ -14,28 +14,44 @@ import (
 )
 
 var (
-	listJSON bool
+	listJSON     bool
+	listWorkflow bool
 )
 
-// NewListCmd creates a new cobra command for listing jobs.
+// NewListCmd creates a new cobra command for listing jobs or workflows.
 // The command supports JSON output format via the --json flag.
-// Lists all jobs with their basic information including ID, status, and command.
+// Lists all jobs or workflows with their basic information.
 func NewListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all jobs",
-		RunE:  runList,
+		Short: "List all jobs or workflows",
+		Long: `List all jobs or workflows in the system.
+
+Examples:
+  # List all jobs
+  rnx list
+  
+  # List all workflows
+  rnx list --workflow
+  
+  # List workflows in JSON format
+  rnx list --workflow --json`,
+		RunE: runList,
 	}
 
 	cmd.Flags().BoolVar(&listJSON, "json", false, "Output in JSON format")
+	cmd.Flags().BoolVar(&listWorkflow, "workflow", false, "List workflows instead of jobs")
 
 	return cmd
 }
 
-// runList executes the job listing command.
-// Connects to the Joblet server, retrieves all jobs, and displays them
+// runList executes the job or workflow listing command.
+// Connects to the Joblet server, retrieves all jobs or workflows, and displays them
 // in either human-readable table format or JSON format based on flags.
 func runList(cmd *cobra.Command, args []string) error {
+	if listWorkflow {
+		return listWorkflows()
+	}
 
 	jobClient, err := common.NewJobClient()
 	if err != nil {
@@ -186,4 +202,112 @@ func outputJobsJSON(jobs []*pb.Job) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(jsonJobs)
+}
+
+// listWorkflows lists all workflows in the system
+func listWorkflows() error {
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	// Create workflow service client
+	workflowClient := pb.NewJobServiceClient(client.GetConn())
+
+	req := &pb.ListWorkflowsRequest{
+		IncludeCompleted: true, // Always include all workflows
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	res, err := workflowClient.ListWorkflows(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to list workflows: %w", err)
+	}
+
+	if len(res.Workflows) == 0 {
+		if listJSON {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No workflows found")
+		}
+		return nil
+	}
+
+	if listJSON {
+		return outputWorkflowsJSON(res.Workflows)
+	}
+
+	formatWorkflowList(res.Workflows)
+	return nil
+}
+
+// formatWorkflowList formats and displays workflows in a table
+func formatWorkflowList(workflows []*pb.WorkflowInfo) {
+	fmt.Printf("ID   NAME                 STATUS      PROGRESS\n")
+	fmt.Printf("---- -------------------- ----------- ---------\n")
+	for _, workflow := range workflows {
+		fmt.Printf("%-4d %-20s %-11s %d/%d\n",
+			workflow.Id,
+			truncateString(workflow.Name, 20),
+			workflow.Status,
+			workflow.CompletedJobs,
+			workflow.TotalJobs)
+	}
+}
+
+// outputWorkflowsJSON outputs the workflows in JSON format
+func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
+	// Convert protobuf workflows to a simpler structure for JSON output
+	type jsonWorkflow struct {
+		ID            int32  `json:"id"`
+		Name          string `json:"name"`
+		Template      string `json:"template"`
+		Status        string `json:"status"`
+		TotalJobs     int32  `json:"total_jobs"`
+		CompletedJobs int32  `json:"completed_jobs"`
+		FailedJobs    int32  `json:"failed_jobs"`
+		CreatedAt     string `json:"created_at,omitempty"`
+		StartedAt     string `json:"started_at,omitempty"`
+		CompletedAt   string `json:"completed_at,omitempty"`
+	}
+
+	var jsonWorkflows []jsonWorkflow
+	for _, workflow := range workflows {
+		jsonWf := jsonWorkflow{
+			ID:            workflow.Id,
+			Name:          workflow.Name,
+			Template:      workflow.Template,
+			Status:        workflow.Status,
+			TotalJobs:     workflow.TotalJobs,
+			CompletedJobs: workflow.CompletedJobs,
+			FailedJobs:    workflow.FailedJobs,
+		}
+
+		// Convert timestamps if present
+		if workflow.CreatedAt != nil {
+			jsonWf.CreatedAt = time.Unix(workflow.CreatedAt.Seconds, int64(workflow.CreatedAt.Nanos)).Format(time.RFC3339)
+		}
+		if workflow.StartedAt != nil {
+			jsonWf.StartedAt = time.Unix(workflow.StartedAt.Seconds, int64(workflow.StartedAt.Nanos)).Format(time.RFC3339)
+		}
+		if workflow.CompletedAt != nil {
+			jsonWf.CompletedAt = time.Unix(workflow.CompletedAt.Seconds, int64(workflow.CompletedAt.Nanos)).Format(time.RFC3339)
+		}
+
+		jsonWorkflows = append(jsonWorkflows, jsonWf)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(jsonWorkflows)
+}
+
+func truncateString(s string, length int) string {
+	if len(s) <= length {
+		return s
+	}
+	return s[:length-3] + "..."
 }

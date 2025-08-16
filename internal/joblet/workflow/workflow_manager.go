@@ -133,34 +133,6 @@ func (wm *WorkflowManager) ListWorkflows() []*WorkflowState {
 	return result
 }
 
-// CancelWorkflow cancels a workflow and all of its pending jobs.
-// Already running jobs will continue to completion, but no new jobs will be started.
-// Returns error if the workflow is not found or if cancellation fails.
-func (wm *WorkflowManager) CancelWorkflow(workflowID int) error {
-	wm.mu.Lock()
-	defer wm.mu.Unlock()
-
-	wf, exists := wm.workflows[workflowID]
-	if !exists {
-		return fmt.Errorf("workflow %d not found", workflowID)
-	}
-
-	// Cancel through resolver
-	err := wm.resolver.CancelWorkflow(workflowID)
-	if err != nil {
-		return err
-	}
-
-	// Update local state
-	wf.Status = WorkflowCanceled
-	if wf.CompletedAt == nil {
-		now := time.Now()
-		wf.CompletedAt = &now
-	}
-
-	return nil
-}
-
 // GetJobWorkflow returns the workflow ID that contains the given job.
 // Returns the workflow ID and true if the job is part of a workflow,
 // or 0 and false if the job is not associated with any workflow.

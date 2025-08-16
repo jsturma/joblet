@@ -193,12 +193,12 @@ rnx run --runtime=python:3.11 --upload=task_groups_demo.py python task_groups_de
 ### Template-Based Usage
 
 ```bash
-# Use YAML templates for common tasks (if available)
+# Use YAML Workflows for common tasks (if available)
 cd /opt/joblet/examples/python-analytics
-rnx run --template=jobs.yaml:sales-analysis
+rnx run --workflow=jobs.yaml:sales-analysis
 
 # Web scraping with requests
-rnx run --template=jobs.yaml:web-scraper
+rnx run --workflow=jobs.yaml:web-scraper
 ```
 
 ## ⚡ Performance Benefits

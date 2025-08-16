@@ -15,7 +15,12 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "rnx",
 	Short: "RNX - Remote eXecution client for Joblet",
-	Long:  "RNX (Remote eXecution) - Command Line Interface to interact with Joblet gRPC services using embedded certificates",
+	Long: `RNX (Remote eXecution) - Command Line Interface to interact with Joblet gRPC services using embedded certificates
+
+Workflow Support:
+  - Create and run workflows: rnx run --workflow=workflow.yaml
+  - List workflows: rnx list --workflow
+  - Check workflow status: rnx status <workflow-id>`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Skip config loading for run command since it has DisableFlagParsing and handles config loading manually
 		if cmd.Name() == "run" {

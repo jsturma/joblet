@@ -82,14 +82,10 @@ func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet
 	auth := auth2.NewGrpcAuthorization()
 	serverLogger.Debug("authorization module initialized")
 
-	// Create and register job service (no longer needs network/volume dependencies)
-	jobService := NewJobServiceServer(auth, jobStore, joblet)
-	pb.RegisterJobletServiceServer(grpcServer, jobService)
-
-	// Create workflow manager and workflow service
+	// Create workflow manager and unified job service
 	workflowManager := workflow.NewWorkflowManager()
-	workflowService := NewWorkflowServiceServer(auth, jobStore, joblet, workflowManager)
-	pb.RegisterJobServiceServer(grpcServer, workflowService)
+	jobService := NewWorkflowServiceServer(auth, jobStore, joblet, workflowManager)
+	pb.RegisterJobServiceServer(grpcServer, jobService)
 
 	// Create and register network service
 	networkService := NewNetworkServiceServer(auth, networkStore)

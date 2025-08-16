@@ -13,7 +13,7 @@ Complete machine learning pipeline with real ML scripts.
 - **Commands**: `python3` with actual ML processing scripts
 - **Features**: Data prep → Feature selection → Training → Evaluation → Deployment
 - **Scripts**: 5 Python ML scripts with JSON data flow
-- **Test**: `cd examples/workflows/ml-pipeline && rnx run --template=ml-pipeline.yaml:data-validation`
+- **Test**: `cd examples/workflows/ml-pipeline && rnx run --workflow=ml-pipeline.yaml:data-validation`
 
 ### 2. `data-pipeline/`
 
@@ -23,7 +23,7 @@ ETL data processing workflow with file uploads and shared volumes.
 - **Commands**: `python3` scripts, `rm` for cleanup
 - **Features**: File uploads, volume mounting, resource limits
 - **Scripts**: 5 Python ETL scripts with JSON data flow
-- **Test**: `cd examples/workflows/data-pipeline && rnx run --template=data-pipeline.yaml:extract-data`
+- **Test**: `cd examples/workflows/data-pipeline && rnx run --workflow=data-pipeline.yaml:extract-data`
 
 ### 3. `web-service/`
 
@@ -33,7 +33,7 @@ Generic deployment workflow with build system.
 - **Commands**: `make` (with real Makefile), `tar`, `echo` (simulated deployment)
 - **Features**: Build → Test → Package → Deploy → Verify pattern
 - **Scripts**: Real Makefile for build/test operations
-- **Test**: `cd examples/workflows/web-service && rnx run --template=web-service.yaml:compile-code`
+- **Test**: `cd examples/workflows/web-service && rnx run --workflow=web-service.yaml:compile-code`
 
 ### 4. `multi-workflow/`
 
@@ -43,7 +43,7 @@ Multiple named workflows in one file.
 - **Commands**: `python3` (with real ML scripts), `tar`, `rsync`
 - **Features**: Named workflow selection, ML training + deployment workflows
 - **Scripts**: Same 5 ML scripts as ml-pipeline
-- **Test**: `cd examples/workflows/multi-workflow && rnx run --template=multi-workflow.yaml:data-prep`
+- **Test**: `cd examples/workflows/multi-workflow && rnx run --workflow=multi-workflow.yaml:data-prep`
 
 ### 5. `parallel-jobs/`
 
@@ -53,7 +53,7 @@ Parallel batch processing without dependencies.
 - **Commands**: `python3` with batch processing scripts
 - **Features**: Independent parallel jobs, different processing times
 - **Scripts**: 3 batch processing scripts with simulated work
-- **Test**: `cd examples/workflows/parallel-jobs && rnx run --template=parallel-jobs.yaml:batch1`
+- **Test**: `cd examples/workflows/parallel-jobs && rnx run --workflow=parallel-jobs.yaml:batch1`
 
 ## Realistic Joblet Features Used
 
@@ -87,22 +87,23 @@ All examples use only confirmed Joblet capabilities:
 
 ```bash
 cd examples/workflows/ml-pipeline
-rnx run --template=ml-pipeline.yaml:data-validation
+rnx run --workflow=ml-pipeline.yaml:data-validation
 ```
 
 **Workflow Orchestration**: ✅ **Fully Working** (NEW - Consolidated Commands)
 
 ```bash
 cd examples/workflows/ml-pipeline  
-rnx run --template=ml-pipeline.yaml     # ✅ Unified workflow execution
+rnx run --workflow=ml-pipeline.yaml     # ✅ Unified workflow execution
 rnx status <workflow-id>                # ✅ Unified status checking
 ```
 
-**Legacy Commands** (Deprecated):
+**Current Commands**:
 
 ```bash
-rnx workflow run ml-pipeline.yaml       # ⚠️ Deprecated - use rnx run --template instead
-rnx workflow status <id>                # ⚠️ Deprecated - use rnx status instead
+rnx run --workflow=ml-pipeline.yaml     # Run a workflow from YAML file
+rnx status <id>                         # Check workflow or job status
+rnx list --workflow                     # List all workflows
 ```
 
 ## No Docker/Container References
@@ -119,10 +120,10 @@ You can run individual jobs from any workflow template:
 
 ```bash
 # Run specific job from workflow
-rnx run --template=examples/workflows/ml-pipeline.yaml:data-validation
+rnx run --workflow=examples/workflows/ml-pipeline.yaml:data-validation
 ```
 
-## Workflow Template Format
+## Workflow File Format
 
 ### Basic Structure
 

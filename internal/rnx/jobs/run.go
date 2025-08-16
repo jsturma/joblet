@@ -46,10 +46,13 @@ Examples:
   # With other flags
   rnx run --network=frontend --max-cpu=50 --max-memory=512 node app.js
 
-  # Using YAML template
-  rnx run --template=jobs.yaml:analytics
-  rnx run --template=ml-pipeline.yaml
-  rnx run --template=deploy.yaml:production --args="v1.2.3"
+  # Using YAML workflow for single job
+  rnx run --workflow=jobs.yaml:analytics
+  rnx run --workflow=deploy.yaml:production --args="v1.2.3"
+  
+  # Using YAML workflow for multi-job workflow (runs all jobs with dependencies)
+  rnx run --workflow=ml-pipeline.yaml
+  rnx run --workflow=workflow.yaml
 
   # Scheduled execution
   rnx run --schedule="1hour" python3 script.py
@@ -89,7 +92,7 @@ Scheduling Formats:
   --schedule="2025-07-18T20:02:48-07:00"     # With timezone
 
 Flags:
-  --template=FILE[:JOB] Load job configuration from YAML file
+  --workflow=FILE[:JOB] Load job or workflow configuration from YAML file
   --schedule=SPEC     Schedule job for future execution
   --max-cpu=N         Max CPU percentage
   --max-memory=N      Max Memory in MB  
@@ -129,7 +132,12 @@ func runRun(cmd *cobra.Command, args []string) error {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 
-		if strings.HasPrefix(arg, "--template=") {
+		if strings.HasPrefix(arg, "--workflow=") {
+			template = strings.TrimPrefix(arg, "--workflow=")
+		} else if arg == "--workflow" && i+1 < len(args) {
+			template = args[i+1]
+			i++ // Skip the next argument since we consumed it
+		} else if strings.HasPrefix(arg, "--template=") {
 			template = strings.TrimPrefix(arg, "--template=")
 		} else if arg == "--template" && i+1 < len(args) {
 			template = args[i+1]
@@ -270,7 +278,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	if commandStartIndex < 0 || commandStartIndex >= len(args) {
-		return fmt.Errorf("must specify a command or use --template with a job definition")
+		return fmt.Errorf("must specify a command or use --workflow with a job definition")
 	}
 
 	commandArgs := args[commandStartIndex:]
@@ -324,13 +332,13 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create job request with RFC3339 formatted schedule
-	request := &pb.RunJobReq{
+	request := &pb.RunJobRequest{
 		Command:   command,
 		Args:      cmdArgs,
-		MaxCPU:    maxCPU,
+		MaxCpu:    maxCPU,
 		CpuCores:  cpuCores,
 		MaxMemory: maxMemory,
-		MaxIOBPS:  maxIOBPS,
+		MaxIobps:  maxIOBPS,
 		Uploads:   fileUploads,
 		Schedule:  scheduledTimeRFC3339,
 		Network:   network,
@@ -345,7 +353,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Job started:\n")
-	fmt.Printf("ID: %s\n", response.Id)
+	fmt.Printf("ID: %s\n", response.JobId)
 	fmt.Printf("Command: %s %s\n", response.Command, strings.Join(response.Args, " "))
 	fmt.Printf("Status: %s\n", response.Status)
 	if schedule != "" {
@@ -772,18 +780,18 @@ func executeWorkflowViaService(templatePath string, workflowName string) error {
 
 	// Create workflow with YAML content and files
 	workflowNameGen := fmt.Sprintf("client-workflow-%d", time.Now().Unix())
-	createReq := &pb.CreateWorkflowRequest{
+	createReq := &pb.RunWorkflowRequest{
 		Name:          workflowNameGen,
 		Template:      filepath.Base(templatePath),
 		YamlContent:   string(yamlContent),
-		WorkflowFiles: workflowFiles,
+		TemplateFiles: workflowFiles,
 		TotalJobs:     int32(len(workflow.Jobs)),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	createRes, err := workflowClient.CreateWorkflow(ctx, createReq)
+	createRes, err := workflowClient.RunWorkflow(ctx, createReq)
 	if err != nil {
 		return fmt.Errorf("failed to create workflow: %w", err)
 	}

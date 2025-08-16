@@ -163,11 +163,11 @@ rnx run --runtime=java:21 jshell
 ### Template-Based Usage
 
 ```bash
-# Use YAML templates for common tasks (if available)
+# Use YAML Workflows for common tasks (if available)
 cd /opt/joblet/examples/java-21
-rnx run --template=jobs.yaml:hello-joblet
-rnx run --template=jobs.yaml:virtual-threads
-rnx run --template=jobs.yaml:pattern-matching
+rnx run --workflow=jobs.yaml:hello-joblet
+rnx run --workflow=jobs.yaml:virtual-threads
+rnx run --workflow=jobs.yaml:pattern-matching
 ```
 
 ## ⚡ Performance Benefits

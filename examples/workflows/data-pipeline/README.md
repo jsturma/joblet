@@ -18,11 +18,11 @@ ETL (Extract, Transform, Load) pipeline demonstrating data processing with share
 cd examples/workflows/data-pipeline
 
 # Run individual jobs
-rnx run --template=data-pipeline.yaml:extract-data
-rnx run --template=data-pipeline.yaml:validate-data
+rnx run --workflow=data-pipeline.yaml:extract-data
+rnx run --workflow=data-pipeline.yaml:validate-data
 
 # Attempt full workflow (pending integration)
-rnx run --template=data-pipeline.yaml
+rnx run --workflow=data-pipeline.yaml
 ```
 
 ## Data Flow

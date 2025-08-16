@@ -52,11 +52,11 @@ func main() {
 
 		// Convert requirements
 		for _, req := range job.Requires {
-			if req.JobName != "" {
+			if req.JobId != "" {
 				deps.Requirements = append(deps.Requirements, workflow.Requirement{
-					Type:    workflow.RequirementSimple,
-					JobName: req.JobName,
-					Status:  req.Status,
+					Type:   workflow.RequirementSimple,
+					JobId:  req.JobId,
+					Status: req.Status,
 				})
 			} else if req.Expression != "" {
 				deps.Requirements = append(deps.Requirements, workflow.Requirement{

@@ -74,7 +74,7 @@ rnx run [flags] <command> [args...]
 | `--upload`     | Upload file to workspace (can be specified multiple times) | none           |
 | `--upload-dir` | Upload directory to workspace                              | none           |
 | `--schedule`   | Schedule job execution (duration or RFC3339 time)          | immediate      |
-| `--template`   | YAML template file for workflow execution                  | none           |
+| `--workflow`   | YAML workflow file for workflow execution                  | none           |
 
 #### Examples
 
@@ -112,9 +112,9 @@ rnx run --schedule="2025-08-03T15:00:00" maintenance.sh
 # Custom network
 rnx run --network=isolated ping google.com
 
-# Workflow execution with templates
-rnx run --template=ml-pipeline.yaml           # Execute full workflow
-rnx run --template=jobs.yaml:ml-analysis      # Execute specific job from template
+# Workflow execution
+rnx run --workflow=ml-pipeline.yaml           # Execute full workflow
+rnx run --workflow=jobs.yaml:ml-analysis      # Execute specific job from workflow
 
 # Complex example
 rnx run \

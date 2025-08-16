@@ -93,16 +93,16 @@ func (m *JobMapper) ProtobufToDomain(pbJob *pb.Job) (*domain.Job, error) {
 	return job, nil
 }
 
-// DomainToRunJobResponse converts domain Job to RunJobRes
-func (m *JobMapper) DomainToRunJobResponse(job *domain.Job) *pb.RunJobRes {
-	response := &pb.RunJobRes{
-		Id:        job.Id,
+// DomainToRunJobResponse converts domain Job to RunJobResponse
+func (m *JobMapper) DomainToRunJobResponse(job *domain.Job) *pb.RunJobResponse {
+	response := &pb.RunJobResponse{
+		JobId:     job.Id,
 		Command:   job.Command,
 		Args:      job.Args,
-		MaxCPU:    job.Limits.CPU.Value(),
+		MaxCpu:    job.Limits.CPU.Value(),
 		CpuCores:  job.Limits.CPUCores.String(),
 		MaxMemory: job.Limits.Memory.Megabytes(),
-		MaxIOBPS:  int32(job.Limits.IOBandwidth.BytesPerSecond()),
+		MaxIobps:  int32(job.Limits.IOBandwidth.BytesPerSecond()),
 		Status:    string(job.Status),
 		StartTime: job.StartTime.Format("2006-01-02T15:04:05Z07:00"),
 		ExitCode:  job.ExitCode,
@@ -194,9 +194,9 @@ func (m *JobMapper) ValueObjectsToDisplayStrings(limits *domain.ResourceLimits) 
 }
 
 // ProtobufToStartJobRequest converts protobuf request to domain request object
-func (m *JobMapper) ProtobufToStartJobRequest(req *pb.RunJobReq) (*interfaces.StartJobRequest, error) {
+func (m *JobMapper) ProtobufToStartJobRequest(req *pb.RunJobRequest) (*interfaces.StartJobRequest, error) {
 	// Convert resource limits using value objects
-	resourceLimits, err := m.RequestToResourceLimits(req.MaxCPU, req.MaxMemory, req.MaxIOBPS, req.CpuCores)
+	resourceLimits, err := m.RequestToResourceLimits(req.MaxCpu, req.MaxMemory, req.MaxIobps, req.CpuCores)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (m *JobMapper) ProtobufToStartJobRequest(req *pb.RunJobReq) (*interfaces.St
 }
 
 // StartJobRequestToProtobuf converts domain request object to protobuf
-func (m *JobMapper) StartJobRequestToProtobuf(req *interfaces.StartJobRequest) *pb.RunJobReq {
+func (m *JobMapper) StartJobRequestToProtobuf(req *interfaces.StartJobRequest) *pb.RunJobRequest {
 	// Convert uploads to protobuf format
 	var pbUploads []*pb.FileUpload
 	for _, upload := range req.Uploads {
@@ -246,12 +246,12 @@ func (m *JobMapper) StartJobRequestToProtobuf(req *interfaces.StartJobRequest) *
 		})
 	}
 
-	return &pb.RunJobReq{
+	return &pb.RunJobRequest{
 		Command:   req.Command,
 		Args:      req.Args,
-		MaxCPU:    req.Resources.MaxCPU,
+		MaxCpu:    req.Resources.MaxCPU,
 		MaxMemory: req.Resources.MaxMemory,
-		MaxIOBPS:  req.Resources.MaxIOBPS,
+		MaxIobps:  req.Resources.MaxIOBPS,
 		CpuCores:  req.Resources.CPUCores,
 		Uploads:   pbUploads,
 		Schedule:  req.Schedule,

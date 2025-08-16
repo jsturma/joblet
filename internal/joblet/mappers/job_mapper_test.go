@@ -127,9 +127,9 @@ func TestDomainToRunJobResponse(t *testing.T) {
 	mapper := NewJobMapper()
 	response := mapper.DomainToRunJobResponse(job)
 
-	// Verify it's a proper RunJobRes
-	if response.Id != job.Id {
-		t.Errorf("Expected ID %v, got %v", job.Id, response.Id)
+	// Verify it's a proper RunJobResponse
+	if response.JobId != job.Id {
+		t.Errorf("Expected ID %v, got %v", job.Id, response.JobId)
 	}
 	if response.Command != job.Command {
 		t.Errorf("Expected command %v, got %v", job.Command, response.Command)

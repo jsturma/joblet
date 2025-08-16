@@ -4,23 +4,22 @@ option go_package = "./";
 
 package joblet;
 
-// Job execution service
-service JobletService {
-  rpc RunJob(RunJobReq) returns (RunJobRes){}
+// Unified job and workflow execution service
+// Handles all job operations (single jobs and workflows) and workflow management
+// Used by all rnx commands: run, status, stop, log, list, etc.
+service JobService {
+  // Job execution and management
+  rpc RunJob(RunJobRequest) returns (RunJobResponse){}
   rpc GetJobStatus(GetJobStatusReq) returns (GetJobStatusRes){}
   rpc StopJob(StopJobReq) returns (StopJobRes){}
   rpc GetJobLogs(GetJobLogsReq) returns (stream DataChunk);
   rpc ListJobs(EmptyRequest) returns (Jobs){}
-}
 
-// Workflow management service
-service JobService {
-  rpc RunJob(RunJobRequest) returns (RunJobResponse){}
-  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse){}
+  // Workflow-based job and workflow execution
+  rpc RunWorkflow(RunWorkflowRequest) returns (RunWorkflowResponse){}
   rpc GetWorkflowStatus(GetWorkflowStatusRequest) returns (GetWorkflowStatusResponse){}
   rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse){}
   rpc GetWorkflowJobs(GetWorkflowJobsRequest) returns (GetWorkflowJobsResponse){}
-  rpc CancelWorkflow(CancelWorkflowRequest) returns (CancelWorkflowResponse){}
 }
 
 // Network management service
@@ -72,19 +71,6 @@ message Job{
 
 message EmptyRequest {}
 
-message RunJobReq{
-  string command = 1;
-  repeated string args = 2;
-  int32 maxCPU = 3;
-  string cpuCores = 4;
-  int32 maxMemory = 5;
-  int32 maxIOBPS = 6;
-  repeated FileUpload uploads = 7;
-  string schedule = 8;          // RFC3339 formatted time string
-  string network = 9;           // Network name (none, isolated, bridge, or custom)
-  repeated string volumes = 10; // Volume names to mount
-  string runtime = 11;          // Runtime specification (e.g., "python:3.11+ml")
-}
 
 message FileUpload {
   string path = 1;           // Relative path in job workspace
@@ -93,20 +79,6 @@ message FileUpload {
   bool isDirectory = 4;      // True if this represents a directory
 }
 
-message RunJobRes{
-  string id = 1;
-  string command = 2;
-  repeated string args = 3;
-  int32 maxCPU = 4;
-  string cpuCores = 5;
-  int32 maxMemory = 6;
-  int32 maxIOBPS = 7;
-  string status = 8;
-  string startTime = 9;
-  string endTime = 10;
-  int32 exitCode = 11;
-  string scheduledTime = 12;    // When the job should execute (empty if immediate)
-}
 
 // GetJobStatus
 message GetJobStatusReq{
@@ -414,7 +386,8 @@ message RuntimeTestRes {
   int32 exitCode = 5;
 }
 
-// Workflow management messages
+// Unified job and workflow management messages
+// Workflow-based execution via 'rnx run --workflow=workflow.yaml' uses RunWorkflowRequest
 
 message RunJobRequest {
   string command = 1;
@@ -431,35 +404,45 @@ message RunJobRequest {
   string workDir = 12;
   map<string, string> environment = 13;
 
-  // Workflow fields
+  // Workflow fields (optional - only used for workflow jobs)
   int32 workflowId = 14;
-  string jobName = 15;
+  string jobId = 15;
   repeated JobRequirement requirements = 16;
 }
 
 message RunJobResponse {
   string jobId = 1;
   string status = 2;
+  string command = 3;
+  repeated string args = 4;
+  int32 maxCpu = 5;
+  string cpuCores = 6;
+  int32 maxMemory = 7;
+  int32 maxIobps = 8;
+  string startTime = 9;
+  string endTime = 10;
+  int32 exitCode = 11;
+  string scheduledTime = 12;    // When the job should execute (empty if immediate)
 }
 
 message JobRequirement {
   string jobId = 1;
-  string jobName = 2;
-  string status = 3;
-  string expression = 4;
+  string status = 2;
+  string expression = 3;
 }
 
-message CreateWorkflowRequest {
+message RunWorkflowRequest {
   string name = 1;
-  string template = 2;
+  string template = 2;                    // Workflow filename for reference
   int32 totalJobs = 3;
   repeated string jobOrder = 4;
-  string yamlContent = 5;  // Optional: YAML content for client-side upload
-  repeated FileUpload workflowFiles = 6;  // Optional: Files referenced in workflow jobs
+  string yamlContent = 5;                 // YAML content for client-side workflow execution
+  repeated FileUpload templateFiles = 6;  // Files referenced in workflow jobs (uploaded by client)
 }
 
-message CreateWorkflowResponse {
+message RunWorkflowResponse {
   int32 workflowId = 1;
+  string status = 2;
 }
 
 message GetWorkflowStatusRequest {
@@ -487,14 +470,6 @@ message GetWorkflowJobsResponse {
   repeated WorkflowJob jobs = 1;
 }
 
-message CancelWorkflowRequest {
-  int32 workflowId = 1;
-}
-
-message CancelWorkflowResponse {
-  bool success = 1;
-  string message = 2;
-}
 
 message WorkflowInfo {
   int32 id = 1;
@@ -512,12 +487,11 @@ message WorkflowInfo {
 
 message WorkflowJob {
   string jobId = 1;
-  string name = 2;
-  string status = 3;
-  repeated string dependencies = 4;
-  Timestamp startTime = 5;
-  Timestamp endTime = 6;
-  int32 exitCode = 7;
+  string status = 2;
+  repeated string dependencies = 3;
+  Timestamp startTime = 4;
+  Timestamp endTime = 5;
+  int32 exitCode = 6;
 }
 
 message Timestamp {

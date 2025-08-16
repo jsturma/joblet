@@ -18,11 +18,11 @@ Complete machine learning pipeline demonstrating sequential job dependencies wit
 cd examples/workflows/ml-pipeline
 
 # Run individual jobs
-rnx run --template=ml-pipeline.yaml:data-validation
-rnx run --template=ml-pipeline.yaml:feature-engineering
+rnx run --workflow=ml-pipeline.yaml:data-validation
+rnx run --workflow=ml-pipeline.yaml:feature-engineering
 
 # Attempt full workflow (pending integration)
-rnx run --template=ml-pipeline.yaml
+rnx run --workflow=ml-pipeline.yaml
 ```
 
 ## Data Flow

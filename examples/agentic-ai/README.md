@@ -14,20 +14,20 @@ Examples demonstrating how to use Joblet for agentic AI systems, LLM workflows, 
 
 ## 🚀 Quick Start
 
-### Using YAML Templates (NEW - Recommended)
+### Using YAML Workflows (NEW - Recommended)
 
 ```bash
-# Run specific AI job using the template
-rnx run --template=jobs.yaml:multi-agent      # Run multi-agent system
-rnx run --template=jobs.yaml:llm-inference    # Run LLM inference
-rnx run --template=jobs.yaml:rag-system       # Run RAG system
-rnx run --template=jobs.yaml:distributed-training  # Run distributed training
+# Run specific AI job using the workflow
+rnx run --workflow=jobs.yaml:multi-agent      # Run multi-agent system
+rnx run --workflow=jobs.yaml:llm-inference    # Run LLM inference
+rnx run --workflow=jobs.yaml:rag-system       # Run RAG system
+rnx run --workflow=jobs.yaml:distributed-training  # Run distributed training
 
 # Run all demos using template
-rnx run --template=jobs.yaml:run-all
+rnx run --workflow=jobs.yaml:run-all
 
 # Setup dependencies first
-rnx run --template=jobs.yaml:setup-deps
+rnx run --workflow=jobs.yaml:setup-deps
 ```
 
 ### Run All Demos (Traditional Method)

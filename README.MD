@@ -23,7 +23,6 @@ execution - protecting your host system from malicious or resource-hungry proces
 - **Resource Control**: CPU, memory, I/O bandwidth limits with specific core binding
 - **Network Isolation**: Custom networks with traffic segmentation (none/bridge/isolated/custom)
 - **Volume Management**: Persistent storage with filesystem and memory-based volumes
-- **Pre-built Runtimes**: Instant access to Python+ML, Java 17/21, Node.js environments (10-100x faster startup)
 - **Job Scheduling**: Future execution with flexible time specifications
 - **Real-time Monitoring**: Live logs, system metrics, and job status tracking
 - **mTLS Security**: Certificate-based authentication with role-based access control
@@ -77,6 +76,7 @@ Joblet consists of three components:
 The Joblet daemon runs on Linux servers and executes jobs in isolated environments.
 
 #### Option 1: Package Installation (Recommended for Ubuntu/Debian)
+
 ```bash
 # 1. Download and install the .deb package
 wget $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*_amd64\.deb" | cut -d '"' -f 4)
@@ -91,6 +91,7 @@ sudo systemctl status joblet
 ```
 
 #### Option 2: Manual Installation (Any Linux Distribution)
+
 ```bash
 # 1. Download the Linux release
 curl -L -o rnx-linux-amd64.tar.gz $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
@@ -112,6 +113,7 @@ The Joblet server will now be running on port 50051 (gRPC).
 The RNX CLI connects to Joblet servers from Linux, macOS, or Windows machines.
 
 #### Linux Client
+
 ```bash
 # If installed on the same machine as Joblet, RNX is already available
 # For remote Linux clients, download the binary:
@@ -123,6 +125,7 @@ sudo mv rnx-linux-amd64/bin/rnx /usr/local/bin/
 #### macOS Client
 
 **Option 1: Homebrew (Recommended)**
+
 ```bash
 # Add the tap (specifying the full GitHub URL)
 brew tap ehsaniara/joblet https://github.com/ehsaniara/joblet
@@ -139,6 +142,7 @@ scp user@joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
 ```
 
 **Option 2: Manual Installation**
+
 ```bash
 # 1. Download the appropriate binary
 # Intel Mac:
@@ -156,6 +160,7 @@ scp user@joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
 ```
 
 #### Windows Client
+
 ```powershell
 # 1. Download the Windows binary
 Invoke-WebRequest -Uri "https://github.com/ehsaniara/joblet/releases/latest/download/rnx-windows-amd64.exe" -OutFile "rnx.exe"
@@ -200,19 +205,19 @@ rnx admin                          # Launch web interface at http://localhost:51
 
 ## 🚀 Basic Usage
 
-### 🎯 YAML Templates (NEW - Simplified Job Execution)
+### 🎯 YAML Workflows (NEW - Simplified Job Execution)
 
-All examples now support YAML templates for one-liner job execution:
+All examples now support YAML workflows for one-liner job execution:
 
 ```bash
-# Run pre-configured jobs with simple templates
-rnx run --template=jobs.yaml:ml-analysis      # Python ML data analysis
-rnx run --template=jobs.yaml:hello-joblet     # Java application
-rnx run --template=jobs.yaml:hello-world      # Basic demo
-rnx run --template=jobs.yaml:sales-analysis   # Python analytics
+# Run pre-configured jobs with simple workflows
+rnx run --workflow=jobs.yaml:ml-analysis      # Python ML data analysis
+rnx run --workflow=jobs.yaml:hello-joblet     # Java application
+rnx run --workflow=jobs.yaml:hello-world      # Basic demo
+rnx run --workflow=jobs.yaml:sales-analysis   # Python analytics
 
 # Run workflows with consolidated commands
-rnx run --template=ml-pipeline.yaml           # Full ML workflow
+rnx run --workflow=ml-pipeline.yaml           # Full ML workflow
 rnx status <workflow-id>                      # Unified status for jobs/workflows
 
 # Discover available jobs in any example directory
@@ -340,14 +345,13 @@ rnx monitor status
 - **Memory**: 50MB+ RAM
 - **Network**: Access to daemon port 50051
 
-
 ## 🚀 Command Reference
 
 ### Essential Commands
 
 ```bash
 rnx run <command>           # Execute jobs with isolation  
-rnx run --template=<yaml>   # Execute workflows from templates
+rnx run --workflow=<yaml>   # Execute workflows from templates
 rnx list                    # List all jobs
 rnx status <id>            # Job/workflow details and status (unified)
 rnx log <job-id>           # Stream job logs
@@ -395,44 +399,44 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📚 Examples
 
-### 🎯 YAML Template Examples (NEW)
+### 🎯 YAML Workflow Examples (NEW)
 
-All examples now include YAML templates for simplified execution:
+All examples now include YAML workflows for simplified execution:
 
 ```bash
 # Python ML data analysis (pre-built runtime)
 cd examples/python-3.11-ml
-rnx run --template=jobs.yaml:ml-analysis        # 2-3 seconds vs 5-45 minutes
+rnx run --workflow=jobs.yaml:ml-analysis        # 2-3 seconds vs 5-45 minutes
 
 # Java enterprise development
 cd examples/java-17  
-rnx run --template=jobs.yaml:hello-joblet       # Instant compilation
+rnx run --workflow=jobs.yaml:hello-joblet       # Instant compilation
 
 # Basic Joblet concepts
 cd examples/basic-usage
-rnx run --template=jobs.yaml:hello-world        # Simple demo
-rnx run --template=jobs.yaml:file-ops           # File operations
+rnx run --workflow=jobs.yaml:hello-world        # Simple demo
+rnx run --workflow=jobs.yaml:file-ops           # File operations
 
 # Python analytics (standard library)
 cd examples/python-analytics
-rnx run --template=jobs.yaml:sales-analysis     # Sales data analysis
+rnx run --workflow=jobs.yaml:sales-analysis     # Sales data analysis
 ```
 
 ### Python Data Analysis Example
 
 The [Python Analytics Example](examples/python-analytics/) demonstrates:
 
-- **YAML Templates**: Simple job execution with `rnx run --template=jobs.yaml:job-name`
+- **YAML Workflows**: Simple job execution with `rnx run --workflow=jobs.yaml:job-name`
 - **External Scripts**: Debuggable Python scripts in `scripts/` directory
 - **Standard Library Only**: No external dependencies required
 - **Resource Limits**: Realistic CPU and memory usage
 - **Real-world Workflow**: Sales analysis, customer segmentation, time series
 
 ```bash
-# Quick start with templates
+# Quick start with workflows
 cd examples/python-analytics
-rnx run --template=jobs.yaml:sales-analysis     # Sales data analysis
-rnx run --template=jobs.yaml:time-series        # Time series processing
+rnx run --workflow=jobs.yaml:sales-analysis     # Sales data analysis
+rnx run --workflow=jobs.yaml:time-series        # Time series processing
 
 # Traditional method
 ./run_demo.sh
@@ -455,11 +459,11 @@ The [Workflow Examples](examples/workflows/) demonstrate advanced job orchestrat
 ```bash
 # Individual job execution
 cd examples/workflows/ml-pipeline
-rnx run --template=ml-pipeline.yaml:data-validation
+rnx run --workflow=ml-pipeline.yaml:data-validation
 
 # Full workflow orchestration with consolidated commands
 cd examples/workflows/ml-pipeline
-rnx run --template=ml-pipeline.yaml                    # ✅ Unified workflow execution
+rnx run --workflow=ml-pipeline.yaml                    # ✅ Unified workflow execution
 rnx status <workflow-id>                               # ✅ Unified status checking
 ```
 
@@ -516,9 +520,9 @@ scheduling workers, and production considerations.
 - **YAML Workflow Templates**: Complete workflows defined in single YAML files
 - **Production-Ready**: End-to-end tested with data pipeline workflows (extract → validate → transform → load → report)
 
-#### 🎯 New YAML Template System
+#### 🎯 New YAML Workflow System
 
-- **Simplified Job Execution**: Run complex jobs with `rnx run --template=jobs.yaml:job-name`
+- **Simplified Job Execution**: Run complex jobs with `rnx run --workflow=jobs.yaml:job-name`
 - **Pre-configured Examples**: All 6 example directories now include `jobs.yaml` files
 - **External Scripts**: Moved from embedded commands to debuggable external script files
 - **Realistic Features**: Removed unsupported features, using only current Joblet capabilities

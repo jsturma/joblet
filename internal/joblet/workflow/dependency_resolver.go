@@ -51,7 +51,7 @@ type JobDependency struct {
 type Requirement struct {
 	Type       RequirementType
 	Expression string
-	JobName    string
+	JobId      string
 	Status     string
 }
 
@@ -136,9 +136,9 @@ func (dr *DependencyResolver) CreateWorkflow(name, template string, jobs map[str
 	// Convert internal names in requirements to actual job IDs
 	for _, job := range jobs {
 		for i, req := range job.Requirements {
-			if req.Type == RequirementSimple && req.JobName != "" {
-				if actualJobID, exists := internalNameToJobID[req.JobName]; exists {
-					job.Requirements[i].JobName = actualJobID
+			if req.Type == RequirementSimple && req.JobId != "" {
+				if actualJobID, exists := internalNameToJobID[req.JobId]; exists {
+					job.Requirements[i].JobId = actualJobID
 				}
 			} else if req.Type == RequirementExpression && req.Expression != "" {
 				// Convert internal names in expressions to job IDs
@@ -255,42 +255,6 @@ func (dr *DependencyResolver) GetWorkflowStatus(workflowID int) (*WorkflowState,
 	return &copy, nil
 }
 
-// CancelWorkflow cancels a workflow and all of its pending or scheduled jobs.
-// This method:
-// 1. Marks all pending/scheduled jobs as canceled and impossible
-// 2. Updates the workflow status to CANCELED
-// 3. Sets the completion timestamp
-// 4. Updates job counters and state cache
-// Running jobs are not affected and will continue to completion.
-// This provides a way to stop workflow execution when needed.
-func (dr *DependencyResolver) CancelWorkflow(workflowID int) error {
-	dr.mu.Lock()
-	defer dr.mu.Unlock()
-
-	workflow, exists := dr.workflows[workflowID]
-	if !exists {
-		return fmt.Errorf("workflow %d not found", workflowID)
-	}
-
-	// Cancel all pending jobs
-	for jobID, job := range workflow.Jobs {
-		if job.Status == domain.StatusPending || job.Status == domain.StatusScheduled {
-			job.Status = domain.StatusCanceled
-			job.Impossible = true
-			dr.jobStateCache[jobID] = domain.StatusCanceled
-			workflow.CanceledJobs++
-		}
-	}
-
-	workflow.Status = WorkflowCanceled
-	if workflow.CompletedAt == nil {
-		now := time.Now()
-		workflow.CompletedAt = &now
-	}
-
-	return nil
-}
-
 // Private helper functions
 
 // canJobStart evaluates whether a job's dependency requirements are satisfied.
@@ -316,7 +280,7 @@ func (dr *DependencyResolver) canJobStart(job *JobDependency) bool {
 func (dr *DependencyResolver) evaluateRequirement(req Requirement) bool {
 	switch req.Type {
 	case RequirementSimple:
-		status, exists := dr.jobStateCache[req.JobName]
+		status, exists := dr.jobStateCache[req.JobId]
 		if !exists {
 			return false
 		}
@@ -479,7 +443,7 @@ func (dr *DependencyResolver) handleTerminalState(workflow *WorkflowState, jobID
 func (dr *DependencyResolver) isRequirementImpossible(req Requirement, workflow *WorkflowState) bool {
 	switch req.Type {
 	case RequirementSimple:
-		job, exists := workflow.Jobs[req.JobName]
+		job, exists := workflow.Jobs[req.JobId]
 		if !exists {
 			return true
 		}
