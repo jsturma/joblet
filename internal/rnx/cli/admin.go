@@ -128,7 +128,7 @@ Possible solutions:
 		}
 
 		if openCmd != nil {
-			openCmd.Run() // Ignore errors - browser opening is optional
+			_ = openCmd.Run() // Ignore errors - browser opening is optional
 			fmt.Printf("🌐 Browser opened at %s\n", url)
 		}
 	}()
