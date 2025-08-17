@@ -17,10 +17,25 @@ var rootCmd = &cobra.Command{
 	Short: "RNX - Remote eXecution client for Joblet",
 	Long: `RNX (Remote eXecution) - Command Line Interface to interact with Joblet gRPC services using embedded certificates
 
-Workflow Support:
-  - Create and run workflows: rnx run --workflow=workflow.yaml
-  - List workflows: rnx list --workflow
-  - Check workflow status: rnx status <workflow-id>`,
+RNX provides a complete interface for job execution, workflow management, and resource control
+on Joblet servers. It supports immediate execution, scheduling, and comprehensive monitoring.
+
+Key Features:
+  - Execute jobs with resource limits and scheduling
+  - Manage multi-job workflows with dependencies  
+  - Create and manage networks, volumes, and runtimes
+  - Monitor system resources and job performance
+  - Stream real-time logs from running jobs
+
+Quick Examples:
+  rnx run python script.py                    # Run a simple job
+  rnx run --workflow=pipeline.yaml            # Execute a workflow
+  rnx list --workflow                         # List all workflows
+  rnx status <job-id>                         # Check job status
+  rnx log <job-id>                            # Stream job logs
+  rnx monitor status                          # View system metrics
+
+Use 'rnx <command> --help' for detailed information about any command.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Skip config loading for run command since it has DisableFlagParsing and handles config loading manually
 		if cmd.Name() == "run" {

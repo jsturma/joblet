@@ -18,8 +18,21 @@ func NewLogCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log <job-id>",
 		Short: "Stream job logs",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runLog,
+		Long: `Stream logs from a running or completed job in real-time.
+
+By default, this command follows the log stream for running jobs and shows
+all output for completed jobs. Use Ctrl+C to stop following a log stream.
+
+Examples:
+  # Stream logs from a running job
+  rnx log job-123
+  
+  # View logs from a completed job
+  rnx log job-456
+  
+  # Stop following with Ctrl+C for running jobs`,
+		Args: cobra.ExactArgs(1),
+		RunE: runLog,
 	}
 
 	cmd.Flags().BoolVarP(&logParams.follow, "follow", "f", true, "Follow the log stream (can be terminated with Ctrl+C)")

@@ -4,7 +4,7 @@
 // 	protoc        v3.12.4
 // source: joblet.proto
 
-package __
+package gen
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -3512,12 +3512,11 @@ func (x *JobRequirement) GetExpression() string {
 
 type RunWorkflowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Workflow      string                 `protobuf:"bytes,2,opt,name=workflow,proto3" json:"workflow,omitempty"` // Workflow filename for reference
-	TotalJobs     int32                  `protobuf:"varint,3,opt,name=totalJobs,proto3" json:"totalJobs,omitempty"`
-	JobOrder      []string               `protobuf:"bytes,4,rep,name=jobOrder,proto3" json:"jobOrder,omitempty"`
-	YamlContent   string                 `protobuf:"bytes,5,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"`     // YAML content for client-side workflow execution
-	WorkflowFiles []*FileUpload          `protobuf:"bytes,6,rep,name=workflowFiles,proto3" json:"workflowFiles,omitempty"` // Files referenced in workflow jobs (uploaded by client)
+	Workflow      string                 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"` // Workflow filename for reference
+	TotalJobs     int32                  `protobuf:"varint,2,opt,name=totalJobs,proto3" json:"totalJobs,omitempty"`
+	JobOrder      []string               `protobuf:"bytes,3,rep,name=jobOrder,proto3" json:"jobOrder,omitempty"`
+	YamlContent   string                 `protobuf:"bytes,4,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"`     // YAML content for client-side workflow execution
+	WorkflowFiles []*FileUpload          `protobuf:"bytes,5,rep,name=workflowFiles,proto3" json:"workflowFiles,omitempty"` // Files referenced in workflow jobs (uploaded by client)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3550,13 +3549,6 @@ func (x *RunWorkflowRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RunWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*RunWorkflowRequest) Descriptor() ([]byte, []int) {
 	return file_joblet_proto_rawDescGZIP(), []int{45}
-}
-
-func (x *RunWorkflowRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
 }
 
 func (x *RunWorkflowRequest) GetWorkflow() string {
@@ -3921,16 +3913,15 @@ func (x *GetWorkflowJobsResponse) GetJobs() []*WorkflowJob {
 type WorkflowInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Workflow      string                 `protobuf:"bytes,3,opt,name=workflow,proto3" json:"workflow,omitempty"`
-	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	TotalJobs     int32                  `protobuf:"varint,5,opt,name=totalJobs,proto3" json:"totalJobs,omitempty"`
-	CompletedJobs int32                  `protobuf:"varint,6,opt,name=completedJobs,proto3" json:"completedJobs,omitempty"`
-	FailedJobs    int32                  `protobuf:"varint,7,opt,name=failedJobs,proto3" json:"failedJobs,omitempty"`
-	CanceledJobs  int32                  `protobuf:"varint,8,opt,name=canceledJobs,proto3" json:"canceledJobs,omitempty"`
-	CreatedAt     *Timestamp             `protobuf:"bytes,9,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
-	StartedAt     *Timestamp             `protobuf:"bytes,10,opt,name=startedAt,proto3" json:"startedAt,omitempty"`
-	CompletedAt   *Timestamp             `protobuf:"bytes,11,opt,name=completedAt,proto3" json:"completedAt,omitempty"`
+	Workflow      string                 `protobuf:"bytes,2,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	TotalJobs     int32                  `protobuf:"varint,4,opt,name=totalJobs,proto3" json:"totalJobs,omitempty"`
+	CompletedJobs int32                  `protobuf:"varint,5,opt,name=completedJobs,proto3" json:"completedJobs,omitempty"`
+	FailedJobs    int32                  `protobuf:"varint,6,opt,name=failedJobs,proto3" json:"failedJobs,omitempty"`
+	CanceledJobs  int32                  `protobuf:"varint,7,opt,name=canceledJobs,proto3" json:"canceledJobs,omitempty"`
+	CreatedAt     *Timestamp             `protobuf:"bytes,8,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	StartedAt     *Timestamp             `protobuf:"bytes,9,opt,name=startedAt,proto3" json:"startedAt,omitempty"`
+	CompletedAt   *Timestamp             `protobuf:"bytes,10,opt,name=completedAt,proto3" json:"completedAt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3970,13 +3961,6 @@ func (x *WorkflowInfo) GetId() int32 {
 		return x.Id
 	}
 	return 0
-}
-
-func (x *WorkflowInfo) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
 }
 
 func (x *WorkflowInfo) GetWorkflow() string {
@@ -4512,14 +4496,13 @@ const file_joblet_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x03 \x01(\tR\n" +
-	"expression\"\xda\x01\n" +
-	"\x12RunWorkflowRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
-	"\bworkflow\x18\x02 \x01(\tR\bworkflow\x12\x1c\n" +
-	"\ttotalJobs\x18\x03 \x01(\x05R\ttotalJobs\x12\x1a\n" +
-	"\bjobOrder\x18\x04 \x03(\tR\bjobOrder\x12 \n" +
-	"\vyamlContent\x18\x05 \x01(\tR\vyamlContent\x128\n" +
-	"\rworkflowFiles\x18\x06 \x03(\v2\x12.joblet.FileUploadR\rworkflowFiles\"M\n" +
+	"expression\"\xc6\x01\n" +
+	"\x12RunWorkflowRequest\x12\x1a\n" +
+	"\bworkflow\x18\x01 \x01(\tR\bworkflow\x12\x1c\n" +
+	"\ttotalJobs\x18\x02 \x01(\x05R\ttotalJobs\x12\x1a\n" +
+	"\bjobOrder\x18\x03 \x03(\tR\bjobOrder\x12 \n" +
+	"\vyamlContent\x18\x04 \x01(\tR\vyamlContent\x128\n" +
+	"\rworkflowFiles\x18\x05 \x03(\v2\x12.joblet.FileUploadR\rworkflowFiles\"M\n" +
 	"\x13RunWorkflowResponse\x12\x1e\n" +
 	"\n" +
 	"workflowId\x18\x01 \x01(\x05R\n" +
@@ -4541,22 +4524,21 @@ const file_joblet_proto_rawDesc = "" +
 	"workflowId\x18\x01 \x01(\x05R\n" +
 	"workflowId\"B\n" +
 	"\x17GetWorkflowJobsResponse\x12'\n" +
-	"\x04jobs\x18\x01 \x03(\v2\x13.joblet.WorkflowJobR\x04jobs\"\x85\x03\n" +
+	"\x04jobs\x18\x01 \x03(\v2\x13.joblet.WorkflowJobR\x04jobs\"\xf1\x02\n" +
 	"\fWorkflowInfo\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\bworkflow\x18\x03 \x01(\tR\bworkflow\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1c\n" +
-	"\ttotalJobs\x18\x05 \x01(\x05R\ttotalJobs\x12$\n" +
-	"\rcompletedJobs\x18\x06 \x01(\x05R\rcompletedJobs\x12\x1e\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1a\n" +
+	"\bworkflow\x18\x02 \x01(\tR\bworkflow\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1c\n" +
+	"\ttotalJobs\x18\x04 \x01(\x05R\ttotalJobs\x12$\n" +
+	"\rcompletedJobs\x18\x05 \x01(\x05R\rcompletedJobs\x12\x1e\n" +
 	"\n" +
-	"failedJobs\x18\a \x01(\x05R\n" +
+	"failedJobs\x18\x06 \x01(\x05R\n" +
 	"failedJobs\x12\"\n" +
-	"\fcanceledJobs\x18\b \x01(\x05R\fcanceledJobs\x12/\n" +
-	"\tcreatedAt\x18\t \x01(\v2\x11.joblet.TimestampR\tcreatedAt\x12/\n" +
-	"\tstartedAt\x18\n" +
-	" \x01(\v2\x11.joblet.TimestampR\tstartedAt\x123\n" +
-	"\vcompletedAt\x18\v \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xd9\x01\n" +
+	"\fcanceledJobs\x18\a \x01(\x05R\fcanceledJobs\x12/\n" +
+	"\tcreatedAt\x18\b \x01(\v2\x11.joblet.TimestampR\tcreatedAt\x12/\n" +
+	"\tstartedAt\x18\t \x01(\v2\x11.joblet.TimestampR\tstartedAt\x123\n" +
+	"\vcompletedAt\x18\n" +
+	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xd9\x01\n" +
 	"\vWorkflowJob\x12\x14\n" +
 	"\x05jobId\x18\x01 \x01(\tR\x05jobId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\"\n" +
@@ -4593,7 +4575,7 @@ const file_joblet_proto_rawDesc = "" +
 	"\x0eRuntimeService\x12;\n" +
 	"\fListRuntimes\x12\x14.joblet.EmptyRequest\x1a\x13.joblet.RuntimesRes\"\x00\x12B\n" +
 	"\x0eGetRuntimeInfo\x12\x16.joblet.RuntimeInfoReq\x1a\x16.joblet.RuntimeInfoRes\"\x00\x12?\n" +
-	"\vTestRuntime\x12\x16.joblet.RuntimeTestReq\x1a\x16.joblet.RuntimeTestRes\"\x00B\x04Z\x02./b\x06proto3"
+	"\vTestRuntime\x12\x16.joblet.RuntimeTestReq\x1a\x16.joblet.RuntimeTestRes\"\x00B\x10Z\x0ejoblet/api/genb\x06proto3"
 
 var (
 	file_joblet_proto_rawDescOnce sync.Once

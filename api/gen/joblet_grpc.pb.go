@@ -4,7 +4,7 @@
 // - protoc             v3.12.4
 // source: joblet.proto
 
-package __
+package gen
 
 import (
 	context "context"

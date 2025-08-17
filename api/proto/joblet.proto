@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "./";
+option go_package = "joblet/api/gen";
 
 package joblet;
 
@@ -432,12 +432,11 @@ message JobRequirement {
 }
 
 message RunWorkflowRequest {
-  string name = 1;
-  string workflow = 2;                    // Workflow filename for reference
-  int32 totalJobs = 3;
-  repeated string jobOrder = 4;
-  string yamlContent = 5;                 // YAML content for client-side workflow execution
-  repeated FileUpload workflowFiles = 6;  // Files referenced in workflow jobs (uploaded by client)
+  string workflow = 1;                    // Workflow filename for reference
+  int32 totalJobs = 2;
+  repeated string jobOrder = 3;
+  string yamlContent = 4;                 // YAML content for client-side workflow execution
+  repeated FileUpload workflowFiles = 5;  // Files referenced in workflow jobs (uploaded by client)
 }
 
 message RunWorkflowResponse {
@@ -473,16 +472,15 @@ message GetWorkflowJobsResponse {
 
 message WorkflowInfo {
   int32 id = 1;
-  string name = 2;
-  string workflow = 3;
-  string status = 4;
-  int32 totalJobs = 5;
-  int32 completedJobs = 6;
-  int32 failedJobs = 7;
-  int32 canceledJobs = 8;
-  Timestamp createdAt = 9;
-  Timestamp startedAt = 10;
-  Timestamp completedAt = 11;
+  string workflow = 2;
+  string status = 3;
+  int32 totalJobs = 4;
+  int32 completedJobs = 5;
+  int32 failedJobs = 6;
+  int32 canceledJobs = 7;
+  Timestamp createdAt = 8;
+  Timestamp startedAt = 9;
+  Timestamp completedAt = 10;
 }
 
 message WorkflowJob {

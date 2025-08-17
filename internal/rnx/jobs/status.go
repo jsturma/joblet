@@ -14,14 +14,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var workflowFlag bool
+
 func NewStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status <id>",
 		Short: "Get the status of a job or workflow by ID",
-		Long:  "Get the status of a job (string ID) or workflow (numeric ID)",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runStatus,
+		Long: `Get the status of a job or workflow by ID.
+
+By default, the command tries to detect the type automatically.
+Use --workflow flag to explicitly request workflow status.
+
+Examples:
+  # Get job status
+  rnx status job-123
+  
+  # Get workflow status (automatic detection for numeric IDs)
+  rnx status 5
+  
+  # Explicitly get workflow status
+  rnx status --workflow 5`,
+		Args: cobra.ExactArgs(1),
+		RunE: runStatus,
 	}
+
+	cmd.Flags().BoolVarP(&workflowFlag, "workflow", "w", false, "Get workflow status instead of job status")
 
 	return cmd
 }
@@ -29,7 +46,16 @@ func NewStatusCmd() *cobra.Command {
 func runStatus(cmd *cobra.Command, args []string) error {
 	id := args[0]
 
-	// First, try as job ID
+	// If workflow flag is set, try workflow status directly
+	if workflowFlag {
+		workflowID, err := strconv.Atoi(id)
+		if err != nil {
+			return fmt.Errorf("workflow ID must be numeric: %w", err)
+		}
+		return getWorkflowStatus(workflowID)
+	}
+
+	// Try job ID first (for backward compatibility)
 	jobErr := getJobStatus(id)
 	if jobErr == nil {
 		return nil
@@ -41,7 +67,15 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		if workflowErr == nil {
 			return nil
 		}
-		// If both fail, return workflow error for numeric IDs
+		// If both fail, show a helpful error message
+		if strings.Contains(jobErr.Error(), "not found") && strings.Contains(workflowErr.Error(), "not found") {
+			return fmt.Errorf("no job or workflow found with ID '%s'\n\nHint: Use 'rnx list' to see jobs or 'rnx list --workflow' to see workflows", id)
+		}
+		// If workflow exists but job also exists with same ID, suggest using --workflow flag
+		if strings.Contains(workflowErr.Error(), "not found") == false {
+			fmt.Fprintf(os.Stderr, "\nNote: Both job and workflow exist with ID '%s'. Showing job status.\nUse 'rnx status --workflow %s' to see workflow status.\n\n", id, id)
+			return nil
+		}
 		return workflowErr
 	}
 
@@ -71,7 +105,10 @@ func getJobStatus(jobID string) error {
 	// Display basic job information
 	fmt.Printf("Job ID: %s\n", response.Id)
 	fmt.Printf("Command: %s %s\n", response.Command, strings.Join(response.Args, " "))
-	fmt.Printf("Status: %s\n", response.Status)
+
+	// Display status with color coding (if terminal supports it)
+	statusColor, resetColor := getStatusColor(response.Status)
+	fmt.Printf("Status: %s%s%s\n", statusColor, response.Status, resetColor)
 
 	// Display scheduling information if available
 	if response.ScheduledTime != "" {
@@ -118,13 +155,32 @@ func getJobStatus(jobID string) error {
 		}
 	}
 
-	// Display resource limits
-	fmt.Printf("\nResource Limits:\n")
-	fmt.Printf("  Max CPU: %d%%\n", response.MaxCPU)
-	fmt.Printf("  Max Memory: %d MB\n", response.MaxMemory)
-	fmt.Printf("  Max IO BPS: %d\n", response.MaxIOBPS)
+	// Display resource limits (only show non-default/requested limits)
+	hasResourceLimits := false
+	resourceLimits := []string{}
+
+	if response.MaxCPU > 0 {
+		resourceLimits = append(resourceLimits, fmt.Sprintf("  Max CPU: %d%%", response.MaxCPU))
+		hasResourceLimits = true
+	}
+	if response.MaxMemory > 0 {
+		resourceLimits = append(resourceLimits, fmt.Sprintf("  Max Memory: %d MB", response.MaxMemory))
+		hasResourceLimits = true
+	}
+	if response.MaxIOBPS > 0 {
+		resourceLimits = append(resourceLimits, fmt.Sprintf("  Max IO BPS: %d", response.MaxIOBPS))
+		hasResourceLimits = true
+	}
 	if response.CpuCores != "" {
-		fmt.Printf("  CPU Cores: %s\n", response.CpuCores)
+		resourceLimits = append(resourceLimits, fmt.Sprintf("  CPU Cores: %s", response.CpuCores))
+		hasResourceLimits = true
+	}
+
+	if hasResourceLimits {
+		fmt.Printf("\nResource Limits:\n")
+		for _, limit := range resourceLimits {
+			fmt.Printf("%s\n", limit)
+		}
 	}
 
 	// Display exit code for completed jobs
@@ -167,6 +223,28 @@ func formatTimestamp(timestamp string) string {
 }
 
 // formatDuration formats a duration for human-readable display
+// formatWorkflowTime formats workflow timestamp for display
+func formatWorkflowTime(timestamp string) string {
+	if timestamp == "" {
+		return "-"
+	}
+	t, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		return timestamp
+	}
+	return t.Format("2006-01-02 15:04:05 MST")
+}
+
+// calculateDuration calculates duration between two RFC3339 timestamps
+func calculateDuration(start, end string) string {
+	startTime, err1 := time.Parse(time.RFC3339, start)
+	endTime, err2 := time.Parse(time.RFC3339, end)
+	if err1 != nil || err2 != nil {
+		return ""
+	}
+	return formatDuration(endTime.Sub(startTime))
+}
+
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%.1fs", d.Seconds())
@@ -225,21 +303,98 @@ func getWorkflowStatus(workflowID int) error {
 	}
 
 	workflow := res.Workflow
-	fmt.Printf("Workflow Status:\n")
-	fmt.Printf("  ID: %d\n", workflow.Id)
-	fmt.Printf("  Name: %s\n", workflow.Name)
-	fmt.Printf("  Workflow: %s\n", workflow.Workflow)
-	fmt.Printf("  Status: %s\n", workflow.Status)
-	fmt.Printf("  Progress: %d/%d jobs completed\n", workflow.CompletedJobs, workflow.TotalJobs)
-	fmt.Printf("  Failed: %d\n", workflow.FailedJobs)
 
+	// Display workflow summary
+	fmt.Printf("Workflow ID: %d\n", workflow.Id)
+	fmt.Printf("Workflow: %s\n", workflow.Workflow)
+	fmt.Printf("\n")
+
+	// Display status with color coding (if terminal supports it)
+	statusColor, resetColor := getStatusColor(workflow.Status)
+	fmt.Printf("Status: %s%s%s\n", statusColor, workflow.Status, resetColor)
+	fmt.Printf("Progress: %d/%d jobs completed", workflow.CompletedJobs, workflow.TotalJobs)
+	if workflow.FailedJobs > 0 {
+		fmt.Printf(" (%d failed)", workflow.FailedJobs)
+	}
+	fmt.Printf("\n\n")
+
+	// Display timing information
+	fmt.Printf("Timing:\n")
+	if workflow.CreatedAt != nil && workflow.CreatedAt.Seconds > 0 {
+		createdTime := time.Unix(workflow.CreatedAt.Seconds, 0)
+		fmt.Printf("  Created:   %s\n", createdTime.Format("2006-01-02 15:04:05 MST"))
+	}
+	if workflow.StartedAt != nil && workflow.StartedAt.Seconds > 0 {
+		startedTime := time.Unix(workflow.StartedAt.Seconds, 0)
+		fmt.Printf("  Started:   %s\n", startedTime.Format("2006-01-02 15:04:05 MST"))
+	}
+	if workflow.CompletedAt != nil && workflow.CompletedAt.Seconds > 0 {
+		completedTime := time.Unix(workflow.CompletedAt.Seconds, 0)
+		fmt.Printf("  Completed: %s\n", completedTime.Format("2006-01-02 15:04:05 MST"))
+		// Calculate duration
+		if workflow.StartedAt != nil && workflow.StartedAt.Seconds > 0 {
+			startTime := time.Unix(workflow.StartedAt.Seconds, 0)
+			duration := completedTime.Sub(startTime)
+			fmt.Printf("  Duration:  %s\n", formatDuration(duration))
+		}
+	}
+	fmt.Printf("\n")
+
+	// Display jobs with detailed information
 	if len(res.Jobs) > 0 {
-		fmt.Printf("\nJobs:\n")
+		fmt.Printf("Jobs in Workflow:\n")
+		fmt.Printf("-------------------------------------------------------------------\n")
+		fmt.Printf("%-20s %-12s %-10s %-20s\n", "JOB ID", "STATUS", "EXIT CODE", "DEPENDENCIES")
+		fmt.Printf("-------------------------------------------------------------------\n")
+
 		for _, job := range res.Jobs {
-			fmt.Printf("  - %s: %s\n", job.JobId, job.Status)
-			if len(job.Dependencies) > 0 {
-				fmt.Printf("    Dependencies: %v\n", job.Dependencies)
+			// Format status with color
+			jobStatusColor, _ := getStatusColor(job.Status)
+
+			exitCodeStr := "-"
+			if job.ExitCode > 0 || job.Status == "COMPLETED" {
+				exitCodeStr = fmt.Sprintf("%d", job.ExitCode)
 			}
+
+			deps := "-"
+			if len(job.Dependencies) > 0 {
+				deps = strings.Join(job.Dependencies, ", ")
+				if len(deps) > 20 {
+					deps = deps[:17] + "..."
+				}
+			}
+
+			fmt.Printf("%-20s %s%-12s%s %-10s %-20s\n",
+				job.JobId,
+				jobStatusColor, job.Status, resetColor,
+				exitCodeStr,
+				deps)
+
+			// Show timing for completed/running jobs
+			if job.StartTime != nil && job.StartTime.Seconds > 0 {
+				startTime := time.Unix(job.StartTime.Seconds, 0)
+				fmt.Printf("                     Started: %s", startTime.Format("15:04:05"))
+				if job.EndTime != nil && job.EndTime.Seconds > 0 {
+					endTime := time.Unix(job.EndTime.Seconds, 0)
+					duration := endTime.Sub(startTime)
+					fmt.Printf("  Duration: %s", formatDuration(duration))
+				}
+				fmt.Printf("\n")
+			}
+		}
+		fmt.Printf("\n")
+	}
+
+	// Show available actions
+	fmt.Printf("\nAvailable Actions:\n")
+	fmt.Printf("  • rnx list --workflow    # List all workflows\n")
+	if workflow.Status == "RUNNING" {
+		fmt.Printf("  • rnx status %d          # Refresh workflow status\n", workflow.Id)
+	}
+	for _, job := range res.Jobs {
+		if job.Status == "COMPLETED" || job.Status == "FAILED" {
+			fmt.Printf("  • rnx log %s             # View logs for job %s\n", job.JobId, job.JobId)
+			break
 		}
 	}
 
@@ -251,7 +406,6 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 	// Convert protobuf workflow status to JSON structure
 	statusData := map[string]interface{}{
 		"id":             res.Workflow.Id,
-		"name":           res.Workflow.Name,
 		"workflow":       res.Workflow.Workflow,
 		"status":         res.Workflow.Status,
 		"total_jobs":     res.Workflow.TotalJobs,

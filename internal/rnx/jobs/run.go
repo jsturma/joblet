@@ -212,7 +212,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 				return handleWorkflowExecution(workflowFile, mode, "", cmdArgs)
 			}
 		} else {
-			// If selector provided, check if it's a workflow selector in a multi-workflow template
+			// If selector provided, check if it's a workflow selector in a multi-workflow file
 			config, err := workflows.LoadWorkflowConfig(workflowFile)
 			if err == nil && config.Workflows != nil && len(config.Workflows) > 0 {
 				// Check if selector refers to a workflow name
@@ -350,7 +350,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Job started:\n")
 	fmt.Printf("ID: %s\n", response.JobId)
 	fmt.Printf("Command: %s %s\n", response.Command, strings.Join(response.Args, " "))
-	fmt.Printf("Status: %s\n", response.Status)
+	// Display status with color coding
+	statusColor, resetColor := getStatusColor(response.Status)
+	fmt.Printf("Status: %s%s%s\n", statusColor, response.Status, resetColor)
 	if schedule != "" {
 		fmt.Printf("Schedule Input: %s\n", schedule) // Show user's original input
 		fmt.Printf("Scheduled Time: %s\n", response.ScheduledTime)
@@ -715,7 +717,7 @@ func executeWorkflow(workflowPath string, workflowName string, commandArgs []str
 			return fmt.Errorf("workflow '%s' not found", workflowName)
 		}
 	} else {
-		// Full template as workflow
+		// Full workflow file as workflow
 		jobs = config.Jobs
 	}
 
@@ -786,9 +788,7 @@ func executeWorkflowViaService(workflowPath string, workflowName string) error {
 	workflowClient := pb.NewJobServiceClient(client.GetConn())
 
 	// Create workflow with YAML content and files
-	workflowNameGen := fmt.Sprintf("client-workflow-%d", time.Now().Unix())
 	createReq := &pb.RunWorkflowRequest{
-		Name:          workflowNameGen,
 		Workflow:      filepath.Base(workflowPath),
 		YamlContent:   string(yamlContent),
 		WorkflowFiles: workflowFiles,
@@ -803,8 +803,8 @@ func executeWorkflowViaService(workflowPath string, workflowName string) error {
 		return fmt.Errorf("failed to create workflow: %w", err)
 	}
 
-	fmt.Printf("Workflow created with ID: %d\n", createRes.WorkflowId)
-	fmt.Printf("Use 'rnx status %d' to monitor progress\n", createRes.WorkflowId)
+	fmt.Printf("Workflow created with WorkflowId: %d\n", createRes.WorkflowId)
+	fmt.Printf("Use 'rnx status --workflow %d' to monitor progress\n", createRes.WorkflowId)
 
 	return nil
 }
@@ -864,39 +864,33 @@ func extractWorkflowFiles(yamlPath string, workflow types.WorkflowYAML) ([]*pb.F
 func validateWorkflowPreRequisites(workflow types.WorkflowYAML) error {
 	// Fail-fast validation - stop immediately on first error
 
-	// 1. Check for circular dependencies
+	// Check for circular dependencies
 	if err := validateNonCircularDependencies(workflow); err != nil {
 		return fmt.Errorf("circular dependency detected: %w", err)
 	}
 
-	// 2. Validate all volumes exist
+	// Validate all volumes exist
 	if err := validateVolumesExist(workflow); err != nil {
 		return fmt.Errorf("volume validation failed: %w", err)
 	}
 
-	// 3. Validate all networks exist
+	// Validate all networks exist
 	if err := validateNetworksExist(workflow); err != nil {
 		return fmt.Errorf("network validation failed: %w", err)
 	}
 
-	// 4. Validate all runtimes exist
+	// Validate all runtimes exist
 	if err := validateRuntimesExist(workflow); err != nil {
 		return fmt.Errorf("runtime validation failed: %w", err)
 	}
 
-	// 5. Validate job dependencies reference existing jobs
+	// Validate job dependencies reference existing jobs
 	if err := validateJobDependencies(workflow); err != nil {
 		return fmt.Errorf("job dependency validation failed: %w", err)
 	}
 
 	// Only show success output if ALL validations pass
-	fmt.Println("🔍 Validating workflow prerequisites...")
-	fmt.Println("✅ No circular dependencies found")
-	fmt.Println("✅ All required volumes exist")
-	fmt.Println("✅ All required networks exist")
-	fmt.Println("✅ All required runtimes exist")
-	fmt.Println("✅ All job dependencies are valid")
-	fmt.Println("🎉 Workflow validation completed successfully!")
+	fmt.Println("Workflow validation completed successfully")
 	return nil
 }
 

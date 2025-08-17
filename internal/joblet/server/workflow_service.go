@@ -77,19 +77,18 @@ func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.Jo
 func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWorkflowRequest) (*pb.RunWorkflowResponse, error) {
 	log := s.logger.WithFields(
 		"operation", "RunWorkflow",
-		"name", req.Name,
 		"workflow", req.Workflow,
 		"totalJobs", req.TotalJobs,
 	)
-	log.Debug("run job template request received")
+	log.Debug("run job workflow request received")
 
 	if err := s.auth.Authorized(ctx, auth2.RunJobOp); err != nil {
 		log.Warn("authorization failed", "error", err)
 		return nil, err
 	}
 
-	if req.Name == "" || req.Workflow == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "name and workflow are required")
+	if req.Workflow == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "workflow is required")
 	}
 
 	// Check if we have YAML content (client-side upload) or just a workflow path
@@ -125,7 +124,7 @@ func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWork
 	}
 
 	// Fallback to simple workflow creation for non-YAML workflows
-	workflowID, err := s.workflowManager.CreateWorkflow(req.Name, req.Workflow, make(map[string]*workflow.JobDependency), req.JobOrder)
+	workflowID, err := s.workflowManager.CreateWorkflow(req.Workflow, make(map[string]*workflow.JobDependency), req.JobOrder)
 	if err != nil {
 		log.Error("failed to create workflow", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to create workflow: %v", err)
@@ -310,7 +309,6 @@ func (s *WorkflowServiceServer) convertToWorkflowJobRequest(req *pb.RunJobReques
 func (s *WorkflowServiceServer) convertWorkflowStateToInfo(ws *workflow.WorkflowState) *pb.WorkflowInfo {
 	info := &pb.WorkflowInfo{
 		Id:            int32(ws.ID),
-		Name:          ws.Name,
 		Workflow:      ws.Workflow,
 		Status:        string(ws.Status),
 		TotalJobs:     int32(ws.TotalJobs),
@@ -408,7 +406,6 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, 
 	}
 
 	workflowID, err := s.workflowManager.CreateWorkflow(
-		fmt.Sprintf("workflow-%d", time.Now().Unix()),
 		yamlPath,
 		jobs,
 		jobOrder,
@@ -643,7 +640,6 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 
 	// Create workflow
 	workflowID, err := s.workflowManager.CreateWorkflow(
-		fmt.Sprintf("client-workflow-%d", time.Now().Unix()),
 		"client-uploaded.yaml",
 		jobs,
 		jobOrder,

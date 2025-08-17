@@ -16,8 +16,20 @@ func NewStopCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stop <job-id>",
 		Short: "Stop a running job",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runStop,
+		Long: `Stop a running or scheduled job immediately.
+
+This command sends a termination signal to the specified job. For running jobs,
+it will attempt a graceful shutdown first, then force termination if needed.
+For scheduled jobs, it will cancel the scheduled execution.
+
+Examples:
+  # Stop a running job
+  rnx stop job-123
+  
+  # Cancel a scheduled job before it starts
+  rnx stop job-456`,
+		Args: cobra.ExactArgs(1),
+		RunE: runStop,
 	}
 
 	return cmd
@@ -45,7 +57,9 @@ func runStop(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Job stopped successfully:\n")
 	fmt.Printf("ID: %s\n", response.Id)
-	fmt.Printf("Status: %s\n", response.Status)
+	// Display status with color coding
+	statusColor, resetColor := getStatusColor(response.Status)
+	fmt.Printf("Status: %s%s%s\n", statusColor, response.Status, resetColor)
 
 	return nil
 }

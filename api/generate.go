@@ -1,3 +1,3 @@
 package api
 
-//go:generate sh -c "protoc -I=proto --go_out=gen --go-grpc_out=gen $(find proto -name '*.proto')"
+//go:generate protoc -I=proto --go_out=gen --go_opt=paths=source_relative --go-grpc_out=gen --go-grpc_opt=paths=source_relative proto/joblet.proto

@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Create workflow
-	workflowID, err := resolver.CreateWorkflow("test-workflow", "examples/workflows/ml-pipeline/ml-pipeline.yaml", jobs, jobOrder)
+	workflowID, err := resolver.CreateWorkflow("examples/workflows/ml-pipeline/ml-pipeline.yaml", jobs, jobOrder)
 	if err != nil {
 		log.Fatalf("Failed to create workflow: %v", err)
 	}

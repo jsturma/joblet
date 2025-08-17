@@ -23,8 +23,7 @@ type DependencyResolver struct {
 // WorkflowState tracks the state of a workflow
 type WorkflowState struct {
 	ID            int
-	Name          string
-	Workflow      string
+	Workflow      string // Workflow file path/name
 	Jobs          map[string]*JobDependency
 	JobOrder      []string
 	Status        WorkflowStatus
@@ -104,7 +103,7 @@ func NewDependencyResolver() *DependencyResolver {
 // 4. Evaluates initial job readiness based on dependency requirements
 // 5. Sets up job-to-workflow mappings for efficient lookups
 // Returns the assigned workflow ID for tracking and monitoring purposes.
-func (dr *DependencyResolver) CreateWorkflow(name, workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
+func (dr *DependencyResolver) CreateWorkflow(workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
 	dr.mu.Lock()
 	defer dr.mu.Unlock()
 
@@ -113,7 +112,6 @@ func (dr *DependencyResolver) CreateWorkflow(name, workflow string, jobs map[str
 
 	workflowState := &WorkflowState{
 		ID:        workflowID,
-		Name:      name,
 		Workflow:  workflow,
 		Jobs:      jobs,
 		JobOrder:  order,
@@ -236,7 +234,7 @@ func (dr *DependencyResolver) GetReadyJobs(workflowID int) []string {
 // GetWorkflowStatus retrieves the current state of a workflow including all job statuses.
 // Returns a copy of the WorkflowState to prevent race conditions during concurrent access.
 // The returned state includes:
-// - Workflow metadata (ID, name, template, creation time)
+// - Workflow metadata (ID, workflow file, creation time)
 // - Job dependency information and current statuses
 // - Execution statistics (completed, failed, canceled job counts)
 // - Overall workflow status and timing information

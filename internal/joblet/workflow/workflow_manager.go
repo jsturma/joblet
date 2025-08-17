@@ -30,7 +30,7 @@ func NewWorkflowManager() *WorkflowManager {
 // Returns the assigned workflow ID and any error that occurred during creation.
 // The jobs map contains job IDs mapped to their dependency information.
 // The order slice defines the intended execution order for jobs without dependencies.
-func (wm *WorkflowManager) CreateWorkflow(name, workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
+func (wm *WorkflowManager) CreateWorkflow(workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
@@ -39,7 +39,6 @@ func (wm *WorkflowManager) CreateWorkflow(name, workflow string, jobs map[string
 
 	workflowState := &WorkflowState{
 		ID:        workflowID,
-		Name:      name,
 		Workflow:  workflow,
 		Jobs:      jobs,
 		JobOrder:  order,
@@ -56,7 +55,7 @@ func (wm *WorkflowManager) CreateWorkflow(name, workflow string, jobs map[string
 	}
 
 	// Create in resolver
-	_, err := wm.resolver.CreateWorkflow(name, workflow, jobs, order)
+	_, err := wm.resolver.CreateWorkflow(workflow, jobs, order)
 	return workflowID, err
 }
 

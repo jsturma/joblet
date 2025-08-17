@@ -86,7 +86,7 @@ type WorkflowDef struct {
 	Jobs        map[string]WorkflowJobConfig `yaml:"jobs"`
 }
 
-// WorkflowExecutionMode determines how the template should be executed
+// WorkflowExecutionMode determines how the workflow should be executed
 type WorkflowExecutionMode int
 
 const (
@@ -101,8 +101,8 @@ const (
 type WorkflowMetadata struct {
 	ID            int               // Sequential workflow ID
 	Name          string            // Human-readable name
-	Template      string            // Source template file
-	Selector      string            // Template selector used
+	WorkflowFile  string            // Source workflow file
+	Selector      string            // Workflow selector used
 	Status        WorkflowStatus    // Derived from job states
 	JobIDs        []string          // Ordered list of job IDs
 	JobMapping    map[string]string // Internal name to job ID mapping
@@ -126,17 +126,17 @@ const (
 	WorkflowStatusStopped   WorkflowStatus = "STOPPED"
 )
 
-// DetectExecutionMode analyzes the template to determine execution mode
-func DetectExecutionMode(templatePath string, selector string) (WorkflowExecutionMode, string, error) {
+// DetectExecutionMode analyzes the workflow file to determine execution mode
+func DetectExecutionMode(workflowPath string, selector string) (WorkflowExecutionMode, string, error) {
 	// Parse selector if present
-	parts := strings.Split(templatePath, ":")
+	parts := strings.Split(workflowPath, ":")
 	if len(parts) == 2 {
-		templatePath = parts[0]
+		workflowPath = parts[0]
 		selector = parts[1]
 	}
 
-	// Load the template
-	config, err := LoadWorkflowConfig(templatePath)
+	// Load the workflow file
+	config, err := LoadWorkflowConfig(workflowPath)
 	if err != nil {
 		return ModeError, "", err
 	}
@@ -155,7 +155,7 @@ func DetectExecutionMode(templatePath string, selector string) (WorkflowExecutio
 			}
 		}
 
-		return ModeError, "", fmt.Errorf("selector '%s' not found in template", selector)
+		return ModeError, "", fmt.Errorf("selector '%s' not found in workflow file", selector)
 	}
 
 	// No selector - check for dependencies

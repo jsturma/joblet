@@ -123,9 +123,12 @@ func formatJobList(jobs []*pb.Job) {
 		// truncate long commands
 		command := formatCommand(job.Command, job.Args)
 
-		fmt.Printf("%-*s %-*s %-19s %s\n",
+		// Get status color
+		statusColor, resetColor := getStatusColor(job.Status)
+
+		fmt.Printf("%-*s %s%-*s%s %-19s %s\n",
 			maxIDWidth, job.Id,
-			maxStatusWidth, job.Status,
+			statusColor, maxStatusWidth, job.Status, resetColor,
 			startTime,
 			command)
 	}
@@ -244,13 +247,16 @@ func listWorkflows() error {
 
 // formatWorkflowList formats and displays workflows in a table
 func formatWorkflowList(workflows []*pb.WorkflowInfo) {
-	fmt.Printf("ID   NAME                 STATUS      PROGRESS\n")
+	fmt.Printf("ID   WORKFLOW             STATUS      PROGRESS\n")
 	fmt.Printf("---- -------------------- ----------- ---------\n")
 	for _, workflow := range workflows {
-		fmt.Printf("%-4d %-20s %-11s %d/%d\n",
+		// Get status color
+		statusColor, resetColor := getStatusColor(workflow.Status)
+
+		fmt.Printf("%-4d %-20s %s%-11s%s %d/%d\n",
 			workflow.Id,
-			truncateString(workflow.Name, 20),
-			workflow.Status,
+			truncateString(workflow.Workflow, 20),
+			statusColor, workflow.Status, resetColor,
 			workflow.CompletedJobs,
 			workflow.TotalJobs)
 	}
@@ -261,7 +267,6 @@ func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
 	// Convert protobuf workflows to a simpler structure for JSON output
 	type jsonWorkflow struct {
 		ID            int32  `json:"id"`
-		Name          string `json:"name"`
 		Workflow      string `json:"workflow"`
 		Status        string `json:"status"`
 		TotalJobs     int32  `json:"total_jobs"`
@@ -276,7 +281,6 @@ func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
 	for _, workflow := range workflows {
 		jsonWf := jsonWorkflow{
 			ID:            workflow.Id,
-			Name:          workflow.Name,
 			Workflow:      workflow.Workflow,
 			Status:        workflow.Status,
 			TotalJobs:     workflow.TotalJobs,
