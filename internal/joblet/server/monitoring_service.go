@@ -30,7 +30,6 @@ func NewMonitoringServiceServer(monitor *monitoring.Service) *MonitoringServiceS
 
 // GetSystemStatus returns the current system status
 func (s *MonitoringServiceServer) GetSystemStatus(ctx context.Context, req *pb.EmptyRequest) (*pb.SystemStatusRes, error) {
-	s.logger.Debug("GetSystemStatus called")
 
 	systemStatus := s.monitor.GetSystemStatus()
 	if systemStatus == nil {

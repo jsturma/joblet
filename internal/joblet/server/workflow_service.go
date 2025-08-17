@@ -756,7 +756,6 @@ func (s *WorkflowServiceServer) ListJobs(ctx context.Context, req *pb.EmptyReque
 		pbJobs[i] = mapper.DomainToProtobuf(job)
 	}
 
-	log.Debug("jobs retrieved successfully", "count", len(jobs))
 	return &pb.Jobs{Jobs: pbJobs}, nil
 }
 

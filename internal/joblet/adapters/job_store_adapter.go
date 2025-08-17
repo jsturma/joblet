@@ -266,7 +266,6 @@ func (a *jobStoreAdapter) ListJobs() []*domain.Job {
 		result[i] = job.DeepCopy()
 	}
 
-	a.logger.Debug("jobs listed successfully", "count", len(result))
 	return result
 }
 
