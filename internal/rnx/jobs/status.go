@@ -72,7 +72,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("no job or workflow found with ID '%s'\n\nHint: Use 'rnx list' to see jobs or 'rnx list --workflow' to see workflows", id)
 		}
 		// If workflow exists but job also exists with same ID, suggest using --workflow flag
-		if strings.Contains(workflowErr.Error(), "not found") == false {
+		if !strings.Contains(workflowErr.Error(), "not found") {
 			fmt.Fprintf(os.Stderr, "\nNote: Both job and workflow exist with ID '%s'. Showing job status.\nUse 'rnx status --workflow %s' to see workflow status.\n\n", id, id)
 			return nil
 		}
@@ -223,27 +223,6 @@ func formatTimestamp(timestamp string) string {
 }
 
 // formatDuration formats a duration for human-readable display
-// formatWorkflowTime formats workflow timestamp for display
-func formatWorkflowTime(timestamp string) string {
-	if timestamp == "" {
-		return "-"
-	}
-	t, err := time.Parse(time.RFC3339, timestamp)
-	if err != nil {
-		return timestamp
-	}
-	return t.Format("2006-01-02 15:04:05 MST")
-}
-
-// calculateDuration calculates duration between two RFC3339 timestamps
-func calculateDuration(start, end string) string {
-	startTime, err1 := time.Parse(time.RFC3339, start)
-	endTime, err2 := time.Parse(time.RFC3339, end)
-	if err1 != nil || err2 != nil {
-		return ""
-	}
-	return formatDuration(endTime.Sub(startTime))
-}
 
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {
