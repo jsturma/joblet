@@ -139,7 +139,6 @@ app.post('/api/jobs/execute', async (req, res) => {
       uploadDirs = [],
       envVars = {},
       schedule,
-      workdir,
       node
     } = req.body;
 
@@ -147,29 +146,55 @@ app.post('/api/jobs/execute', async (req, res) => {
       return res.status(400).json({ error: 'Command is required' });
     }
 
-    // Build rnx run command arguments
-    const rnxArgs = ['run', command, ...args];
+    // Build rnx run command arguments - flags must come before the command
+    const rnxArgs = ['run'];
     
-    // Add optional flags
+    // Add optional flags first (before command)
     if (maxCPU) rnxArgs.push('--max-cpu', maxCPU.toString());
     if (maxMemory) rnxArgs.push('--max-memory', maxMemory.toString());
     if (maxIOBPS) rnxArgs.push('--max-iobps', maxIOBPS.toString());
     if (cpuCores) rnxArgs.push('--cpu-cores', cpuCores);
     if (runtime) rnxArgs.push('--runtime', runtime);
     if (network) rnxArgs.push('--network', network);
-    if (workdir) rnxArgs.push('--workdir', workdir);
     if (schedule) rnxArgs.push('--schedule', schedule);
     
     // Add volumes
     volumes.forEach(volume => {
       rnxArgs.push('--volume', volume);
     });
+    
+    // Add uploads
+    uploads.forEach(upload => {
+      rnxArgs.push('--upload', upload);
+    });
+    
+    // Add upload directories
+    uploadDirs.forEach(dir => {
+      rnxArgs.push('--upload-dir', dir);
+    });
+    
+    // Add environment variables
+    Object.entries(envVars).forEach(([key, value]) => {
+      rnxArgs.push('--env', `${key}=${value}`);
+    });
+    
+    // Add command and args last
+    rnxArgs.push(command);
+    if (args && args.length > 0) {
+      rnxArgs.push(...args);
+    }
 
     // Execute the job
     const output = await execRnx(rnxArgs, { node });
     
-    // Extract job ID from output (adjust based on rnx run output format)
-    const jobId = output || `job-${Date.now()}`;
+    // Extract job ID from output (format: "Job started:\nID: 45\nCommand: ...\nStatus: RUNNING\nStartTime:")
+    let jobId = `job-${Date.now()}`;
+    if (output) {
+      const idMatch = output.match(/ID:\s*(\d+)/);
+      if (idMatch && idMatch[1]) {
+        jobId = idMatch[1];
+      }
+    }
     
     res.json({
       jobId,
@@ -179,6 +204,50 @@ app.post('/api/jobs/execute', async (req, res) => {
   } catch (error) {
     console.error('Failed to execute job:', error);
     res.status(500).json({ error: 'Failed to execute job', message: error.message });
+  }
+});
+
+// Get workflow details with jobs
+app.get('/api/workflows/:workflowId', async (req, res) => {
+  try {
+    const { workflowId } = req.params;
+    const node = req.query.node;
+    
+    // First get all workflows to find the specific workflow
+    const workflowsOutput = await execRnx(['list', '--workflow', '--json'], { node });
+    let workflows = [];
+    if (workflowsOutput && workflowsOutput.trim()) {
+      workflows = JSON.parse(workflowsOutput);
+    }
+    
+    const workflow = workflows.find(w => w.id.toString() === workflowId);
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+    
+    // Get all jobs to find jobs that belong to this workflow
+    const jobsOutput = await execRnx(['list', '--json'], { node });
+    let allJobs = [];
+    if (jobsOutput && jobsOutput.trim()) {
+      allJobs = JSON.parse(jobsOutput);
+    }
+    
+    // For now, we'll return the workflow with empty jobs array since we don't have a direct way
+    // to associate jobs with workflows in the current API
+    // TODO: This could be enhanced if RNX provides workflow-job associations
+    
+    const workflowWithJobs = {
+      ...workflow,
+      jobs: [] // Will be empty for now until we have a way to associate jobs with workflows
+    };
+    
+    res.json(workflowWithJobs);
+  } catch (error) {
+    console.error(`Failed to get workflow ${req.params.workflowId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to get workflow details', 
+      message: error.message 
+    });
   }
 });
 
@@ -519,63 +588,66 @@ app.get('/api/networks', async (req, res) => {
   }
 });
 
+// List workflows
+app.get('/api/workflows', async (req, res) => {
+  try {
+    const node = req.query.node;
+    const output = await execRnx(['list', '--workflow', '--json'], { node });
+    
+    let workflows = [];
+    if (output && output.trim()) {
+      try {
+        workflows = JSON.parse(output);
+        // Ensure workflows is an array
+        if (!Array.isArray(workflows)) {
+          workflows = [];
+        }
+      } catch (e) {
+        console.warn('Failed to parse JSON from rnx list --workflow:', e.message);
+        workflows = [];
+      }
+    }
+    
+    res.json(workflows);
+  } catch (error) {
+    console.error('Failed to list workflows:', error);
+    // Return empty array instead of error to prevent UI crashes
+    res.json([]);
+  }
+});
+
 // List runtimes
 app.get('/api/runtimes', async (req, res) => {
   try {
     const node = req.query.node;
-    // Try with --json first, fallback to parsing text output
-    let output;
-    let useJson = true;
     
-    try {
-      output = await execRnx(['runtime', 'list', '--json'], { node });
-    } catch (error) {
-      // If --json flag fails, try without it
-      if (error.message.includes('unknown flag')) {
-        useJson = false;
-        output = await execRnx(['runtime', 'list'], { node });
-      } else {
-        throw error;
-      }
-    }
+    // Get runtime list output (no --json flag available)
+    const output = await execRnx(['runtime', 'list'], { node });
     
     let result;
     if (output && output.trim()) {
-      if (useJson) {
-        try {
-          result = JSON.parse(output);
-          // Ensure runtimes field exists and is an array
-          if (!result.runtimes || !Array.isArray(result.runtimes)) {
-            result = { runtimes: [], message: 'No runtimes found' };
-          }
-        } catch (e) {
-          console.warn('Failed to parse JSON from runtime list:', e.message);
-          result = { runtimes: [], message: 'Runtime service not available' };
-        }
-      } else {
-        // Parse text output
-        const lines = output.split('\n').filter(line => line.trim());
-        const runtimes = [];
-        
-        // Skip header lines (first 2 lines are header and separator)
-        for (let i = 2; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (line && !line.startsWith('Use \'rnx runtime info')) {
-            const parts = line.split(/\s+/);
-            if (parts.length >= 4) {
-              runtimes.push({
-                id: parts[0],
-                name: parts[0],
-                version: parts[1],
-                size: parts[2],
-                description: parts.slice(3).join(' ')
-              });
-            }
+      // Parse text output
+      const lines = output.split('\n').filter(line => line.trim());
+      const runtimes = [];
+      
+      // Skip header lines (first 2 lines are header and separator)
+      for (let i = 2; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line && !line.startsWith('Use \'rnx runtime info')) {
+          const parts = line.split(/\s+/);
+          if (parts.length >= 4) {
+            runtimes.push({
+              id: parts[0],
+              name: parts[0],
+              version: parts[1],
+              size: parts[2],
+              description: parts.slice(3).join(' ')
+            });
           }
         }
-        
-        result = { runtimes };
       }
+      
+      result = { runtimes };
     } else {
       result = { runtimes: [], message: 'Runtime service not available' };
     }

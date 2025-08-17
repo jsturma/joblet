@@ -55,6 +55,15 @@ class APIService {
         return this.request<Job[]>('/jobs');
     }
 
+    // Workflow operations
+    async getWorkflows(): Promise<any[]> {
+        return this.request<any[]>('/workflows');
+    }
+
+    async getWorkflow(workflowId: string): Promise<any> {
+        return this.request<any>(`/workflows/${workflowId}`);
+    }
+
     async getJob(jobId: string): Promise<Job> {
         return this.request<Job>(`/jobs/${jobId}`);
     }

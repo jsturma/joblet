@@ -28,8 +28,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
         network: 'bridge',
         volumes: [],
         envVars: {},
-        schedule: '',
-        workdir: '/work'
+        schedule: ''
     });
 
     const [preview, setPreview] = useState<string>('');
@@ -226,8 +225,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                 uploads: config.files, // These are now actual file paths from upload handler
                 uploadDirs: config.directories, // These are now actual directory paths
                 envVars: config.envVars,
-                schedule: config.schedule || undefined,
-                workdir: config.workdir
+                schedule: config.schedule || undefined
             };
 
             const jobId = await executeJob(request);
@@ -246,8 +244,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                 network: 'bridge',
                 volumes: [],
                 envVars: {},
-                schedule: '',
-                workdir: '/work'
+                schedule: ''
             });
             setUploadedFiles([]);
             setUploadError('');
@@ -269,8 +266,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
             network: 'bridge',
             volumes: [],
             envVars: {},
-            schedule: '',
-            workdir: '/work'
+            schedule: ''
         });
     }, []);
 
@@ -502,10 +498,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
                                         <option value="">Default</option>
-                                        <option value="python-3.11">Python 3.11</option>
-                                        <option value="python-3.11-ml">Python 3.11 ML</option>
-                                        <option value="java-17">Java 17</option>
-                                        <option value="java-21">Java 21</option>
+                                        <option value="python:3.11-ml">Python 3.11 ML</option>
                                     </select>
                                 </div>
 
@@ -586,18 +579,6 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                             {showAdvanced && (
                                 <div className="mt-4 space-y-4 pt-4 border-t border-gray-200">
-                                    <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Working Directory
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={config.workdir}
-                                            onChange={(e) => updateConfig({workdir: e.target.value})}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="/work"
-                                        />
-                                    </div>
 
                                     <div>
                                         <label className="block text-sm font-medium text-white mb-2">

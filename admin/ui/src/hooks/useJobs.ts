@@ -61,37 +61,47 @@ export const useJobs = (): UseJobsReturn => {
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(10);
 
-    const refreshJobs = useCallback(async (): Promise<void> => {
+    const fetchJobs = useCallback(async (showLoading: boolean = false): Promise<void> => {
         try {
+            if (showLoading) {
+                setLoading(true);
+            }
             setError(null);
             const response = await apiService.getJobs();
             const sortedJobs = sortJobs(response);
             setJobs(sortedJobs);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
+            console.error('Failed to fetch jobs:', err);
         } finally {
-            setLoading(false);
+            if (showLoading) {
+                setLoading(false);
+            }
         }
     }, []);
+
+    const refreshJobs = useCallback(async (): Promise<void> => {
+        await fetchJobs(true);
+    }, [fetchJobs]);
 
     const executeJob = useCallback(async (request: JobExecuteRequest): Promise<string> => {
         try {
             const response = await apiService.executeJob(request);
-            await refreshJobs(); // Refresh job list
+            await fetchJobs(false); // Refresh job list without loading indicator
             return response.jobId;
         } catch (err) {
             throw new Error(err instanceof Error ? err.message : 'Failed to execute job');
         }
-    }, [refreshJobs]);
+    }, [fetchJobs]);
 
     const stopJob = useCallback(async (jobId: string): Promise<void> => {
         try {
             await apiService.stopJob(jobId);
-            await refreshJobs(); // Refresh job list
+            await fetchJobs(false); // Refresh job list without loading indicator
         } catch (err) {
             throw new Error(err instanceof Error ? err.message : 'Failed to stop job');
         }
-    }, [refreshJobs]);
+    }, [fetchJobs]);
 
     // Calculate pagination values
     const totalJobs = jobs.length;
@@ -114,12 +124,13 @@ export const useJobs = (): UseJobsReturn => {
     }, []);
 
     useEffect(() => {
-        refreshJobs();
+        // Initial load with loading indicator
+        fetchJobs(true);
 
-        // Poll for updates every 2 seconds
-        const interval = setInterval(refreshJobs, 2000);
+        // Poll for updates every 5 seconds (without loading indicator)
+        const interval = setInterval(() => fetchJobs(false), 5000);
         return () => clearInterval(interval);
-    }, [refreshJobs]);
+    }, [fetchJobs]);
 
     return {
         jobs,

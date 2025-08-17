@@ -1,5 +1,5 @@
 import React from 'react';
-import { Server, Globe, Clock } from 'lucide-react';
+import { Server } from 'lucide-react';
 
 interface HostInfoCardProps {
     hostInfo: {

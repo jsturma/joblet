@@ -26,7 +26,6 @@ export interface Job {
     uploads: string[];
     uploadDirs: string[];
     envVars: Record<string, string>;
-    workdir: string;
     dependsOn: string[];
     resourceUsage?: ResourceUsage;
 }
@@ -53,7 +52,6 @@ export interface JobConfig {
     volumes: string[];
     envVars: Record<string, string>;
     schedule: string;
-    workdir: string;
 }
 
 export interface JobExecuteRequest {
@@ -70,7 +68,6 @@ export interface JobExecuteRequest {
     uploadDirs?: string[];
     envVars?: Record<string, string>;
     schedule?: string;
-    workdir?: string;
 }
 
 export interface JobFlag {

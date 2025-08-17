@@ -8,7 +8,6 @@ const CreateJob: React.FC = () => {
 
     const handleJobCreated = (jobId: string) => {
         // Show success message and redirect to jobs page
-        console.log('Job created:', jobId);
         navigate('/jobs', {
             state: {
                 message: `Job ${jobId} created successfully`,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { List, Search, MoreVertical } from 'lucide-react';
+import { List, Search } from 'lucide-react';
 
 interface ProcessesCardProps {
     processesInfo: {

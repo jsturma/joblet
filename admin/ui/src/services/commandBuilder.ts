@@ -14,7 +14,7 @@ export class CommandBuilder {
             .setResource('memory', config.maxMemory)
             .setResource('cores', config.cpuCores)
             .setResource('io', config.maxIobps)
-            .setEnvironment(config.runtime, config.network, config.workdir)
+            .setEnvironment(config.runtime, config.network)
             .setSchedule(config.schedule);
 
         // Add file uploads
@@ -67,10 +67,9 @@ export class CommandBuilder {
         return this;
     }
 
-    setEnvironment(runtime: string, network: string, workdir?: string): this {
+    setEnvironment(runtime: string, network: string): this {
         if (runtime) this.flags.set('runtime', runtime);
-        if (network && network !== 'bridge') this.flags.set('network', network);
-        if (workdir) this.flags.set('workdir', workdir);
+        if (network) this.flags.set('network', network);
         return this;
     }
 
@@ -101,7 +100,7 @@ export class CommandBuilder {
         // Build flag arguments with proper ordering
         const flagOrder = [
             'upload', 'upload-dir', 'max-cpu', 'max-memory', 'cpu-cores', 'max-iobps',
-            'runtime', 'network', 'volume', 'env', 'workdir', 'schedule'
+            'runtime', 'network', 'volume', 'env', 'schedule'
         ];
 
         flagOrder.forEach(flagName => {
@@ -124,7 +123,7 @@ export class CommandBuilder {
         return {
             command: this.command,
             flags: flagsArray,
-            fullCommand: parts.join(' \\\n  ')
+            fullCommand: parts.join(' ')
         };
     }
 }

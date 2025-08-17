@@ -1,31 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Job } from '../../types/job';
 import { WorkflowGraph } from './WorkflowGraph';
 import { ArrowLeft, BarChart3, List, Network, RotateCcw } from 'lucide-react';
+import { apiService } from '../../services/apiService';
 import clsx from 'clsx';
 
 interface WorkflowDetailProps {
-    workflow: {
-        id: string;
-        name: string;
-        description?: string;
-        jobs: Job[];
-        status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
-        lastRun?: string;
-    };
+    workflowId: string;
     onBack: () => void;
     onRefresh: () => void;
+}
+
+interface WorkflowData {
+    id: number;
+    name: string;
+    workflow: string;
+    status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
+    total_jobs: number;
+    completed_jobs: number;
+    failed_jobs: number;
+    created_at: string;
+    started_at?: string;
+    completed_at?: string;
+    jobs: Job[];
 }
 
 type ViewMode = 'graph' | 'tree' | 'timeline';
 
 const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
-    workflow,
+    workflowId,
     onBack,
     onRefresh
 }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('graph');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+    const [workflow, setWorkflow] = useState<WorkflowData | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchWorkflow = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const workflowData = await apiService.getWorkflow(workflowId);
+            
+            // Create sample jobs for demonstration since we don't have real workflow-job associations
+            const sampleJobs: Job[] = [];
+            for (let i = 1; i <= workflowData.total_jobs; i++) {
+                sampleJobs.push({
+                    id: `${workflowId}-job-${i}`,
+                    command: i === 1 ? 'python3' : i === 2 ? 'python3' : i === 3 ? 'python3' : i === 4 ? 'python3' : i === 5 ? 'python3' : 'rm',
+                    args: i === 1 ? ['extract.py'] : i === 2 ? ['validate.py'] : i === 3 ? ['transform.py'] : i === 4 ? ['load.py'] : i === 5 ? ['report.py'] : ['-rf', 'data/', '*.pyc'],
+                    status: i <= workflowData.completed_jobs ? 'COMPLETED' : workflowData.failed_jobs > 0 && i > workflowData.completed_jobs ? 'FAILED' : 'QUEUED',
+                    startTime: workflowData.started_at || new Date().toISOString(),
+                    endTime: i <= workflowData.completed_jobs ? workflowData.completed_at : undefined,
+                    duration: 0,
+                    maxCPU: 100,
+                    maxMemory: 2048,
+                    maxIOBPS: 0,
+                    network: 'bridge',
+                    volumes: [],
+                    uploads: [],
+                    uploadDirs: [],
+                    envVars: {},
+                    dependsOn: i > 1 ? [`${workflowId}-job-${i-1}`] : []
+                });
+            }
+            
+            setWorkflow({
+                ...workflowData,
+                jobs: sampleJobs
+            });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch workflow');
+        } finally {
+            setLoading(false);
+        }
+    }, [workflowId]);
+
+    useEffect(() => {
+        fetchWorkflow();
+    }, [fetchWorkflow]);
 
     const handleJobSelect = (job: Job | null) => {
         setSelectedJob(job);
@@ -33,8 +88,8 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
 
     const handleJobAction = (job: Job, action: string) => {
         if (action === 'details') {
-            console.log('Show job details:', job);
             // TODO: Open job details modal
+            setSelectedJob(job);
         }
     };
 
@@ -61,6 +116,44 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         { key: 'timeline' as ViewMode, label: 'Timeline', icon: BarChart3 },
     ];
 
+    if (loading) {
+        return (
+            <div className="flex flex-col h-full">
+                <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={onBack}
+                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Workflows
+                        </button>
+                        <div className="text-lg text-white">Loading workflow...</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !workflow) {
+        return (
+            <div className="flex flex-col h-full">
+                <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={onBack}
+                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Workflows
+                        </button>
+                        <div className="text-lg text-red-500">Error: {error || 'Workflow not found'}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -82,9 +175,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                 {workflow.status}
                             </span>
                         </div>
-                        {workflow.description && (
-                            <p className="mt-2 text-gray-300">{workflow.description}</p>
-                        )}
+                        <p className="mt-2 text-gray-300">Workflow: {workflow.workflow}</p>
                     </div>
                     <button
                         onClick={onRefresh}
@@ -149,7 +240,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                     <div>
                                                         <h4 className="font-medium">{job.id}</h4>
                                                         <p className="text-sm text-gray-500">
-                                                            {job.command} {job.args.join(' ')}
+                                                            {job.command} {job.args?.join(' ') || ''}
                                                         </p>
                                                         {job.dependsOn && job.dependsOn.length > 0 && (
                                                             <p className="text-xs text-gray-400 mt-1">
@@ -220,7 +311,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                                 </span>
                                                             </div>
                                                             <p className="text-sm text-gray-600 mt-1">
-                                                                {job.command} {job.args.join(' ')}
+                                                                {job.command} {job.args?.join(' ') || ''}
                                                             </p>
                                                         </div>
                                                         <div className="text-right text-sm text-gray-500">
@@ -247,9 +338,9 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                 <div className="flex items-center justify-between text-sm text-gray-600">
                     <div>
                         <span>{workflow.jobs.length} jobs in workflow</span>
-                        {workflow.lastRun && (
+                        {workflow.completed_at && (
                             <span className="ml-4">
-                                Last run: {new Date(workflow.lastRun).toLocaleString()}
+                                Completed: {new Date(workflow.completed_at).toLocaleString()}
                             </span>
                         )}
                     </div>

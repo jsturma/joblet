@@ -95,7 +95,7 @@ export const JobNode: React.FC<JobNodeProps> = ({
                 </div>
 
                 {/* Command */}
-                <div className="text-xs text-gray-500 mb-2 truncate" title={`${job.command} ${job.args.join(' ')}`}>
+                <div className="text-xs text-gray-500 mb-2 truncate" title={`${job.command} ${job.args?.join(' ') || ''}`}>
                     {job.command}
                 </div>
 

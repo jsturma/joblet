@@ -27,7 +27,7 @@ execution - protecting your host system from malicious or resource-hungry proces
 - **Real-time Monitoring**: Live logs, system metrics, and job status tracking
 - **mTLS Security**: Certificate-based authentication with role-based access control
 - **Cross-platform CLI**: Manage jobs from Linux, macOS, or Windows
-- **Web Admin UI**: Optional React-based web interface for visual job management (macOS)
+- **Web Admin UI**: React-based web interface with comprehensive system monitoring, job management, and workflow visualization (macOS)
 
 ## 🔧 How It Works
 
@@ -35,7 +35,7 @@ Joblet consists of three components:
 
 1. **Joblet Daemon** - Runs on Linux servers, executes jobs in isolated environments
 2. **RNX CLI** - Connects from anywhere (Linux/macOS/Windows) to manage jobs
-3. **Web Admin UI** - Optional React-based web interface for visual job management (macOS via Homebrew)
+3. **Web Admin UI** - React-based web interface with comprehensive system monitoring, job management, workflow visualization, and real-time metrics (macOS via Homebrew)
 
 ### Security & Isolation Features
 
@@ -196,6 +196,39 @@ rnx monitor status                 # Check server metrics
 # If you installed the web admin UI (macOS Homebrew with --with-admin):
 rnx admin                          # Launch web interface at http://localhost:5173
 ```
+
+### 🎨 Web Admin UI Features
+
+The optional Web Admin UI provides a comprehensive visual interface for managing Joblet:
+
+#### **📊 System Monitoring Dashboard**
+- **Host Information**: Hostname, platform, architecture, uptime, cloud environment details
+- **CPU Metrics**: Real-time usage, per-core monitoring, load averages, temperature (if available)
+- **Memory Details**: Total/used/available memory, buffers, cache, swap usage with visual graphs
+- **Disk Information**: Usage by mount point, I/O statistics, filesystem details
+- **Network Interfaces**: RX/TX statistics, packet counts, error rates per interface
+- **Process Monitor**: Top processes by CPU/memory usage with search and sorting capabilities
+
+#### **💼 Job Management**
+- **Job List**: Paginated view with sortable columns (ID, status, duration, start time)
+- **Job Details**: Real-time logs, execution status, resource usage, scheduling info
+- **Bulk Operations**: Start, stop, and manage multiple jobs simultaneously
+- **Advanced Filtering**: Filter by status, runtime, network, date range
+
+#### **🔄 Workflow Visualization**
+- **Workflow Explorer**: List view of all workflows with drill-down capability  
+- **Graph View**: Visual dependency graph showing job relationships and execution flow
+- **Tree View**: Hierarchical display of workflow structure and job dependencies
+- **Timeline View**: Execution timeline with job duration and dependencies
+- **Real-time Updates**: Live status updates as workflows execute
+
+#### **🎛️ Administration Tools**
+- **Volume Management**: Create, delete, and monitor volume usage
+- **Network Configuration**: Custom network creation and management
+- **Runtime Information**: Available runtimes, package listings, health checks
+- **User-selectable Settings**: Page sizes, refresh intervals, display preferences
+
+> **🖥️ Access the Web UI**: After installing with Homebrew `--with-admin`, run `rnx admin` to launch the interface at http://localhost:5173
 
 > **📋 Complete Installation Guide**: See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed installation
 > instructions covering all platforms (Ubuntu, RHEL, Amazon Linux, macOS, Windows) and deployment scenarios.

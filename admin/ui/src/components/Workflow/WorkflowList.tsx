@@ -1,25 +1,40 @@
 import React from 'react';
-import { Job } from '../../types/job';
-import { Calendar, Clock, Network, Play, Square } from 'lucide-react';
+import { Calendar, Clock, Network, Play, Square, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface WorkflowListProps {
     workflows: Array<{
-        id: string;
+        id: number;
         name: string;
-        description?: string;
-        jobs: Job[];
+        workflow: string;
         status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
-        lastRun?: string;
-        duration?: number;
+        total_jobs: number;
+        completed_jobs: number;
+        failed_jobs: number;
+        created_at: string;
+        started_at?: string;
+        completed_at?: string;
     }>;
     onWorkflowClick: (workflowId: string) => void;
     loading?: boolean;
+    // Pagination props
+    currentPage?: number;
+    pageSize?: number;
+    totalWorkflows?: number;
+    totalPages?: number;
+    setCurrentPage?: (page: number) => void;
+    setPageSize?: (size: number) => void;
 }
 
 const WorkflowList: React.FC<WorkflowListProps> = ({
     workflows,
     onWorkflowClick,
-    loading = false
+    loading = false,
+    currentPage = 1,
+    pageSize = 10,
+    totalWorkflows,
+    totalPages = 1,
+    setCurrentPage,
+    setPageSize
 }) => {
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -38,20 +53,6 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
         }
     };
 
-    const formatDuration = (duration?: number) => {
-        if (!duration) return '-';
-        const seconds = Math.floor(duration / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        } else {
-            return `${seconds}s`;
-        }
-    };
 
     if (loading) {
         return (
@@ -66,9 +67,32 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
     return (
         <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-700">
-                <h3 className="text-lg font-medium text-white">
-                    All Workflows ({workflows.length})
-                </h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-white">
+                        All Workflows ({totalWorkflows ?? workflows.length})
+                    </h3>
+                    {setPageSize && totalWorkflows !== undefined && (
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                                <label className="text-sm text-gray-300">Show:</label>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => setPageSize(Number(e.target.value))}
+                                    className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm"
+                                >
+                                    <option value={5}>5</option>
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                </select>
+                                <span className="text-sm text-gray-300">per page</span>
+                            </div>
+                            <div className="text-sm text-gray-300">
+                                Showing {totalWorkflows === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalWorkflows)} of {totalWorkflows}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {workflows.length === 0 ? (
@@ -84,7 +108,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                     {workflows.map((workflow) => (
                         <div
                             key={workflow.id}
-                            onClick={() => onWorkflowClick(workflow.id)}
+                            onClick={() => onWorkflowClick(workflow.id.toString())}
                             className="p-6 hover:bg-gray-700 cursor-pointer transition-colors"
                         >
                             <div className="flex items-center justify-between">
@@ -100,29 +124,27 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                         </span>
                                     </div>
                                     
-                                    {workflow.description && (
-                                        <p className="text-sm text-gray-300 mt-1">
-                                            {workflow.description}
-                                        </p>
-                                    )}
+                                    <p className="text-sm text-gray-300 mt-1">
+                                        {workflow.workflow}
+                                    </p>
 
                                     <div className="flex items-center space-x-6 mt-3">
                                         <div className="flex items-center text-sm text-gray-400">
                                             <Network className="h-4 w-4 mr-1" />
-                                            <span>{workflow.jobs.length} jobs</span>
+                                            <span>{workflow.total_jobs} jobs ({workflow.completed_jobs} completed, {workflow.failed_jobs} failed)</span>
                                         </div>
-                                        
-                                        {workflow.lastRun && (
-                                            <div className="flex items-center text-sm text-gray-400">
-                                                <Calendar className="h-4 w-4 mr-1" />
-                                                <span>{new Date(workflow.lastRun).toLocaleString()}</span>
-                                            </div>
-                                        )}
                                         
                                         <div className="flex items-center text-sm text-gray-400">
-                                            <Clock className="h-4 w-4 mr-1" />
-                                            <span>{formatDuration(workflow.duration)}</span>
+                                            <Calendar className="h-4 w-4 mr-1" />
+                                            <span>Created: {new Date(workflow.created_at).toLocaleString()}</span>
                                         </div>
+                                        
+                                        {workflow.started_at && (
+                                            <div className="flex items-center text-sm text-gray-400">
+                                                <Clock className="h-4 w-4 mr-1" />
+                                                <span>Started: {new Date(workflow.started_at).toLocaleString()}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -154,6 +176,66 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {setCurrentPage && totalPages && totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-gray-700">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-300">
+                            Page {currentPage} of {totalPages}
+                        </div>
+                        <div className="flex items-center space-x-1">
+                            <button
+                                onClick={() => setCurrentPage?.(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 border border-gray-600 rounded text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                            >
+                                <ChevronLeft className="h-4 w-4 mr-1"/>
+                                Previous
+                            </button>
+                            
+                            {/* Page Numbers */}
+                            <div className="flex items-center space-x-1">
+                                {Array.from({length: Math.min(totalPages, 5)}, (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (currentPage <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i;
+                                    } else {
+                                        pageNum = currentPage - 2 + i;
+                                    }
+                                    
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage?.(pageNum)}
+                                            className={`px-3 py-1 border rounded text-sm ${
+                                                currentPage === pageNum
+                                                    ? 'bg-blue-600 text-white border-blue-600'
+                                                    : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            <button
+                                onClick={() => setCurrentPage?.(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 border border-gray-600 rounded text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4 ml-1"/>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

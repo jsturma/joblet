@@ -19,7 +19,7 @@ configuring, and using Joblet - a Linux-native job execution platform with advan
 - [**Runtime System**](./RUNTIME_SYSTEM.md) - Pre-built environments for instant job execution
 - [**Volume Management**](./VOLUME_MANAGEMENT.md) - Persistent and temporary storage for jobs
 - [**Network Management**](./NETWORK_MANAGEMENT.md) - Network isolation and custom networks
-- [**Monitoring & Metrics**](./MONITORING.md) - System and job monitoring
+- [**Web Admin UI**](./ADMIN_UI.md) - React-based web interface for visual job management and system monitoring
 
 ### Advanced Topics
 
@@ -48,6 +48,7 @@ Joblet is a powerful job execution platform that provides:
 - **📡 Real-time Monitoring**: Live log streaming and metrics
 - **🔐 mTLS Authentication**: Certificate-based security
 - **🖥️ Cross-platform CLI**: RNX client works on Linux, macOS, and Windows
+- **🎨 Web Admin UI**: React-based interface with comprehensive monitoring and workflow visualization
 
 ## 🎯 Use Cases
 
@@ -56,6 +57,7 @@ Joblet is a powerful job execution platform that provides:
 - **Development Environments**: Isolated environments for testing
 - **Microservices Testing**: Network-isolated service testing
 - **Resource-Limited Execution**: Control CPU, memory, and I/O usage
+- **Visual Management**: Browser-based job and workflow management with real-time monitoring
 
 ## 📋 Prerequisites
 

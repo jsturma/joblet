@@ -72,10 +72,15 @@ const Jobs: React.FC = () => {
                     <div className="flex space-x-3">
                         <button
                             onClick={refreshJobs}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                            disabled={loading}
+                            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium ${
+                                loading 
+                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                                    : 'text-gray-700 bg-white hover:bg-gray-50'
+                            }`}
                         >
-                            <RotateCcw className="h-4 w-4 mr-2"/>
-                            Refresh
+                            <RotateCcw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}/>
+                            {loading ? 'Refreshing...' : 'Refresh'}
                         </button>
                         <Link
                             to="/jobs/create"
@@ -179,7 +184,7 @@ const Jobs: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm text-white max-w-xs truncate">
-                                                    {job.command} {job.args.join(' ')}
+                                                    {job.command} {job.args?.join(' ') || ''}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">

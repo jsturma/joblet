@@ -1,122 +1,27 @@
-import React, { useMemo, useState } from 'react';
-import { useJobs } from '../hooks/useJobs';
+import React, {useState} from 'react';
+import {useWorkflows} from '../hooks/useWorkflows';
 import WorkflowList from '../components/Workflow/WorkflowList';
 import WorkflowDetail from '../components/Workflow/WorkflowDetail';
-import { Job, JobStatus } from '../types/job';
-import { Plus, RotateCcw } from 'lucide-react';
-
-type WorkflowStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
-
-interface Workflow {
-    id: string;
-    name: string;
-    description?: string;
-    jobs: Job[];
-    status: WorkflowStatus;
-    lastRun?: string;
-    duration?: number;
-}
-
-const mapJobStatusToWorkflowStatus = (status: JobStatus): WorkflowStatus => {
-    switch (status) {
-        case 'INITIALIZING':
-        case 'WAITING':
-        case 'QUEUED':
-            return 'QUEUED';
-        case 'RUNNING':
-            return 'RUNNING';
-        case 'COMPLETED':
-            return 'COMPLETED';
-        case 'FAILED':
-            return 'FAILED';
-        case 'STOPPED':
-            return 'STOPPED';
-        default:
-            return 'STOPPED';
-    }
-};
+import {Plus, RotateCcw} from 'lucide-react';
 
 const Workflows: React.FC = () => {
-    const { 
-        jobs, 
-        loading, 
-        error, 
-        refreshJobs
-    } = useJobs();
+    const {
+        paginatedWorkflows,
+        loading,
+        error,
+        refreshWorkflows,
+        currentPage,
+        pageSize,
+        totalWorkflows,
+        totalPages,
+        setCurrentPage,
+        setPageSize,
+        workflows: allWorkflows
+    } = useWorkflows();
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
 
-    // Group jobs into workflows based on dependencies
-    const workflows = useMemo((): Workflow[] => {
-        // Since most jobs don't have dependencies in this system,
-        // we'll create example workflows from recent jobs
-        if (jobs.length > 0) {
-            const recentJobs = jobs.slice(0, Math.min(8, jobs.length));
-            
-            // Create mock workflows - only if we have enough jobs
-            const workflow1Jobs = recentJobs.slice(0, Math.min(4, recentJobs.length));
-            const workflow2Jobs = recentJobs.slice(4, Math.min(8, recentJobs.length));
-            
-            const workflow1 = workflow1Jobs.map((job, index) => ({
-                ...job,
-                dependsOn: index > 0 ? [workflow1Jobs[index - 1].id] : []
-            }));
-            
-            const workflow2 = workflow2Jobs.map((job, index) => ({
-                ...job,
-                dependsOn: index > 0 ? [workflow2Jobs[index - 1].id] : []
-            }));
-
-            const workflows: Workflow[] = [];
-
-            // Only add workflow 1 if we have jobs for it
-            if (workflow1.length > 0) {
-                workflows.push({
-                    id: 'workflow-1',
-                    name: 'Data Processing Pipeline',
-                    description: 'Process and analyze data batch jobs',
-                    jobs: workflow1,
-                    status: mapJobStatusToWorkflowStatus(workflow1[workflow1.length - 1]?.status || 'COMPLETED'),
-                    lastRun: workflow1[0]?.startTime || (workflow1[0] as any)?.start_time,
-                    duration: workflow1.reduce((total, job) => {
-                        const start = (job as any).start_time;
-                        const end = (job as any).end_time;
-                        if (start && end) {
-                            return total + (new Date(end).getTime() - new Date(start).getTime());
-                        }
-                        return total;
-                    }, 0)
-                });
-            }
-
-            // Only add workflow 2 if we have jobs for it
-            if (workflow2.length > 0) {
-                workflows.push({
-                    id: 'workflow-2', 
-                    name: 'ML Training Pipeline',
-                    description: 'Machine learning model training and evaluation',
-                    jobs: workflow2,
-                    status: mapJobStatusToWorkflowStatus(workflow2[workflow2.length - 1]?.status || 'COMPLETED'),
-                    lastRun: workflow2[0]?.startTime || (workflow2[0] as any)?.start_time,
-                    duration: workflow2.reduce((total, job) => {
-                        const start = (job as any).start_time;
-                        const end = (job as any).end_time;
-                        if (start && end) {
-                            return total + (new Date(end).getTime() - new Date(start).getTime());
-                        }
-                        return total;
-                    }, 0)
-                });
-            }
-
-            return workflows;
-        }
-
-        // Return empty array if no jobs
-        return [];
-    }, [jobs]);
-
-    const selectedWorkflow = selectedWorkflowId 
-        ? workflows.find(w => w.id === selectedWorkflowId)
+    const selectedWorkflow = selectedWorkflowId
+        ? allWorkflows.find(w => w.id.toString() === selectedWorkflowId)
         : null;
 
     const handleWorkflowClick = (workflowId: string) => {
@@ -131,9 +36,9 @@ const Workflows: React.FC = () => {
     if (selectedWorkflow) {
         return (
             <WorkflowDetail
-                workflow={selectedWorkflow}
+                workflowId={selectedWorkflow.id.toString()}
                 onBack={handleBack}
-                onRefresh={refreshJobs}
+                onRefresh={refreshWorkflows}
             />
         );
     }
@@ -149,11 +54,16 @@ const Workflows: React.FC = () => {
                     </div>
                     <div className="flex space-x-3">
                         <button
-                            onClick={refreshJobs}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                            onClick={refreshWorkflows}
+                            disabled={loading}
+                            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium ${
+                                loading
+                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                    : 'text-gray-700 bg-white hover:bg-gray-50'
+                            }`}
                         >
-                            <RotateCcw className="h-4 w-4 mr-2"/>
-                            Refresh
+                            <RotateCcw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}/>
+                            {loading ? 'Refreshing...' : 'Refresh'}
                         </button>
                         <button
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -180,9 +90,15 @@ const Workflows: React.FC = () => {
                 </div>
             ) : (
                 <WorkflowList
-                    workflows={workflows}
+                    workflows={paginatedWorkflows}
                     onWorkflowClick={handleWorkflowClick}
                     loading={loading}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalWorkflows={totalWorkflows}
+                    totalPages={totalPages}
+                    setCurrentPage={setCurrentPage}
+                    setPageSize={setPageSize}
                 />
             )}
         </div>
