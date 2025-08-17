@@ -323,6 +323,23 @@ func (ns *NetworkSetup) ensureBridge(networkName string) error {
 // may have already been cleaned up by the kernel or other processes.
 // Namespace destruction automatically removes namespace-side interfaces.
 func (ns *NetworkSetup) CleanupJobNetwork(alloc *JobAllocation) error {
+	// Clean up hosts file if it exists (for all network types except none)
+	if alloc.Network != "none" && alloc.JobID != "" {
+		hostsPath := fmt.Sprintf("/tmp/joblet-hosts-%s", alloc.JobID)
+		// Try to unmount first (it might be bind mounted)
+		if err := ns.execCommand("umount", hostsPath); err != nil {
+			// Ignore unmount errors - might not be mounted
+			ns.logger.Debug("hosts file unmount attempt", "path", hostsPath, "error", err)
+		}
+		// Remove the hosts file
+		if err := ns.platform.Remove(hostsPath); err != nil {
+			// Log but don't fail - might already be cleaned up
+			ns.logger.Debug("failed to remove hosts file", "path", hostsPath, "error", err)
+		} else {
+			ns.logger.Debug("cleaned up hosts file", "path", hostsPath)
+		}
+	}
+
 	if alloc.Network == "none" {
 		return nil
 	}
