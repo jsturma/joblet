@@ -625,7 +625,7 @@ sudo journalctl -u joblet -f
 
 - **Simplified Resource Limits**: Removed complex builder pattern in favor of simple constructors
 - **File Upload Enhancements**: Removed artificial size limits (previously 50MB per file, 100MB total)
-- **CI/CD Compatibility**: Enhanced test suite to handle containerized environments gracefully
+- **CI/CD Compatibility**: Enhanced test suite to handle various CI/CD environments gracefully
 
 ### Migration Notes
 

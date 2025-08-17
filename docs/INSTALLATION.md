@@ -2,6 +2,8 @@
 
 This guide provides detailed instructions for installing Joblet on various operating systems and architectures.
 
+> **🚀 Docker Alternative**: Joblet is a modern replacement for Docker and Docker Compose, providing superior performance, security, and resource control through Linux namespaces and cgroups v2. Install Joblet directly on Linux hosts for optimal performance - no containers required!
+
 ## 📋 System Requirements
 
 ### Joblet Server (Linux Only)
@@ -302,72 +304,46 @@ sudo systemctl status joblet
 sudo journalctl -u joblet -f
 ```
 
-## 🐳 Docker Installation
+## 🖥️ Development Environment Setup
 
-### Running Joblet in Docker
+### Local Development
 
-```bash
-# Create Docker network
-docker network create joblet
-
-# Run Joblet server
-docker run -d \
-  --name joblet \
-  --network joblet \
-  --privileged \
-  -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-  -v joblet-config:/opt/joblet/config \
-  -v joblet-state:/opt/joblet/state \
-  -v joblet-jobs:/opt/joblet/jobs \
-  -p 50051:50051 \
-  ehsaniara/joblet:latest
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-
-services:
-  joblet:
-    image: ehsaniara/joblet:latest
-    container_name: joblet
-    privileged: true
-    network_mode: host
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - ./config:/opt/joblet/config
-      - joblet-state:/opt/joblet/state
-      - joblet-jobs:/opt/joblet/jobs
-      - joblet-volumes:/opt/joblet/volumes
-    environment:
-      - JOBLET_CONFIG_PATH=/opt/joblet/config/joblet-config.yml
-    restart: unless-stopped
-
-volumes:
-  joblet-state:
-  joblet-jobs:
-  joblet-volumes:
-```
-
-## ☸️ Kubernetes Installation
-
-### Helm Chart
+Joblet is designed as a **Docker and Kubernetes alternative** providing superior isolation, performance, and resource control through Linux namespaces and cgroups v2.
 
 ```bash
-# Add Helm repository
-helm repo add joblet https://ehsaniara.github.io/joblet-helm
-helm repo update
+# Set up development environment on Linux
+# Requires Linux host (VM, WSL2, or native Linux)
 
-# Install Joblet
-helm install joblet joblet/joblet \
-  --set server.address=0.0.0.0 \
-  --set service.type=LoadBalancer
+# Install development dependencies
+sudo apt update
+sudo apt install -y build-essential git protobuf-compiler
+
+# Clone and build
+git clone https://github.com/ehsaniara/joblet.git
+cd joblet
+make all
+
+# Run tests
+make test
+
+# Install locally for development
+sudo make install
 ```
 
-### Manual Kubernetes Deployment
+### Why Not Docker/Kubernetes?
 
-See [Kubernetes deployment example](./examples/kubernetes/) for detailed YAML files.
+Joblet **replaces** containerization technologies by providing:
+
+- **Better Performance**: Direct Linux namespace execution (no container overhead)
+- **Superior Resource Control**: cgroups v2 with precise CPU, memory, and I/O limits
+- **Enhanced Security**: Process isolation without container escape vulnerabilities  
+- **Simplified Deployment**: Single binary installation vs container orchestration complexity
+- **Instant Startup**: 2-3 second job execution vs container pull/start overhead
+
+**Use Joblet Instead Of:**
+- `docker run` → `rnx run`
+- `docker-compose` → `rnx run --workflow=workflow.yaml`  
+- Kubernetes Jobs → Joblet workflows with dependencies
 
 ## ✅ Post-Installation Verification
 
