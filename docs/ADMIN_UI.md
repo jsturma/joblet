@@ -103,6 +103,9 @@ The admin UI consists of several main sections accessible via the navigation sid
 
 The System Monitoring page provides comprehensive real-time insights into your Joblet server performance.
 
+![System Monitoring Overview](./AdminUI-SystemMonitoring1.png)
+*Real-time system metrics and performance monitoring dashboard*
+
 ### Host Information Card
 
 Displays essential server information:
@@ -175,6 +178,9 @@ Real-time process monitoring:
 - **Responsive Design**: Optimized for desktop and tablet viewing
 - **Dark Theme**: Professional dark interface reduces eye strain
 
+![System Monitoring Detailed View](./AdminUI-SystemMonitoring2.png)
+*Detailed system metrics with CPU, memory, and process monitoring*
+
 ## Job Management
 
 ### Job List View
@@ -244,6 +250,9 @@ Filter jobs by various criteria:
 ## Workflow Management
 
 The Workflows section provides powerful tools for managing complex job orchestrations.
+
+![Workflow Management Interface](./AdminUI-Workflow1.png)
+*Workflow visualization and management interface with dependency graph*
 
 ### Workflow List View
 

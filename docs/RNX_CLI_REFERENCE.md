@@ -237,14 +237,15 @@ rnx status [flags] <id>
 
 The status command automatically detects whether the ID refers to a job or workflow:
 
-- **Job IDs**: String identifiers (e.g., "42", "abc-123")
+- **Job IDs**: String identifiers (e.g., "42", "abc-123")  
 - **Workflow IDs**: Numeric identifiers (e.g., 1, 2, 3)
 
 #### Flags
 
-| Flag     | Description           | Default |
-|----------|-----------------------|---------|
-| `--json` | Output in JSON format | false   |
+| Flag         | Description                    | Default |
+|--------------|--------------------------------|---------|
+| `--workflow` | Explicitly get workflow status | false   |
+| `--json`     | Output in JSON format          | false   |
 
 #### Examples
 
@@ -254,6 +255,9 @@ rnx status 42
 
 # Get workflow status (automatic detection)
 rnx status 1
+
+# Explicitly get workflow status  
+rnx status --workflow 5
 
 # Get status in JSON format (works for both jobs and workflows)
 rnx status --json 42    # Job JSON output
