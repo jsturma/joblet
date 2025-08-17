@@ -70,15 +70,15 @@ func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.Jo
 	}
 }
 
-// RunWorkflow handles gRPC requests to execute template-based jobs and workflows.
-// Supports both template-based workflows and client-uploaded YAML content.
+// RunWorkflow handles gRPC requests to execute workflow-based jobs and workflows.
+// Supports both server-side workflow files and client-uploaded YAML content.
 // For client uploads, automatically processes uploaded files and starts orchestration.
 // Returns the workflow ID and status for monitoring progress.
 func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWorkflowRequest) (*pb.RunWorkflowResponse, error) {
 	log := s.logger.WithFields(
 		"operation", "RunWorkflow",
 		"name", req.Name,
-		"template", req.Template,
+		"workflow", req.Workflow,
 		"totalJobs", req.TotalJobs,
 	)
 	log.Debug("run job template request received")
@@ -88,14 +88,14 @@ func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWork
 		return nil, err
 	}
 
-	if req.Name == "" || req.Template == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "name and template are required")
+	if req.Name == "" || req.Workflow == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "name and workflow are required")
 	}
 
-	// Check if we have YAML content (client-side upload) or just a template path
+	// Check if we have YAML content (client-side upload) or just a workflow path
 	if req.YamlContent != "" {
 		log.Info("detected client-side YAML content, starting workflow orchestration with uploaded files")
-		workflowID, err := s.StartWorkflowOrchestrationWithContent(ctx, req.YamlContent, req.TemplateFiles)
+		workflowID, err := s.StartWorkflowOrchestrationWithContent(ctx, req.YamlContent, req.WorkflowFiles)
 		if err != nil {
 			log.Error("failed to start workflow orchestration with content", "error", err)
 			return nil, status.Errorf(codes.Internal, "failed to start workflow orchestration: %v", err)
@@ -108,10 +108,10 @@ func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWork
 		}, nil
 	}
 
-	// Check if template is a YAML file path and parse it (server-side files)
-	if strings.HasSuffix(req.Template, ".yaml") || strings.HasSuffix(req.Template, ".yml") {
-		log.Info("detected YAML template, starting workflow orchestration")
-		workflowID, err := s.StartWorkflowOrchestration(ctx, req.Template)
+	// Check if workflow is a YAML file path and parse it (server-side files)
+	if strings.HasSuffix(req.Workflow, ".yaml") || strings.HasSuffix(req.Workflow, ".yml") {
+		log.Info("detected YAML workflow, starting workflow orchestration")
+		workflowID, err := s.StartWorkflowOrchestration(ctx, req.Workflow)
 		if err != nil {
 			log.Error("failed to start workflow orchestration", "error", err)
 			return nil, status.Errorf(codes.Internal, "failed to start workflow orchestration: %v", err)
@@ -124,8 +124,8 @@ func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWork
 		}, nil
 	}
 
-	// Fallback to simple workflow creation for non-YAML templates
-	workflowID, err := s.workflowManager.CreateWorkflow(req.Name, req.Template, make(map[string]*workflow.JobDependency), req.JobOrder)
+	// Fallback to simple workflow creation for non-YAML workflows
+	workflowID, err := s.workflowManager.CreateWorkflow(req.Name, req.Workflow, make(map[string]*workflow.JobDependency), req.JobOrder)
 	if err != nil {
 		log.Error("failed to create workflow", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to create workflow: %v", err)
@@ -311,7 +311,7 @@ func (s *WorkflowServiceServer) convertWorkflowStateToInfo(ws *workflow.Workflow
 	info := &pb.WorkflowInfo{
 		Id:            int32(ws.ID),
 		Name:          ws.Name,
-		Template:      ws.Template,
+		Workflow:      ws.Workflow,
 		Status:        string(ws.Status),
 		TotalJobs:     int32(ws.TotalJobs),
 		CompletedJobs: int32(ws.CompletedJobs),
@@ -358,7 +358,7 @@ func (s *WorkflowServiceServer) convertTimeToTimestamp(t time.Time) *pb.Timestam
 
 // StartWorkflowOrchestration initiates workflow execution from a YAML file path.
 // Parses the workflow definition, creates jobs with dependencies, and begins orchestration.
-// This method handles server-side workflow templates stored on the filesystem.
+// This method handles server-side workflow files stored on the filesystem.
 // Returns the workflow ID for tracking progress and status.
 func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, yamlPath string) (int, error) {
 	log := s.logger.WithField("yamlPath", yamlPath)
@@ -558,7 +558,7 @@ func (s *WorkflowServiceServer) monitorWorkflowJob(ctx context.Context, jobName,
 }
 
 // parseWorkflowYAML reads and parses a workflow YAML file from the filesystem.
-// Used for server-side workflow templates stored on disk.
+// Used for server-side workflow files stored on disk.
 // Returns the parsed workflow structure or an error if reading/parsing fails.
 func (s *WorkflowServiceServer) parseWorkflowYAML(yamlPath string) (*WorkflowYAML, error) {
 	data, err := os.ReadFile(yamlPath)

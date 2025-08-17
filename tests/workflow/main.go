@@ -6,16 +6,16 @@ import (
 
 	"joblet/internal/joblet/domain"
 	"joblet/internal/joblet/workflow"
-	"joblet/internal/rnx/templates"
+	"joblet/internal/rnx/workflows"
 )
 
 func main() {
 	fmt.Println("Workflow Engine Test Suite")
 	fmt.Println("==========================")
 
-	// Test 1: Load workflow template
-	fmt.Println("\n1. Loading workflow template...")
-	config, err := templates.LoadWorkflowConfig("examples/workflows/ml-pipeline/ml-pipeline.yaml")
+	// Test 1: Load workflow file
+	fmt.Println("\n1. Loading workflow file...")
+	config, err := workflows.LoadWorkflowConfig("examples/workflows/ml-pipeline/ml-pipeline.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load workflow config: %v", err)
 	}
@@ -23,7 +23,7 @@ func main() {
 
 	// Test 2: Validate dependencies
 	fmt.Println("\n2. Validating dependencies...")
-	err = templates.ValidateDependencies(config.Jobs)
+	err = workflows.ValidateDependencies(config.Jobs)
 	if err != nil {
 		log.Fatalf("Invalid dependencies: %v", err)
 	}
@@ -31,7 +31,7 @@ func main() {
 
 	// Test 3: Build dependency graph
 	fmt.Println("\n3. Building dependency graph...")
-	jobOrder, err := templates.BuildDependencyGraph(config.Jobs)
+	jobOrder, err := workflows.BuildDependencyGraph(config.Jobs)
 	if err != nil {
 		log.Fatalf("Failed to build dependency graph: %v", err)
 	}

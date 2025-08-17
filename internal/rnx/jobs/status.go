@@ -228,7 +228,7 @@ func getWorkflowStatus(workflowID int) error {
 	fmt.Printf("Workflow Status:\n")
 	fmt.Printf("  ID: %d\n", workflow.Id)
 	fmt.Printf("  Name: %s\n", workflow.Name)
-	fmt.Printf("  Template: %s\n", workflow.Template)
+	fmt.Printf("  Workflow: %s\n", workflow.Workflow)
 	fmt.Printf("  Status: %s\n", workflow.Status)
 	fmt.Printf("  Progress: %d/%d jobs completed\n", workflow.CompletedJobs, workflow.TotalJobs)
 	fmt.Printf("  Failed: %d\n", workflow.FailedJobs)
@@ -252,7 +252,7 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 	statusData := map[string]interface{}{
 		"id":             res.Workflow.Id,
 		"name":           res.Workflow.Name,
-		"template":       res.Workflow.Template,
+		"workflow":       res.Workflow.Workflow,
 		"status":         res.Workflow.Status,
 		"total_jobs":     res.Workflow.TotalJobs,
 		"completed_jobs": res.Workflow.CompletedJobs,

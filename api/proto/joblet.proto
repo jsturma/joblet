@@ -433,11 +433,11 @@ message JobRequirement {
 
 message RunWorkflowRequest {
   string name = 1;
-  string template = 2;                    // Workflow filename for reference
+  string workflow = 2;                    // Workflow filename for reference
   int32 totalJobs = 3;
   repeated string jobOrder = 4;
   string yamlContent = 5;                 // YAML content for client-side workflow execution
-  repeated FileUpload templateFiles = 6;  // Files referenced in workflow jobs (uploaded by client)
+  repeated FileUpload workflowFiles = 6;  // Files referenced in workflow jobs (uploaded by client)
 }
 
 message RunWorkflowResponse {
@@ -474,7 +474,7 @@ message GetWorkflowJobsResponse {
 message WorkflowInfo {
   int32 id = 1;
   string name = 2;
-  string template = 3;
+  string workflow = 3;
   string status = 4;
   int32 totalJobs = 5;
   int32 completedJobs = 6;

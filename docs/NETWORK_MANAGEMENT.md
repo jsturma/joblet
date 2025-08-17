@@ -66,28 +66,45 @@ rnx run --network=bridge curl https://api.example.com
 - DHCP IP assignment
 - Default CIDR: 172.20.0.0/16
 
-### 2. Host Network
+### 2. Custom Networks
 
-Share the host's network namespace.
+User-defined networks with specific CIDR ranges.
 
 ```bash
-# Use host network
-rnx run --network=host netstat -tuln
+# Create custom network
+rnx network create myapp --cidr=10.10.0.0/24
 
-# Access host services
-rnx run --network=host curl http://localhost:8080
+# Use custom network
+rnx run --network=myapp ip addr show
 ```
 
 **Characteristics:**
 
-- No network isolation
-- Full access to host network
-- Same IP as host
-- Best performance
+- Isolated from other networks
+- Custom CIDR range
+- Inter-job communication within network
+- External internet access via NAT
 
-**Security Warning:** Use with caution as it provides no network isolation.
+### 3. Isolated Network
 
-### 3. None Network
+External-only network access with no inter-job communication.
+
+```bash
+# Run with isolated network
+rnx run --network=isolated wget https://example.com
+
+# No access to other jobs, but external access works
+rnx run --network=isolated ping google.com
+```
+
+**Characteristics:**
+
+- Complete isolation from other jobs
+- External internet access via NAT
+- Point-to-point veth connection
+- Maximum security for external operations
+
+### 4. None Network
 
 Complete network isolation - no network access.
 
@@ -105,25 +122,6 @@ rnx run --network=none --upload=sensitive.data process_offline.sh
 - No network interfaces (except loopback)
 - Maximum security
 - No external communication
-
-### 4. Custom Networks
-
-User-defined networks with specific CIDR ranges.
-
-```bash
-# Create custom network
-rnx network create myapp --cidr=10.10.0.0/24
-
-# Use custom network
-rnx run --network=myapp ip addr show
-```
-
-**Characteristics:**
-
-- Isolated from other networks
-- Custom CIDR range
-- Inter-job communication within network
-- Optional internet access
 
 ## Creating Custom Networks
 
@@ -185,8 +183,8 @@ rnx network create tenant-a --cidr=10.100.0.0/24
 rnx network create tenant-b --cidr=10.101.0.0/24
 
 # Run jobs in isolated networks
-rnx run --network=tenant-a --name=web-a nginx
-rnx run --network=tenant-b --name=web-b nginx
+rnx run --network=tenant-a nginx
+rnx run --network=tenant-b nginx
 
 # Jobs cannot communicate across networks
 rnx run --network=tenant-a ping 10.101.0.2  # Will fail
@@ -204,7 +202,6 @@ rnx network create app-net --cidr=10.21.0.0/24
 # Run database in isolated network
 rnx run \
   --network=db-net \
-  --name=postgres-db \
   --volume=pgdata \
   postgres:latest
 
@@ -220,7 +217,6 @@ rnx run \
 # Start a service
 rnx run \
   --network=app-net \
-  --name=redis-server \
   redis-server
 
 # Get service IP
@@ -229,7 +225,6 @@ SERVICE_IP=$(rnx run --network=app-net --json hostname -I | jq -r .output | awk 
 # Connect from another job
 rnx run \
   --network=app-net \
-  --env=REDIS_HOST=$SERVICE_IP \
   python app.py
 ```
 
@@ -242,7 +237,6 @@ rnx network create microservices --cidr=10.30.0.0/24
 # Start backend service
 BACKEND_JOB=$(rnx run --json \
   --network=microservices \
-  --name=backend \
   python -m http.server 8000 | jq -r .id)
 
 # Get backend IP
@@ -252,7 +246,6 @@ BACKEND_IP=$(rnx run --network=microservices ip addr show | grep "inet 10.30" | 
 # Start frontend connecting to backend
 rnx run \
   --network=microservices \
-  --env=BACKEND_URL=http://$BACKEND_IP:8000 \
   node frontend.js
 ```
 
@@ -263,7 +256,6 @@ rnx run \
 for i in {1..3}; do
   rnx run \
     --network=app-net \
-    --name=backend-$i \
     python app.py --port=$((8000 + i)) &
 done
 
@@ -407,8 +399,8 @@ rnx run --network=host iperf3 -s
 rnx network create fast-local --cidr=10.70.0.0/24
 
 # Run communicating services together
-rnx run --network=fast-local --name=producer data-producer
-rnx run --network=fast-local --name=consumer data-consumer
+rnx run --network=fast-local data-producer
+rnx run --network=fast-local data-consumer
 ```
 
 ## Best Practices
@@ -528,12 +520,12 @@ rnx run --network=bridge ping google.com
 
 ```bash
 # Ensure jobs are in same network
-rnx run --network=app-net --name=service1 nc -l 8080
-rnx run --network=app-net nc service1 8080  # Should connect
+rnx run --network=app-net nc -l 8080
+rnx run --network=app-net nc <job-ip> 8080  # Should connect
 
 # Different networks cannot communicate
-rnx run --network=net1 --name=isolated1 nc -l 8080
-rnx run --network=net2 nc isolated1 8080  # Will fail
+rnx run --network=net1 nc -l 8080
+rnx run --network=net2 nc <job-ip> 8080  # Will fail
 ```
 
 **4. DNS Resolution Issues**
@@ -596,21 +588,18 @@ rnx network create cache-net --cidr=10.80.3.0/24
 # Frontend
 rnx run \
   --network=frontend-net \
-  --name=web-ui \
   --upload-dir=./frontend \
   npm start
 
 # Backend API
 rnx run \
   --network=backend-net \
-  --name=api-server \
   --upload-dir=./backend \
   python app.py
 
 # Cache layer
 rnx run \
   --network=cache-net \
-  --name=redis \
   redis-server
 ```
 
@@ -623,15 +612,12 @@ rnx network create test-env --cidr=10.90.0.0/24
 # Run test database
 rnx run \
   --network=test-env \
-  --name=test-db \
-  --env=POSTGRES_PASSWORD=test \
   postgres
 
 # Run integration tests
 rnx run \
   --network=test-env \
   --upload-dir=./tests \
-  --env=DB_HOST=test-db \
   pytest integration_tests/
 ```
 
@@ -649,7 +635,6 @@ rnx run \
   --network=dev \
   --volume=code \
   --upload-dir=./src \
-  --env=DEBUG=true \
   nodemon app.js
 ```
 

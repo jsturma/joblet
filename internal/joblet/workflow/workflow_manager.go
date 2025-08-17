@@ -26,21 +26,21 @@ func NewWorkflowManager() *WorkflowManager {
 	}
 }
 
-// CreateWorkflow creates a new workflow with the given name, template, and job dependencies.
+// CreateWorkflow creates a new workflow with the given name, workflow file, and job dependencies.
 // Returns the assigned workflow ID and any error that occurred during creation.
 // The jobs map contains job IDs mapped to their dependency information.
 // The order slice defines the intended execution order for jobs without dependencies.
-func (wm *WorkflowManager) CreateWorkflow(name, template string, jobs map[string]*JobDependency, order []string) (int, error) {
+func (wm *WorkflowManager) CreateWorkflow(name, workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
 	wm.workflowCounter++
 	workflowID := wm.workflowCounter
 
-	workflow := &WorkflowState{
+	workflowState := &WorkflowState{
 		ID:        workflowID,
 		Name:      name,
-		Template:  template,
+		Workflow:  workflow,
 		Jobs:      jobs,
 		JobOrder:  order,
 		Status:    WorkflowPending,
@@ -48,7 +48,7 @@ func (wm *WorkflowManager) CreateWorkflow(name, template string, jobs map[string
 		TotalJobs: len(jobs),
 	}
 
-	wm.workflows[workflowID] = workflow
+	wm.workflows[workflowID] = workflowState
 
 	// Map jobs to workflow
 	for jobID := range jobs {
@@ -56,7 +56,7 @@ func (wm *WorkflowManager) CreateWorkflow(name, template string, jobs map[string
 	}
 
 	// Create in resolver
-	_, err := wm.resolver.CreateWorkflow(name, template, jobs, order)
+	_, err := wm.resolver.CreateWorkflow(name, workflow, jobs, order)
 	return workflowID, err
 }
 

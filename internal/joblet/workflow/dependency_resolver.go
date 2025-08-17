@@ -24,7 +24,7 @@ type DependencyResolver struct {
 type WorkflowState struct {
 	ID            int
 	Name          string
-	Template      string
+	Workflow      string
 	Jobs          map[string]*JobDependency
 	JobOrder      []string
 	Status        WorkflowStatus
@@ -104,17 +104,17 @@ func NewDependencyResolver() *DependencyResolver {
 // 4. Evaluates initial job readiness based on dependency requirements
 // 5. Sets up job-to-workflow mappings for efficient lookups
 // Returns the assigned workflow ID for tracking and monitoring purposes.
-func (dr *DependencyResolver) CreateWorkflow(name, template string, jobs map[string]*JobDependency, order []string) (int, error) {
+func (dr *DependencyResolver) CreateWorkflow(name, workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
 	dr.mu.Lock()
 	defer dr.mu.Unlock()
 
 	dr.workflowCounter++
 	workflowID := dr.workflowCounter
 
-	workflow := &WorkflowState{
+	workflowState := &WorkflowState{
 		ID:        workflowID,
 		Name:      name,
-		Template:  template,
+		Workflow:  workflow,
 		Jobs:      jobs,
 		JobOrder:  order,
 		Status:    WorkflowPending,
@@ -122,7 +122,7 @@ func (dr *DependencyResolver) CreateWorkflow(name, template string, jobs map[str
 		TotalJobs: len(jobs),
 	}
 
-	dr.workflows[workflowID] = workflow
+	dr.workflows[workflowID] = workflowState
 
 	// Create mapping between internal names and job IDs
 	internalNameToJobID := make(map[string]string)

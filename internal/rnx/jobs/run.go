@@ -13,7 +13,7 @@ import (
 
 	pb "joblet/api/gen"
 	"joblet/internal/joblet/workflow/types"
-	"joblet/internal/rnx/templates"
+	"joblet/internal/rnx/workflows"
 	pkgconfig "joblet/pkg/config"
 
 	"github.com/spf13/cobra"
@@ -203,7 +203,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		// First check if this is a workflow file and no job selector is provided
 		if workflowSelector == "" {
 			mode, _, err := tryWorkflowDetection(workflowFile)
-			if err == nil && mode != templates.ModeSingleJob {
+			if err == nil && mode != workflows.ModeSingleJob {
 				// This is a workflow - handle it differently
 				var cmdArgs []string
 				if commandStartIndex >= 0 && commandStartIndex < len(args) {
@@ -213,7 +213,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 			}
 		} else {
 			// If selector provided, check if it's a workflow selector in a multi-workflow template
-			config, err := templates.LoadWorkflowConfig(workflowFile)
+			config, err := workflows.LoadWorkflowConfig(workflowFile)
 			if err == nil && config.Workflows != nil && len(config.Workflows) > 0 {
 				// Check if selector refers to a workflow name
 				if _, exists := config.Workflows[workflowSelector]; exists {
@@ -221,14 +221,14 @@ func runRun(cmd *cobra.Command, args []string) error {
 					if commandStartIndex >= 0 && commandStartIndex < len(args) {
 						cmdArgs = args[commandStartIndex:]
 					}
-					return handleWorkflowExecution(workflowFile, templates.ModeNamedWorkflow, workflowSelector, cmdArgs)
+					return handleWorkflowExecution(workflowFile, workflows.ModeNamedWorkflow, workflowSelector, cmdArgs)
 				}
 				// If not a workflow name, let it fall through to regular job execution
 			}
 		}
 
 		// Continue with regular single job workflow handling
-		jobConfig, err := loadTemplateConfig(workflow)
+		jobConfig, err := loadWorkflowConfig(workflow)
 		if err != nil {
 			return fmt.Errorf("failed to load workflow: %w", err)
 		}
@@ -576,20 +576,20 @@ func parseRelativeTime(spec string) (time.Time, error) {
 	return time.Now().Add(totalDuration), nil
 }
 
-// loadTemplateConfig loads a job configuration from a YAML template file
-func loadTemplateConfig(templateSpec string) (*templates.JobConfig, error) {
-	// Parse template spec (format: file.yaml or file.yaml:jobname)
-	parts := strings.SplitN(templateSpec, ":", 2)
-	templateFile := parts[0]
+// loadWorkflowConfig loads a job configuration from a YAML workflow file
+func loadWorkflowConfig(workflowSpec string) (*workflows.JobConfig, error) {
+	// Parse workflow spec (format: file.yaml or file.yaml:jobname)
+	parts := strings.SplitN(workflowSpec, ":", 2)
+	workflowFile := parts[0]
 	jobName := ""
 	if len(parts) > 1 {
 		jobName = parts[1]
 	}
 
 	// Load the YAML configuration
-	jobSet, err := templates.LoadConfig(templateFile)
+	jobSet, err := workflows.LoadConfig(workflowFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load template file %s: %w", templateFile, err)
+		return nil, fmt.Errorf("failed to load workflow file %s: %w", workflowFile, err)
 	}
 
 	// If no job name specified and there's only one job, use it
@@ -603,7 +603,7 @@ func loadTemplateConfig(templateSpec string) (*templates.JobConfig, error) {
 			for name := range jobSet.Jobs {
 				jobNames = append(jobNames, name)
 			}
-			return nil, fmt.Errorf("multiple jobs found in template, please specify one: %s", strings.Join(jobNames, ", "))
+			return nil, fmt.Errorf("multiple jobs found in workflow, please specify one: %s", strings.Join(jobNames, ", "))
 		} else {
 			// Return empty config with defaults applied
 			return &jobSet.Defaults, nil
@@ -615,22 +615,22 @@ func loadTemplateConfig(templateSpec string) (*templates.JobConfig, error) {
 		return &job, nil
 	}
 
-	return nil, fmt.Errorf("job '%s' not found in template %s", jobName, templateFile)
+	return nil, fmt.Errorf("job '%s' not found in workflow %s", jobName, workflowFile)
 }
 
-// tryWorkflowDetection attempts to detect if a template contains workflows
-func tryWorkflowDetection(templateFile string) (templates.WorkflowExecutionMode, string, error) {
+// tryWorkflowDetection attempts to detect if a workflow file contains workflows
+func tryWorkflowDetection(workflowFile string) (workflows.WorkflowExecutionMode, string, error) {
 
-	// Try to load as workflow template
-	config, err := templates.LoadWorkflowConfig(templateFile)
+	// Try to load as workflow file
+	config, err := workflows.LoadWorkflowConfig(workflowFile)
 	if err != nil {
-		// If it fails to load as workflow, might be regular template
-		return templates.ModeSingleJob, "", err
+		// If it fails to load as workflow, might be regular workflow
+		return workflows.ModeSingleJob, "", err
 	}
 
 	// If we have multiple workflows, return appropriate mode
 	if len(config.Workflows) > 0 {
-		return templates.ModeNamedWorkflow, "", nil
+		return workflows.ModeNamedWorkflow, "", nil
 	}
 
 	// Check for dependencies in jobs
@@ -644,15 +644,15 @@ func tryWorkflowDetection(templateFile string) (templates.WorkflowExecutionMode,
 
 	// If dependencies exist, it's a workflow
 	if hasDependencies {
-		return templates.ModeWorkflow, "", nil
+		return workflows.ModeWorkflow, "", nil
 	}
 
 	// Otherwise, parallel execution
-	return templates.ModeParallelJobs, "", nil
+	return workflows.ModeParallelJobs, "", nil
 }
 
-// handleWorkflowExecution handles workflow-based template execution
-func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecutionMode, selector string, commandArgs []string) error {
+// handleWorkflowExecution handles workflow-based execution
+func handleWorkflowExecution(workflowFile string, mode workflows.WorkflowExecutionMode, selector string, commandArgs []string) error {
 	// Load client configuration for workflow execution
 	var err error
 	common.NodeConfig, err = pkgconfig.LoadClientConfig(common.ConfigPath)
@@ -661,7 +661,7 @@ func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecuti
 	}
 
 	// Re-check the mode with the selector to determine actual execution path
-	config, err := templates.LoadWorkflowConfig(templateFile)
+	config, err := workflows.LoadWorkflowConfig(workflowFile)
 	if err != nil {
 		return fmt.Errorf("failed to load workflow config: %w", err)
 	}
@@ -671,7 +671,7 @@ func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecuti
 		// Check if it's a workflow name
 		if config.Workflows != nil {
 			if _, exists := config.Workflows[selector]; exists {
-				return executeWorkflow(templateFile, selector, commandArgs)
+				return executeWorkflow(workflowFile, selector, commandArgs)
 			}
 		}
 
@@ -680,10 +680,10 @@ func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecuti
 
 	// No selector provided
 	switch mode {
-	case templates.ModeWorkflow:
-		return executeWorkflow(templateFile, "", commandArgs)
-	case templates.ModeParallelJobs:
-		return executeParallelJobs(templateFile, commandArgs)
+	case workflows.ModeWorkflow:
+		return executeWorkflow(workflowFile, "", commandArgs)
+	case workflows.ModeParallelJobs:
+		return executeParallelJobs(workflowFile, commandArgs)
 	default:
 		// Check if we have multiple workflows and no selector
 		if len(config.Workflows) > 0 {
@@ -698,13 +698,13 @@ func handleWorkflowExecution(templateFile string, mode templates.WorkflowExecuti
 }
 
 // executeWorkflow executes a workflow with dependencies
-func executeWorkflow(templatePath string, workflowName string, commandArgs []string) error {
-	config, err := templates.LoadWorkflowConfig(templatePath)
+func executeWorkflow(workflowPath string, workflowName string, commandArgs []string) error {
+	config, err := workflows.LoadWorkflowConfig(workflowPath)
 	if err != nil {
 		return fmt.Errorf("failed to load workflow config: %w", err)
 	}
 
-	var jobs map[string]templates.WorkflowJobConfig
+	var jobs map[string]workflows.WorkflowJobConfig
 
 	// Select the appropriate jobs based on mode
 	if workflowName != "" {
@@ -720,23 +720,23 @@ func executeWorkflow(templatePath string, workflowName string, commandArgs []str
 	}
 
 	// Validate dependencies
-	if err := templates.ValidateDependencies(jobs); err != nil {
+	if err := workflows.ValidateDependencies(jobs); err != nil {
 		return fmt.Errorf("invalid workflow dependencies: %w", err)
 	}
 
 	// Build dependency graph to ensure it's valid
-	_, err = templates.BuildDependencyGraph(jobs)
+	_, err = workflows.BuildDependencyGraph(jobs)
 	if err != nil {
 		return fmt.Errorf("failed to build dependency graph: %w", err)
 	}
 
 	// Execute the workflow using the workflow service
-	return executeWorkflowViaService(templatePath, workflowName)
+	return executeWorkflowViaService(workflowPath, workflowName)
 }
 
 // executeParallelJobs executes multiple jobs in parallel without dependencies
-func executeParallelJobs(templatePath string, commandArgs []string) error {
-	config, err := templates.LoadWorkflowConfig(templatePath)
+func executeParallelJobs(workflowPath string, commandArgs []string) error {
+	config, err := workflows.LoadWorkflowConfig(workflowPath)
 	if err != nil {
 		return fmt.Errorf("failed to load workflow config: %w", err)
 	}
@@ -746,15 +746,15 @@ func executeParallelJobs(templatePath string, commandArgs []string) error {
 	}
 
 	// Execute parallel jobs as a workflow
-	return executeWorkflowViaService(templatePath, "")
+	return executeWorkflowViaService(workflowPath, "")
 }
 
 // executeWorkflowViaService executes a workflow using the workflow service
-func executeWorkflowViaService(templatePath string, workflowName string) error {
+func executeWorkflowViaService(workflowPath string, workflowName string) error {
 	// Read and parse YAML file
-	yamlContent, err := os.ReadFile(templatePath)
+	yamlContent, err := os.ReadFile(workflowPath)
 	if err != nil {
-		return fmt.Errorf("failed to read YAML file %s: %w", templatePath, err)
+		return fmt.Errorf("failed to read YAML file %s: %w", workflowPath, err)
 	}
 
 	var workflow types.WorkflowYAML
@@ -768,12 +768,12 @@ func executeWorkflowViaService(templatePath string, workflowName string) error {
 	}
 
 	// Extract and upload all files referenced in jobs
-	workflowFiles, err := extractWorkflowFiles(templatePath, workflow)
+	workflowFiles, err := extractWorkflowFiles(workflowPath, workflow)
 	if err != nil {
 		return fmt.Errorf("failed to extract workflow files: %w", err)
 	}
 
-	fmt.Printf("Starting workflow from: %s\n", templatePath)
+	fmt.Printf("Starting workflow from: %s\n", workflowPath)
 	fmt.Printf("Found %d files to upload\n", len(workflowFiles))
 
 	// Create client and workflow service
@@ -789,9 +789,9 @@ func executeWorkflowViaService(templatePath string, workflowName string) error {
 	workflowNameGen := fmt.Sprintf("client-workflow-%d", time.Now().Unix())
 	createReq := &pb.RunWorkflowRequest{
 		Name:          workflowNameGen,
-		Template:      filepath.Base(templatePath),
+		Workflow:      filepath.Base(workflowPath),
 		YamlContent:   string(yamlContent),
-		TemplateFiles: workflowFiles,
+		WorkflowFiles: workflowFiles,
 		TotalJobs:     int32(len(workflow.Jobs)),
 	}
 

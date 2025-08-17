@@ -228,9 +228,10 @@ rnx run --workflow=complex-pipeline.yaml     # Validates dependencies, networks,
 ```
 
 **🛡️ Workflow Validation**: Joblet performs comprehensive validation before execution:
+
 - ✅ **Circular Dependencies**: Detects dependency loops
 - ✅ **Network Validation**: Confirms all networks exist (built-in + custom)
-- ✅ **Volume Validation**: Verifies all volumes are available  
+- ✅ **Volume Validation**: Verifies all volumes are available
 - ✅ **Runtime Validation**: Checks runtime availability
 - ✅ **Job Dependencies**: Ensures all dependencies reference existing jobs
 
@@ -460,8 +461,7 @@ The [Workflow Examples](examples/workflows/) demonstrate advanced job orchestrat
 
 - **ML Pipeline**: Complete machine learning workflow with data prep → feature selection → training → evaluation →
   deployment
-- **Data Pipeline**: ETL workflow with extraction → validation → transformation → loading → reporting (✅ Volume mounting
-  verified)
+- **Data Pipeline**: ETL workflow with extraction → validation → transformation → loading → reporting
 - **Parallel Processing**: Independent batch jobs running concurrently without dependencies
 - **Multi-Workflow**: Multiple named workflows in a single template file
 - **Deployment Pipeline**: Build → test → package → deploy → verify workflow
@@ -473,8 +473,8 @@ rnx run --workflow=ml-pipeline.yaml:data-validation
 
 # Full workflow orchestration with consolidated commands
 cd examples/workflows/ml-pipeline
-rnx run --workflow=ml-pipeline.yaml                    # ✅ Unified workflow execution
-rnx status <workflow-id>                               # ✅ Unified status checking
+rnx run --workflow=ml-pipeline.yaml                    
+rnx status <workflow-id>                               
 ```
 
 **Features Demonstrated:**

@@ -14,7 +14,7 @@ func NewNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "nodes",
 		Short: "List available nodes from configuration",
-		Long:  "Display all configured nodes and their connection details from rnx-config-template.yml",
+		Long:  "Display all configured nodes and their connection details from rnx-config.yml",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runNodes(common.JSONOutput)
 		},
@@ -33,12 +33,12 @@ type NodeInfo struct {
 func runNodes(jsonOutput bool) error {
 	// NodeConfig should be loaded by PersistentPreRun, but check anyway
 	if common.NodeConfig == nil {
-		return fmt.Errorf("no client configuration loaded. Please ensure rnx-config-template.yml exists")
+		return fmt.Errorf("no client configuration loaded. Please ensure rnx-config.yml exists")
 	}
 
 	nodeNames := common.NodeConfig.ListNodes()
 	if len(nodeNames) == 0 {
-		return fmt.Errorf("no nodes configured in rnx-config-template.yml")
+		return fmt.Errorf("no nodes configured in rnx-config.yml")
 	}
 
 	// Sort nodes for consistent output

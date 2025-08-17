@@ -67,10 +67,8 @@ rnx run [flags] <command> [args...]
 | `--max-memory` | Maximum memory in MB                                       | 0 (unlimited)  |
 | `--max-iobps`  | Maximum I/O bytes per second                               | 0 (unlimited)  |
 | `--cpu-cores`  | CPU cores to use (e.g., "0-3" or "1,3,5")                  | "" (all cores) |
-| `--network`    | Network mode: bridge, host, none, or custom                | "bridge"       |
+| `--network`    | Network mode: bridge, isolated, none, or custom            | "bridge"       |
 | `--volume`     | Volume to mount (can be specified multiple times)          | none           |
-| `--env`        | Environment variable (can be specified multiple times)     | none           |
-| `--workdir`    | Working directory inside container                         | "/work"        |
 | `--upload`     | Upload file to workspace (can be specified multiple times) | none           |
 | `--upload-dir` | Upload directory to workspace                              | none           |
 | `--schedule`   | Schedule job execution (duration or RFC3339 time)          | immediate      |
@@ -654,7 +652,6 @@ for file in *.csv; do
     --max-cpu=100 \
     --max-memory=1024 \
     --upload="$file" \
-    --name="process-$file" \
     python3 process.py "$file" &
 done
 
@@ -662,7 +659,7 @@ done
 wait
 
 # Collect results
-rnx list --json | jq -r '.[] | select(.status == "COMPLETED" and (.name | startswith("process-"))) | .id' | \
+rnx list --json | jq -r '.[] | select(.status == "COMPLETED") | .id' | \
 while read job_id; do
   rnx log "$job_id" > "result-$job_id.txt"
 done

@@ -262,7 +262,7 @@ func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
 	type jsonWorkflow struct {
 		ID            int32  `json:"id"`
 		Name          string `json:"name"`
-		Template      string `json:"template"`
+		Workflow      string `json:"workflow"`
 		Status        string `json:"status"`
 		TotalJobs     int32  `json:"total_jobs"`
 		CompletedJobs int32  `json:"completed_jobs"`
@@ -277,7 +277,7 @@ func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
 		jsonWf := jsonWorkflow{
 			ID:            workflow.Id,
 			Name:          workflow.Name,
-			Template:      workflow.Template,
+			Workflow:      workflow.Workflow,
 			Status:        workflow.Status,
 			TotalJobs:     workflow.TotalJobs,
 			CompletedJobs: workflow.CompletedJobs,
