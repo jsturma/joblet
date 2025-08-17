@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"joblet/internal/rnx/common"
 	"os"
@@ -73,9 +74,17 @@ func runRuntimeList(cmd *cobra.Command, args []string) error {
 	runtimes := resp.Runtimes
 
 	if len(runtimes) == 0 {
-		fmt.Println("No runtimes available.")
-		fmt.Println("\nTo install runtimes, follow the runtime installation guide in the documentation.")
+		if common.JSONOutput {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No runtimes available.")
+			fmt.Println("\nTo install runtimes, follow the runtime installation guide in the documentation.")
+		}
 		return nil
+	}
+
+	if common.JSONOutput {
+		return outputRuntimesJSON(runtimes)
 	}
 
 	// Display runtimes in a table
@@ -253,6 +262,44 @@ func runRuntimeTest(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  rnx run --runtime=%s %s\n", runtimeSpec, testCmd)
 
 	return nil
+}
+
+// outputRuntimesJSON outputs the runtimes in JSON format
+func outputRuntimesJSON(runtimes []*pb.RuntimeInfo) error {
+	// Convert protobuf runtimes to a simpler structure for JSON output
+	type jsonRuntime struct {
+		ID          string   `json:"id"`
+		Language    string   `json:"language"`
+		Version     string   `json:"version"`
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		SizeBytes   int64    `json:"size_bytes"`
+		Size        string   `json:"size"`
+		Packages    []string `json:"packages,omitempty"`
+		Available   bool     `json:"available"`
+	}
+
+	jsonRuntimes := make([]jsonRuntime, len(runtimes))
+	for i, rt := range runtimes {
+		// Format runtime identifier
+		runtimeID := fmt.Sprintf("%s:%s", rt.Language, strings.TrimPrefix(rt.Name, rt.Language+"-"))
+
+		jsonRuntimes[i] = jsonRuntime{
+			ID:          runtimeID,
+			Language:    rt.Language,
+			Version:     rt.Version,
+			Name:        rt.Name,
+			Description: rt.Description,
+			SizeBytes:   rt.SizeBytes,
+			Size:        formatSize(rt.SizeBytes),
+			Packages:    rt.Packages,
+			Available:   rt.Available,
+		}
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(jsonRuntimes)
 }
 
 func formatSize(bytes int64) string {

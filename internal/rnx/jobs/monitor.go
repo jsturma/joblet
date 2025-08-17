@@ -27,8 +27,6 @@ func NewMonitorCmd() *cobra.Command {
 }
 
 func NewMonitorStatusCmd() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show current system status",
@@ -45,11 +43,9 @@ Examples:
   rnx monitor status --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMonitorStatus(jsonOutput)
+			return runMonitorStatus(common.JSONOutput)
 		},
 	}
-
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }

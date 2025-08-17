@@ -14,10 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	statusJSON bool
-)
-
 func NewStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status <id>",
@@ -26,8 +22,6 @@ func NewStatusCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  runStatus,
 	}
-
-	cmd.Flags().BoolVar(&statusJSON, "json", false, "Output in JSON format")
 
 	return cmd
 }
@@ -70,7 +64,7 @@ func getJobStatus(jobID string) error {
 		return fmt.Errorf("failed to get job status: %v", err)
 	}
 
-	if statusJSON {
+	if common.JSONOutput {
 		return outputJobStatusJSON(response)
 	}
 
@@ -226,7 +220,7 @@ func getWorkflowStatus(workflowID int) error {
 		return fmt.Errorf("failed to get workflow status: %w", err)
 	}
 
-	if statusJSON {
+	if common.JSONOutput {
 		return outputWorkflowStatusJSON(res)
 	}
 

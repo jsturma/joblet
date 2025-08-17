@@ -59,19 +59,15 @@ Examples:
 }
 
 func NewVolumeListCmd() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all volumes",
 		Long:  "Display all available volumes with their size, type, and usage information",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runVolumeList(jsonOutput)
+			return runVolumeList(common.JSONOutput)
 		},
 	}
-
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }
@@ -187,9 +183,9 @@ func runVolumeList(jsonOutput bool) error {
 
 	// Text output (original format)
 	// Display header
-	fmt.Printf("%-15s %-8s %-12s %s\n", "NAME", "SIZE", "TYPE", "CREATED")
+	fmt.Printf("%-20s %-8s %-12s %s\n", "NAME", "SIZE", "TYPE", "CREATED")
 	fmt.Printf("%s %s %s %s\n",
-		strings.Repeat("-", 15),
+		strings.Repeat("-", 20),
 		strings.Repeat("-", 8),
 		strings.Repeat("-", 12),
 		strings.Repeat("-", 25))
@@ -204,7 +200,7 @@ func runVolumeList(jsonOutput bool) error {
 			}
 		}
 
-		fmt.Printf("%-15s %-8s %-12s %s\n",
+		fmt.Printf("%-20s %-8s %-12s %s\n",
 			vol.Name,
 			vol.Size,
 			vol.Type,

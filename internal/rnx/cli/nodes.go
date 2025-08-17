@@ -11,18 +11,14 @@ import (
 )
 
 func NewNodesCmd() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "nodes",
 		Short: "List available nodes from configuration",
 		Long:  "Display all configured nodes and their connection details from rnx-config-template.yml",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runNodes(jsonOutput)
+			return runNodes(common.JSONOutput)
 		},
 	}
-
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }

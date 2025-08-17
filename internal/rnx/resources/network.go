@@ -53,19 +53,15 @@ Examples:
 }
 
 func NewNetworkListCmd() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all networks",
 		Long:  "Display all available networks including built-in and custom networks",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runNetworkList(jsonOutput)
+			return runNetworkList(common.JSONOutput)
 		},
 	}
-
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
 
 	return cmd
 }

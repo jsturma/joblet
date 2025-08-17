@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	listJSON     bool
 	listWorkflow bool
 )
 
@@ -39,7 +38,6 @@ Examples:
 		RunE: runList,
 	}
 
-	cmd.Flags().BoolVar(&listJSON, "json", false, "Output in JSON format")
 	cmd.Flags().BoolVar(&listWorkflow, "workflow", false, "List workflows instead of jobs")
 
 	return cmd
@@ -68,7 +66,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(response.Jobs) == 0 {
-		if listJSON {
+		if common.JSONOutput {
 			fmt.Println("[]")
 		} else {
 			fmt.Println("No jobs found")
@@ -76,7 +74,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if listJSON {
+	if common.JSONOutput {
 		return outputJobsJSON(response.Jobs)
 	}
 
@@ -228,7 +226,7 @@ func listWorkflows() error {
 	}
 
 	if len(res.Workflows) == 0 {
-		if listJSON {
+		if common.JSONOutput {
 			fmt.Println("[]")
 		} else {
 			fmt.Println("No workflows found")
@@ -236,7 +234,7 @@ func listWorkflows() error {
 		return nil
 	}
 
-	if listJSON {
+	if common.JSONOutput {
 		return outputWorkflowsJSON(res.Workflows)
 	}
 

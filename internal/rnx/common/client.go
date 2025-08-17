@@ -11,6 +11,7 @@ var (
 	NodeConfig *config.ClientConfig
 	ConfigPath string
 	NodeName   string
+	JSONOutput bool
 )
 
 // NewJobClient creates a client based on configuration
