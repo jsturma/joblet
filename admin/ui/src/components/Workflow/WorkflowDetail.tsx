@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Job } from '../../types/job';
-import { WorkflowGraph } from './WorkflowGraph';
-import { ArrowLeft, BarChart3, List, Network, RotateCcw } from 'lucide-react';
-import { apiService } from '../../services/apiService';
+import React, {useCallback, useEffect, useState} from 'react';
+import {Job, JobStatus} from '@/types';
+import {WorkflowGraph} from './WorkflowGraph';
+import {ArrowLeft, BarChart3, List, Network, RotateCcw} from 'lucide-react';
+import {apiService} from '@/services/apiService.ts';
 import clsx from 'clsx';
 
 interface WorkflowDetailProps {
@@ -28,10 +28,10 @@ interface WorkflowData {
 type ViewMode = 'graph' | 'tree' | 'timeline';
 
 const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
-    workflowId,
-    onBack,
-    onRefresh
-}) => {
+                                                           workflowId,
+                                                           onBack,
+                                                           onRefresh
+                                                       }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('graph');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [workflow, setWorkflow] = useState<WorkflowData | null>(null);
@@ -43,30 +43,52 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             setLoading(true);
             setError(null);
             const workflowData = await apiService.getWorkflow(workflowId);
-            
+
             // Create sample jobs for demonstration since we don't have real workflow-job associations
-            const sampleJobs: Job[] = [];
-            for (let i = 1; i <= workflowData.total_jobs; i++) {
-                sampleJobs.push({
+            const jobTemplates = [
+                {command: 'python3', args: ['extract.py']},
+                {command: 'python3', args: ['validate.py']},
+                {command: 'python3', args: ['transform.py']},
+                {command: 'python3', args: ['load.py']},
+                {command: 'python3', args: ['report.py']},
+                {command: 'rm', args: ['-rf', 'data/', '*.pyc']}
+            ];
+
+            const sampleJobs: Job[] = Array.from({length: workflowData.total_jobs}, (_, index) => {
+                const i = index + 1;
+                const template = jobTemplates[index] || jobTemplates[jobTemplates.length - 1];
+
+                let status: JobStatus = 'QUEUED';
+                if (i <= workflowData.completed_jobs) {
+                    status = 'COMPLETED';
+                } else if (workflowData.failed_jobs > 0 && i > workflowData.completed_jobs) {
+                    status = 'FAILED';
+                }
+
+                return ({
                     id: `${workflowId}-job-${i}`,
-                    command: i === 1 ? 'python3' : i === 2 ? 'python3' : i === 3 ? 'python3' : i === 4 ? 'python3' : i === 5 ? 'python3' : 'rm',
-                    args: i === 1 ? ['extract.py'] : i === 2 ? ['validate.py'] : i === 3 ? ['transform.py'] : i === 4 ? ['load.py'] : i === 5 ? ['report.py'] : ['-rf', 'data/', '*.pyc'],
-                    status: i <= workflowData.completed_jobs ? 'COMPLETED' : workflowData.failed_jobs > 0 && i > workflowData.completed_jobs ? 'FAILED' : 'QUEUED',
+                    command: template.command,
+                    args: template.args,
+                    status,
                     startTime: workflowData.started_at || new Date().toISOString(),
                     endTime: i <= workflowData.completed_jobs ? workflowData.completed_at : undefined,
                     duration: 0,
                     maxCPU: 100,
                     maxMemory: 2048,
                     maxIOBPS: 0,
+                    cpuCores: undefined,
+                    runtime: undefined,
                     network: 'bridge',
                     volumes: [],
                     uploads: [],
                     uploadDirs: [],
                     envVars: {},
-                    dependsOn: i > 1 ? [`${workflowId}-job-${i-1}`] : []
-                });
-            }
-            
+                    dependsOn: i > 1 ? [`${workflowId}-job-${i - 1}`] : [],
+                    exitCode: undefined,
+                    resourceUsage: undefined
+                }) as unknown as Job;
+            });
+
             setWorkflow({
                 ...workflowData,
                 jobs: sampleJobs
@@ -111,9 +133,9 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     };
 
     const viewModes = [
-        { key: 'graph' as ViewMode, label: 'Graph View', icon: Network },
-        { key: 'tree' as ViewMode, label: 'Tree View', icon: List },
-        { key: 'timeline' as ViewMode, label: 'Timeline', icon: BarChart3 },
+        {key: 'graph' as ViewMode, label: 'Graph View', icon: Network},
+        {key: 'tree' as ViewMode, label: 'Tree View', icon: List},
+        {key: 'timeline' as ViewMode, label: 'Timeline', icon: BarChart3},
     ];
 
     if (loading) {
@@ -125,7 +147,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                             onClick={onBack}
                             className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                         >
-                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            <ArrowLeft className="w-4 h-4 mr-2"/>
                             Back to Workflows
                         </button>
                         <div className="text-lg text-white">Loading workflow...</div>
@@ -144,7 +166,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                             onClick={onBack}
                             className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                         >
-                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            <ArrowLeft className="w-4 h-4 mr-2"/>
                             Back to Workflows
                         </button>
                         <div className="text-lg text-red-500">Error: {error || 'Workflow not found'}</div>
@@ -163,7 +185,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                         onClick={onBack}
                         className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                     >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        <ArrowLeft className="w-4 h-4 mr-2"/>
                         Back to Workflows
                     </button>
                     <div className="flex-1">
@@ -181,7 +203,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                         onClick={onRefresh}
                         className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                     >
-                        <RotateCcw className="w-4 h-4 mr-2" />
+                        <RotateCcw className="w-4 h-4 mr-2"/>
                         Refresh
                     </button>
                 </div>
@@ -189,7 +211,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                 {/* View Mode Tabs */}
                 <div className="border-b border-gray-200">
                     <nav className="-mb-px flex space-x-8">
-                        {viewModes.map(({ key, label, icon: Icon }) => (
+                        {viewModes.map(({key, label, icon: Icon}) => (
                             <button
                                 key={key}
                                 onClick={() => setViewMode(key)}
@@ -200,7 +222,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 )}
                             >
-                                <Icon className="w-4 h-4 mr-2" />
+                                <Icon className="w-4 h-4 mr-2"/>
                                 {label}
                             </button>
                         ))}
@@ -229,7 +251,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                 </h3>
                                 {workflow.jobs.length === 0 ? (
                                     <div className="text-center py-8">
-                                        <List className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                        <List className="w-8 h-8 text-gray-400 mx-auto mb-2"/>
                                         <p className="text-gray-500">No jobs found in this workflow</p>
                                     </div>
                                 ) : (
@@ -277,7 +299,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                 <h3 className="text-lg font-medium text-gray-900 mb-4">Timeline View</h3>
                                 {workflow.jobs.length === 0 ? (
                                     <div className="text-center py-8">
-                                        <BarChart3 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                        <BarChart3 className="w-8 h-8 text-gray-400 mx-auto mb-2"/>
                                         <p className="text-gray-500">No timeline data available</p>
                                     </div>
                                 ) : (
@@ -292,11 +314,12 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                             .map((job, index) => {
                                                 const startTime = (job as any).start_time;
                                                 const endTime = (job as any).end_time;
-                                                const duration = endTime ? 
+                                                const duration = endTime ?
                                                     new Date(endTime).getTime() - new Date(startTime).getTime() : 0;
-                                                
+
                                                 return (
-                                                    <div key={job.id} className="flex items-center space-x-4 p-3 border rounded-lg">
+                                                    <div key={job.id}
+                                                         className="flex items-center space-x-4 p-3 border rounded-lg">
                                                         <div className="w-8 text-center text-sm text-gray-500">
                                                             {index + 1}
                                                         </div>

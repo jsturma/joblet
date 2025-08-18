@@ -207,6 +207,76 @@ app.post('/api/jobs/execute', async (req, res) => {
   }
 });
 
+// Browse directories for workflow files (must come before /:workflowId route)
+app.get('/api/workflows/browse', async (req, res) => {
+  try {
+    const { path: requestedPath } = req.query;
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    // Default to current working directory if no path provided
+    const browsePath = requestedPath || process.cwd();
+    
+    // Validate path exists and is accessible
+    try {
+      const stats = fs.default.statSync(browsePath);
+      if (!stats.isDirectory()) {
+        return res.status(400).json({ error: 'Path is not a directory' });
+      }
+    } catch (err) {
+      return res.status(404).json({ error: 'Directory not found or not accessible' });
+    }
+    
+    // Read directory contents
+    const items = fs.default.readdirSync(browsePath, { withFileTypes: true });
+    
+    const directories = [];
+    const yamlFiles = [];
+    const otherFiles = [];
+    
+    items.forEach(item => {
+      if (item.isDirectory() && !item.name.startsWith('.')) {
+        directories.push({
+          name: item.name,
+          path: path.default.join(browsePath, item.name),
+          type: 'directory'
+        });
+      } else if (item.isFile()) {
+        const fileInfo = {
+          name: item.name,
+          path: path.default.join(browsePath, item.name),
+          type: 'file'
+        };
+        
+        if (item.name.endsWith('.yaml') || item.name.endsWith('.yml')) {
+          fileInfo.selectable = true;
+          yamlFiles.push(fileInfo);
+        } else {
+          fileInfo.selectable = false;
+          otherFiles.push(fileInfo);
+        }
+      }
+    });
+    
+    // Get parent directory path
+    const parentPath = browsePath !== path.default.dirname(browsePath) ? path.default.dirname(browsePath) : null;
+    
+    res.json({
+      currentPath: browsePath,
+      parentPath,
+      directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
+      yamlFiles: yamlFiles.sort((a, b) => a.name.localeCompare(b.name)),
+      otherFiles: otherFiles.sort((a, b) => a.name.localeCompare(b.name))
+    });
+  } catch (error) {
+    console.error('Failed to browse directory:', error);
+    res.status(500).json({ 
+      error: 'Failed to browse directory', 
+      message: error.message 
+    });
+  }
+});
+
 // Get workflow details with jobs
 app.get('/api/workflows/:workflowId', async (req, res) => {
   try {
@@ -584,6 +654,302 @@ app.get('/api/networks', async (req, res) => {
         { id: 'host', name: 'host', type: 'host', subnet: '' }
       ],
       message: `Network service not available: ${error.message}`
+    });
+  }
+});
+
+// Create a new volume
+app.post('/api/volumes', async (req, res) => {
+  try {
+    const { name, size, type = 'filesystem' } = req.body;
+    const node = req.query.node;
+    
+    if (!name || !size) {
+      return res.status(400).json({ error: 'Name and size are required' });
+    }
+    
+    // Build rnx volume create command
+    const args = ['volume', 'create', name, '--size', size];
+    if (type !== 'filesystem') {
+      args.push('--type', type);
+    }
+    
+    const output = await execRnx(args, { node });
+    
+    res.json({
+      success: true,
+      message: `Volume ${name} created successfully`,
+      name,
+      size,
+      type,
+      output: output
+    });
+  } catch (error) {
+    console.error('Failed to create volume:', error);
+    res.status(500).json({ 
+      error: 'Failed to create volume', 
+      message: error.message 
+    });
+  }
+});
+
+// Create a new network
+app.post('/api/networks', async (req, res) => {
+  try {
+    const { name, cidr } = req.body;
+    const node = req.query.node;
+    
+    if (!name || !cidr) {
+      return res.status(400).json({ error: 'Name and CIDR are required' });
+    }
+    
+    // Build rnx network create command
+    const args = ['network', 'create', name, '--cidr', cidr];
+    
+    const output = await execRnx(args, { node });
+    
+    res.json({
+      success: true,
+      message: `Network ${name} created successfully`,
+      name,
+      cidr,
+      output: output
+    });
+  } catch (error) {
+    console.error('Failed to create network:', error);
+    res.status(500).json({ 
+      error: 'Failed to create network', 
+      message: error.message 
+    });
+  }
+});
+
+// Delete network
+app.delete('/api/networks/:networkName', async (req, res) => {
+  try {
+    const { networkName } = req.params;
+    const node = req.query.node;
+    
+    if (!networkName) {
+      return res.status(400).json({ error: 'Network name is required' });
+    }
+    
+    const output = await execRnx(['network', 'remove', networkName], { node });
+    
+    res.json({
+      success: true,
+      message: `Network ${networkName} deleted successfully`,
+      output: output
+    });
+  } catch (error) {
+    console.error(`Failed to delete network ${req.params.networkName}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to delete network', 
+      message: error.message 
+    });
+  }
+});
+
+// Validate workflow dependencies
+app.post('/api/workflows/validate', async (req, res) => {
+  try {
+    const { filePath } = req.body;
+    const node = req.query.node;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'Workflow file path is required' });
+    }
+    
+    // Validate file exists and is a YAML file
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    try {
+      const stats = fs.default.statSync(filePath);
+      if (!stats.isFile()) {
+        return res.status(400).json({ error: 'Path is not a file' });
+      }
+      
+      const ext = path.default.extname(filePath).toLowerCase();
+      if (ext !== '.yaml' && ext !== '.yml') {
+        return res.status(400).json({ error: 'File must be a YAML file (.yaml or .yml)' });
+      }
+    } catch (err) {
+      return res.status(404).json({ error: 'Workflow file not found or not accessible' });
+    }
+    
+    // Parse YAML to extract volume dependencies
+    let missingVolumes = [];
+    let allRequiredVolumes = [];
+    
+    try {
+      // Read and parse the YAML file
+      const yaml = await import('yaml');
+      const fileContent = fs.default.readFileSync(filePath, 'utf8');
+      const workflowData = yaml.default.parse(fileContent);
+      
+      // Extract volumes from all jobs
+      const volumeSet = new Set();
+      if (workflowData.jobs) {
+        Object.values(workflowData.jobs).forEach(job => {
+          if (job.volumes && Array.isArray(job.volumes)) {
+            job.volumes.forEach(volume => volumeSet.add(volume));
+          }
+        });
+      }
+      
+      allRequiredVolumes = Array.from(volumeSet);
+      
+      // Check which volumes exist
+      if (allRequiredVolumes.length > 0) {
+        try {
+          const volumesOutput = await execRnx(['volume', 'list', '--json'], { node });
+          let existingVolumes = [];
+          
+          if (volumesOutput && volumesOutput.trim()) {
+            const volumeData = JSON.parse(volumesOutput);
+            existingVolumes = volumeData.volumes || [];
+          }
+          
+          const existingVolumeNames = existingVolumes.map(v => v.name);
+          missingVolumes = allRequiredVolumes.filter(vol => !existingVolumeNames.includes(vol));
+        } catch (volumeError) {
+          // If volume listing fails, assume all volumes are missing
+          missingVolumes = allRequiredVolumes;
+        }
+      }
+      
+      res.json({
+        valid: missingVolumes.length === 0,
+        requiredVolumes: allRequiredVolumes,
+        missingVolumes: missingVolumes,
+        message: missingVolumes.length > 0 
+          ? `Missing required volumes: ${missingVolumes.join(', ')}`
+          : 'All dependencies satisfied'
+      });
+    } catch (parseError) {
+      res.status(400).json({
+        error: 'Failed to parse workflow file',
+        message: parseError.message
+      });
+    }
+  } catch (error) {
+    console.error('Failed to validate workflow:', error);
+    res.status(500).json({ 
+      error: 'Failed to validate workflow', 
+      message: error.message 
+    });
+  }
+});
+
+// Execute a workflow from file path
+app.post('/api/workflows/execute', async (req, res) => {
+  try {
+    const { filePath, createMissingVolumes = false } = req.body;
+    const node = req.query.node;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'Workflow file path is required' });
+    }
+    
+    // Validate file exists and is a YAML file
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    try {
+      const stats = fs.default.statSync(filePath);
+      if (!stats.isFile()) {
+        return res.status(400).json({ error: 'Path is not a file' });
+      }
+      
+      const ext = path.default.extname(filePath).toLowerCase();
+      if (ext !== '.yaml' && ext !== '.yml') {
+        return res.status(400).json({ error: 'File must be a YAML file (.yaml or .yml)' });
+      }
+    } catch (err) {
+      return res.status(404).json({ error: 'Workflow file not found or not accessible' });
+    }
+    
+    // If requested, create missing volumes first
+    if (createMissingVolumes) {
+      try {
+        // Parse YAML to extract volume dependencies
+        const yaml = await import('yaml');
+        const fileContent = fs.default.readFileSync(filePath, 'utf8');
+        const workflowData = yaml.default.parse(fileContent);
+        
+        // Extract volumes from all jobs
+        const volumeSet = new Set();
+        if (workflowData.jobs) {
+          Object.values(workflowData.jobs).forEach(job => {
+            if (job.volumes && Array.isArray(job.volumes)) {
+              job.volumes.forEach(volume => volumeSet.add(volume));
+            }
+          });
+        }
+        
+        const allRequiredVolumes = Array.from(volumeSet);
+        
+        // Check which volumes exist and create missing ones
+        if (allRequiredVolumes.length > 0) {
+          try {
+            const volumesOutput = await execRnx(['volume', 'list', '--json'], { node });
+            let existingVolumes = [];
+            
+            if (volumesOutput && volumesOutput.trim()) {
+              const volumeData = JSON.parse(volumesOutput);
+              existingVolumes = volumeData.volumes || [];
+            }
+            
+            const existingVolumeNames = existingVolumes.map(v => v.name);
+            const missingVolumes = allRequiredVolumes.filter(vol => !existingVolumeNames.includes(vol));
+            
+            // Create missing volumes with default size
+            for (const volumeName of missingVolumes) {
+              try {
+                await execRnx(['volume', 'create', volumeName, '--size', '1GB'], { node });
+                console.log(`Created volume: ${volumeName}`);
+              } catch (createError) {
+                console.warn(`Failed to create volume ${volumeName}:`, createError.message);
+              }
+            }
+          } catch (volumeError) {
+            console.warn('Volume management failed:', volumeError.message);
+          }
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse workflow for volume creation:', parseError.message);
+      }
+    }
+    
+    try {
+      // Execute the workflow directly from the file path
+      const output = await execRnx(['run', '--workflow', filePath], { node });
+      
+      // Extract workflow ID from output
+      let workflowId = `workflow-${Date.now()}`;
+      if (output) {
+        const idMatch = output.match(/Workflow ID:\\s*(\\d+)/);
+        if (idMatch && idMatch[1]) {
+          workflowId = idMatch[1];
+        }
+      }
+      
+      res.json({
+        workflowId,
+        status: 'created',
+        message: 'Workflow created and started successfully',
+        filePath,
+        output: output
+      });
+    } catch (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Failed to execute workflow:', error);
+    res.status(500).json({ 
+      error: 'Failed to execute workflow', 
+      message: error.message 
     });
   }
 });

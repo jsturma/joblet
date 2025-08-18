@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Cpu, HardDrive, Network, RefreshCw, Plus, Settings, Info, Trash2, X } from 'lucide-react';
+import { Cpu, HardDrive, Network, RefreshCw, Plus, Info, Trash2, X } from 'lucide-react';
 import { apiService } from '../services/apiService';
 
 interface Volume {
@@ -48,6 +48,27 @@ const Resources: React.FC = () => {
         show: false,
         volumeName: '',
         deleting: false
+    });
+
+    const [createVolumeModal, setCreateVolumeModal] = useState({
+        show: false,
+        creating: false
+    });
+
+    const [createNetworkModal, setCreateNetworkModal] = useState({
+        show: false,
+        creating: false
+    });
+
+    const [volumeForm, setVolumeForm] = useState({
+        name: '',
+        size: '',
+        type: 'filesystem'
+    });
+
+    const [networkForm, setNetworkForm] = useState({
+        name: '',
+        cidr: ''
     });
 
     const fetchVolumes = async () => {
@@ -99,6 +120,18 @@ const Resources: React.FC = () => {
         setDeleteConfirm({ show: true, volumeName, deleting: false });
     };
 
+    const handleDeleteNetwork = async (networkName: string) => {
+        try {
+            await apiService.deleteNetwork(networkName);
+            await fetchNetworks(); // Refresh the network list
+        } catch (error) {
+            setError(prev => ({ 
+                ...prev, 
+                networks: error instanceof Error ? error.message : 'Failed to delete network' 
+            }));
+        }
+    };
+
     const confirmDeleteVolume = async () => {
         if (!deleteConfirm.volumeName) return;
         
@@ -120,6 +153,44 @@ const Resources: React.FC = () => {
 
     const cancelDeleteVolume = () => {
         setDeleteConfirm({ show: false, volumeName: '', deleting: false });
+    };
+
+    const handleCreateVolume = async () => {
+        if (!volumeForm.name || !volumeForm.size) return;
+        
+        setCreateVolumeModal(prev => ({ ...prev, creating: true }));
+        
+        try {
+            await apiService.createVolume(volumeForm.name, volumeForm.size, volumeForm.type);
+            setCreateVolumeModal({ show: false, creating: false });
+            setVolumeForm({ name: '', size: '', type: 'filesystem' });
+            await fetchVolumes(); // Refresh the volume list
+        } catch (error) {
+            setError(prev => ({ 
+                ...prev, 
+                volumes: error instanceof Error ? error.message : 'Failed to create volume' 
+            }));
+            setCreateVolumeModal(prev => ({ ...prev, creating: false }));
+        }
+    };
+
+    const handleCreateNetwork = async () => {
+        if (!networkForm.name || !networkForm.cidr) return;
+        
+        setCreateNetworkModal(prev => ({ ...prev, creating: true }));
+        
+        try {
+            await apiService.createNetwork(networkForm.name, networkForm.cidr);
+            setCreateNetworkModal({ show: false, creating: false });
+            setNetworkForm({ name: '', cidr: '' });
+            await fetchNetworks(); // Refresh the network list
+        } catch (error) {
+            setError(prev => ({ 
+                ...prev, 
+                networks: error instanceof Error ? error.message : 'Failed to create network' 
+            }));
+            setCreateNetworkModal(prev => ({ ...prev, creating: false }));
+        }
     };
 
     useEffect(() => {
@@ -183,6 +254,7 @@ const Resources: React.FC = () => {
                             <div className="text-center py-8">
                                 <p className="text-gray-500 mb-4">No volumes configured</p>
                                 <button
+                                    onClick={() => setCreateVolumeModal({ show: true, creating: false })}
                                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
                                     <Plus className="h-4 w-4 mr-2"/>
                                     Create Volume
@@ -217,9 +289,10 @@ const Resources: React.FC = () => {
                                     </div>
                                 ))}
                                 <button
-                                    className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                    <Settings className="h-4 w-4 mr-2"/>
-                                    Manage Volumes
+                                    onClick={() => setCreateVolumeModal({ show: true, creating: false })}
+                                    className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                    <Plus className="h-4 w-4 mr-2"/>
+                                    Create Volume
                                 </button>
                             </div>
                         )}
@@ -255,6 +328,7 @@ const Resources: React.FC = () => {
                             <div className="text-center py-8">
                                 <p className="text-gray-500 mb-4">No networks configured</p>
                                 <button
+                                    onClick={() => setCreateNetworkModal({ show: true, creating: false })}
                                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                                     <Plus className="h-4 w-4 mr-2"/>
                                     Create Network
@@ -269,16 +343,28 @@ const Resources: React.FC = () => {
                                                 <p className="font-medium text-gray-300">{network.name}</p>
                                                 <p className="text-sm text-gray-500">{network.type}</p>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right mr-3">
                                                 <p className="text-sm text-gray-600">{network.subnet || 'N/A'}</p>
                                             </div>
+                                            {(network.name !== 'bridge' && network.name !== 'host') && (
+                                                <div>
+                                                    <button
+                                                        onClick={() => handleDeleteNetwork(network.name)}
+                                                        className="text-red-400 hover:text-red-300 p-1 rounded transition-colors"
+                                                        title="Delete network"
+                                                    >
+                                                        <Trash2 className="h-4 w-4"/>
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
                                 <button
-                                    className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                    <Settings className="h-4 w-4 mr-2"/>
-                                    Manage Networks
+                                    onClick={() => setCreateNetworkModal({ show: true, creating: false })}
+                                    className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                                    <Plus className="h-4 w-4 mr-2"/>
+                                    Create Network
                                 </button>
                             </div>
                         )}
@@ -393,6 +479,178 @@ const Resources: React.FC = () => {
                                         <>
                                             <Trash2 className="h-4 w-4 mr-2"/>
                                             Delete
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Volume Modal */}
+            {createVolumeModal.show && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-200">Create Volume</h3>
+                                <button
+                                    onClick={() => setCreateVolumeModal({ show: false, creating: false })}
+                                    className="text-gray-400 hover:text-gray-300"
+                                    disabled={createVolumeModal.creating}
+                                >
+                                    <X className="h-5 w-5"/>
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={volumeForm.name}
+                                        onChange={(e) => setVolumeForm(prev => ({ ...prev, name: e.target.value }))}
+                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter volume name"
+                                        disabled={createVolumeModal.creating}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Size
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={volumeForm.size}
+                                        onChange={(e) => setVolumeForm(prev => ({ ...prev, size: e.target.value }))}
+                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="e.g., 1GB, 500MB"
+                                        disabled={createVolumeModal.creating}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Type
+                                    </label>
+                                    <select
+                                        value={volumeForm.type}
+                                        onChange={(e) => setVolumeForm(prev => ({ ...prev, type: e.target.value }))}
+                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        disabled={createVolumeModal.creating}
+                                    >
+                                        <option value="filesystem">Filesystem</option>
+                                        <option value="memory">Memory (tmpfs)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div className="flex space-x-3 justify-end mt-6">
+                                <button
+                                    onClick={() => setCreateVolumeModal({ show: false, creating: false })}
+                                    disabled={createVolumeModal.creating}
+                                    className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateVolume}
+                                    disabled={createVolumeModal.creating || !volumeForm.name || !volumeForm.size}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {createVolumeModal.creating ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Creating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="h-4 w-4 mr-2"/>
+                                            Create
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Network Modal */}
+            {createNetworkModal.show && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-200">Create Network</h3>
+                                <button
+                                    onClick={() => setCreateNetworkModal({ show: false, creating: false })}
+                                    className="text-gray-400 hover:text-gray-300"
+                                    disabled={createNetworkModal.creating}
+                                >
+                                    <X className="h-5 w-5"/>
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={networkForm.name}
+                                        onChange={(e) => setNetworkForm(prev => ({ ...prev, name: e.target.value }))}
+                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        placeholder="Enter network name"
+                                        disabled={createNetworkModal.creating}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        CIDR Range
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={networkForm.cidr}
+                                        onChange={(e) => setNetworkForm(prev => ({ ...prev, cidr: e.target.value }))}
+                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        placeholder="e.g., 10.1.0.0/24"
+                                        disabled={createNetworkModal.creating}
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        Examples: 10.1.0.0/24, 192.168.100.0/24
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex space-x-3 justify-end mt-6">
+                                <button
+                                    onClick={() => setCreateNetworkModal({ show: false, creating: false })}
+                                    disabled={createNetworkModal.creating}
+                                    className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateNetwork}
+                                    disabled={createNetworkModal.creating || !networkForm.name || !networkForm.cidr}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {createNetworkModal.creating ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Creating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="h-4 w-4 mr-2"/>
+                                            Create
                                         </>
                                     )}
                                 </button>

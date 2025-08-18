@@ -10,9 +10,9 @@ import NetworkCard from '../components/Monitoring/NetworkCard';
 import ProcessesCard from '../components/Monitoring/ProcessesCard';
 
 const Monitoring: React.FC = () => {
-    const {metrics, loading: metricsLoading, error: metricsError, isRealtime, toggleRealtime} = useMonitor();
+    const {loading: metricsLoading, error: metricsError, isRealtime, toggleRealtime} = useMonitor();
     const {systemInfo, loading: systemLoading, error: systemError, refetch} = useSystemInfo();
-    
+
     const loading = metricsLoading || systemLoading;
     const error = metricsError || systemError;
 
@@ -59,61 +59,34 @@ const Monitoring: React.FC = () => {
                 <div className="space-y-6">
                     {/* Host Information */}
                     {systemInfo?.hostInfo && (
-                        <HostInfoCard hostInfo={systemInfo.hostInfo} />
+                        <HostInfoCard hostInfo={systemInfo.hostInfo}/>
                     )}
 
                     {/* CPU Details */}
                     {systemInfo?.cpuInfo && (
-                        <CPUDetailsCard cpuInfo={systemInfo.cpuInfo} />
+                        <CPUDetailsCard cpuInfo={systemInfo.cpuInfo}/>
                     )}
 
                     {/* Memory Details */}
                     {systemInfo?.memoryInfo && (
-                        <MemoryDetailsCard memoryInfo={systemInfo.memoryInfo} />
+                        <MemoryDetailsCard memoryInfo={systemInfo.memoryInfo}/>
                     )}
 
                     {/* Disk Information */}
                     {systemInfo?.disksInfo && (
-                        <DisksCard disksInfo={systemInfo.disksInfo} />
+                        <DisksCard disksInfo={systemInfo.disksInfo}/>
                     )}
 
                     {/* Network Interfaces */}
                     {systemInfo?.networkInfo && (
-                        <NetworkCard networkInfo={systemInfo.networkInfo} />
+                        <NetworkCard networkInfo={systemInfo.networkInfo}/>
                     )}
 
                     {/* Running Processes */}
                     {systemInfo?.processesInfo && (
-                        <ProcessesCard processesInfo={systemInfo.processesInfo} />
+                        <ProcessesCard processesInfo={systemInfo.processesInfo}/>
                     )}
 
-                    {/* Job Statistics */}
-                    {metrics && (
-                        <div className="bg-gray-800 rounded-lg shadow p-6">
-                            <div className="flex items-center mb-4">
-                                <Activity className="h-6 w-6 text-orange-600 mr-3"/>
-                                <h3 className="text-lg font-semibold text-white">Job Statistics</h3>
-                            </div>
-                            <div className="grid grid-cols-4 gap-4">
-                                <div className="text-center bg-gray-900 rounded-lg shadow p-6">
-                                    <div className="text-2xl font-bold text-blue-600">{metrics.jobs.total}</div>
-                                    <div className="text-sm text-gray-400">Total</div>
-                                </div>
-                                <div className="text-center bg-gray-900 rounded-lg shadow p-6">
-                                    <div className="text-2xl font-bold text-yellow-600">{metrics.jobs.running}</div>
-                                    <div className="text-sm text-gray-400">Running</div>
-                                </div>
-                                <div className="text-center bg-gray-900 rounded-lg shadow p-6">
-                                    <div className="text-2xl font-bold text-green-600">{metrics.jobs.completed}</div>
-                                    <div className="text-sm text-gray-400">Completed</div>
-                                </div>
-                                <div className="text-center bg-gray-900 rounded-lg shadow p-6">
-                                    <div className="text-2xl font-bold text-red-600">{metrics.jobs.failed}</div>
-                                    <div className="text-sm text-gray-400">Failed</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
         </div>

@@ -47,7 +47,9 @@ export const useWorkflows = (): UseWorkflowsReturn => {
             }
             setError(null);
             const response = await apiService.getWorkflows();
-            setWorkflows(response);
+            // Sort workflows in descending order by ID (newest first)
+            const sortedWorkflows = response.sort((a, b) => b.id - a.id);
+            setWorkflows(sortedWorkflows);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch workflows');
             console.error('Failed to fetch workflows:', err);

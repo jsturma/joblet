@@ -64,6 +64,47 @@ class APIService {
         return this.request<any>(`/workflows/${workflowId}`);
     }
 
+    async browseWorkflowDirectory(path?: string): Promise<{
+        currentPath: string;
+        parentPath: string | null;
+        directories: Array<{ name: string; path: string; type: string }>;
+        yamlFiles: Array<{ name: string; path: string; type: string; selectable: boolean }>;
+        otherFiles: Array<{ name: string; path: string; type: string; selectable: boolean }>;
+    }> {
+        const url = path ? `/workflows/browse?path=${encodeURIComponent(path)}` : '/workflows/browse';
+        return this.request<{
+            currentPath: string;
+            parentPath: string | null;
+            directories: Array<{ name: string; path: string; type: string }>;
+            yamlFiles: Array<{ name: string; path: string; type: string; selectable: boolean }>;
+            otherFiles: Array<{ name: string; path: string; type: string; selectable: boolean }>;
+        }>(url, {}, false); // Don't add node param for browsing
+    }
+
+    async validateWorkflow(filePath: string): Promise<{
+        valid: boolean;
+        requiredVolumes: string[];
+        missingVolumes: string[];
+        message: string;
+    }> {
+        return this.request<{
+            valid: boolean;
+            requiredVolumes: string[];
+            missingVolumes: string[];
+            message: string;
+        }>('/workflows/validate', {
+            method: 'POST',
+            body: JSON.stringify({ filePath }),
+        });
+    }
+
+    async executeWorkflow(filePath: string, createMissingVolumes = false): Promise<{ workflowId: string; status: string; message: string }> {
+        return this.request<{ workflowId: string; status: string; message: string }>('/workflows/execute', {
+            method: 'POST',
+            body: JSON.stringify({ filePath, createMissingVolumes }),
+        });
+    }
+
     async getJob(jobId: string): Promise<Job> {
         return this.request<Job>(`/jobs/${jobId}`);
     }
@@ -106,9 +147,29 @@ class APIService {
         });
     }
 
+    async createVolume(name: string, size: string, type: string = 'filesystem'): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>('/volumes', {
+            method: 'POST',
+            body: JSON.stringify({ name, size, type }),
+        });
+    }
+
     // Network operations
     async getNetworks(): Promise<{ networks: Network[] }> {
         return this.request<{ networks: Network[] }>('/networks');
+    }
+
+    async createNetwork(name: string, cidr: string): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>('/networks', {
+            method: 'POST',
+            body: JSON.stringify({ name, cidr }),
+        });
+    }
+
+    async deleteNetwork(networkName: string): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>(`/networks/${encodeURIComponent(networkName)}`, {
+            method: 'DELETE',
+        });
     }
 
     // Runtime operations
