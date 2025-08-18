@@ -150,6 +150,7 @@ jobs:
             echo "📦 Building packages for $arch..."
           
             # Copy binaries for this architecture
+            rm -rf joblet rnx  # Remove existing directories/files to avoid conflicts
             cp joblet-linux-$arch joblet
             cp rnx-server-linux-$arch rnx
             chmod +x joblet rnx
