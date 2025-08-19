@@ -486,15 +486,24 @@ func (s *WorkflowServiceServer) orchestrateWorkflow(ctx context.Context, workflo
 			log.Info("workflow orchestration context canceled")
 			return
 		case <-ticker.C:
+			log.Debug("orchestration tick - checking for ready jobs")
 			readyJobs := s.workflowManager.GetReadyJobs(workflowID)
+			log.Debug("orchestration ready jobs check", "readyJobsCount", len(readyJobs), "readyJobs", readyJobs)
 			if len(readyJobs) == 0 {
 				workflowState, err := s.workflowManager.GetWorkflowStatus(workflowID)
-				if err == nil && (workflowState.Status == workflow.WorkflowCompleted || workflowState.Status == workflow.WorkflowFailed) {
+				if err != nil {
+					log.Warn("failed to get workflow status during orchestration", "error", err)
+					continue
+				}
+				log.Debug("orchestration status check", "workflowStatus", workflowState.Status, "completedJobs", workflowState.CompletedJobs, "totalJobs", workflowState.TotalJobs)
+				if workflowState.Status == workflow.WorkflowCompleted || workflowState.Status == workflow.WorkflowFailed {
 					log.Info("workflow orchestration completed", "status", workflowState.Status)
 					return
 				}
 				continue
 			}
+
+			log.Info("found ready jobs for orchestration", "readyJobs", readyJobs)
 
 			for _, jobName := range readyJobs {
 				if jobSpec, exists := workflowYAML.Jobs[jobName]; exists {

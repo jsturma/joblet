@@ -131,23 +131,9 @@ func (dr *DependencyResolver) CreateWorkflow(workflow string, jobs map[string]*J
 		internalNameToJobID[job.InternalName] = jobID
 	}
 
-	// Convert internal names in requirements to actual job IDs
-	for _, job := range jobs {
-		for i, req := range job.Requirements {
-			if req.Type == RequirementSimple && req.JobId != "" {
-				if actualJobID, exists := internalNameToJobID[req.JobId]; exists {
-					job.Requirements[i].JobId = actualJobID
-				}
-			} else if req.Type == RequirementExpression && req.Expression != "" {
-				// Convert internal names in expressions to job IDs
-				updatedExpr := req.Expression
-				for internalName, jobID := range internalNameToJobID {
-					updatedExpr = strings.ReplaceAll(updatedExpr, internalName, jobID)
-				}
-				job.Requirements[i].Expression = updatedExpr
-			}
-		}
-	}
+	// Keep requirements using job names for consistency
+	// Job names are stable throughout the workflow lifecycle
+	// This enables proper dependency validation and circular detection
 
 	// Check which jobs can start immediately
 	for _, job := range jobs {
@@ -194,13 +180,11 @@ func (dr *DependencyResolver) UpdateJobID(jobName string, actualJobID string) {
 		dr.jobToWorkflow[actualJobID] = workflowID
 	}
 
-	// Update jobStateCache
-	if status, exists := dr.jobStateCache[jobName]; exists {
-		delete(dr.jobStateCache, jobName)
-		dr.jobStateCache[actualJobID] = status
-	}
+	// Keep jobStateCache keyed by job names, not job IDs
+	// This ensures requirements can always find their dependencies by name
+	// The cache already uses jobName as key, so no changes needed here
 
-	// Update workflow Jobs map
+	// Update workflow Jobs map and requirements
 	for _, workflow := range dr.workflows {
 		if jobDep, exists := workflow.Jobs[jobName]; exists {
 			// Update the JobID field
@@ -208,6 +192,9 @@ func (dr *DependencyResolver) UpdateJobID(jobName string, actualJobID string) {
 			// Move the entry from jobName key to actualJobID key
 			delete(workflow.Jobs, jobName)
 			workflow.Jobs[actualJobID] = jobDep
+
+			// Keep requirements using job names for consistency
+			// No need to update requirements since they should always reference job names
 			break
 		}
 	}
@@ -226,9 +213,6 @@ func (dr *DependencyResolver) OnJobStateChange(jobID string, newStatus domain.Jo
 	dr.mu.Lock()
 	defer dr.mu.Unlock()
 
-	// Update cache
-	dr.jobStateCache[jobID] = newStatus
-
 	// Find workflow
 	workflowID, exists := dr.jobToWorkflow[jobID]
 	if !exists {
@@ -240,8 +224,13 @@ func (dr *DependencyResolver) OnJobStateChange(jobID string, newStatus domain.Jo
 		return
 	}
 
-	// Update job status
+	// Update job status and cache using job name for consistency
 	if job, exists := workflow.Jobs[jobID]; exists {
+		// For workflow jobs, update cache using job name so requirements can find it
+		// Individual jobs don't have names or dependencies, so they don't need cache entries
+		if job.InternalName != "" {
+			dr.jobStateCache[job.InternalName] = newStatus
+		}
 		oldStatus := job.Status
 		job.Status = newStatus
 
@@ -277,8 +266,25 @@ func (dr *DependencyResolver) GetReadyJobs(workflowID int) []string {
 
 	var ready []string
 	for jobID, job := range workflow.Jobs {
-		if job.Status == domain.StatusPending && job.CanStart && !job.Impossible {
-			ready = append(ready, jobID)
+		if job.Status == domain.StatusPending {
+			if job.Impossible {
+				// Debug: log why job is impossible
+				fmt.Printf("DEBUG: Job %s (%s) is marked as impossible\n", jobID, job.InternalName)
+			} else if !job.CanStart {
+				// Debug: check if job can start now
+				canStart := dr.canJobStart(job)
+				fmt.Printf("DEBUG: Job %s (%s) canStart evaluation: CanStart=%t, evaluated=%t\n", jobID, job.InternalName, job.CanStart, canStart)
+				if canStart {
+					job.CanStart = true // Update the flag
+					ready = append(ready, jobID)
+					fmt.Printf("DEBUG: Job %s (%s) is now ready (updated CanStart flag)\n", jobID, job.InternalName)
+				}
+			} else {
+				ready = append(ready, jobID)
+				fmt.Printf("DEBUG: Job %s (%s) is ready\n", jobID, job.InternalName)
+			}
+		} else {
+			fmt.Printf("DEBUG: Job %s (%s) status is %s (not PENDING)\n", jobID, job.InternalName, job.Status)
 		}
 	}
 
@@ -317,8 +323,11 @@ func (dr *DependencyResolver) canJobStart(job *JobDependency) bool {
 		return true
 	}
 
-	for _, req := range job.Requirements {
-		if !dr.evaluateRequirement(req) {
+	for i, req := range job.Requirements {
+		satisfied := dr.evaluateRequirement(req)
+		fmt.Printf("DEBUG: Job %s requirement %d: type=%d, jobId=%s, status=%s, satisfied=%t\n",
+			job.InternalName, i, req.Type, req.JobId, req.Status, satisfied)
+		if !satisfied {
 			return false
 		}
 	}
@@ -333,6 +342,8 @@ func (dr *DependencyResolver) evaluateRequirement(req Requirement) bool {
 	switch req.Type {
 	case RequirementSimple:
 		status, exists := dr.jobStateCache[req.JobId]
+		fmt.Printf("DEBUG: Evaluating requirement: jobId=%s, expected=%s, actual=%v, exists=%t\n",
+			req.JobId, req.Status, status, exists)
 		if !exists {
 			return false
 		}
@@ -475,7 +486,10 @@ func (dr *DependencyResolver) handleTerminalState(workflow *WorkflowState, jobID
 		if requirementImpossible {
 			otherJob.Impossible = true
 			otherJob.Status = domain.StatusCanceled
-			dr.jobStateCache[otherJobID] = domain.StatusCanceled
+			// Update cache using job name for consistency
+			if otherJob.InternalName != "" {
+				dr.jobStateCache[otherJob.InternalName] = domain.StatusCanceled
+			}
 			workflow.CanceledJobs++
 			// Recursively handle this cancellation
 			dr.handleTerminalState(workflow, otherJobID, domain.StatusCanceled)
@@ -495,13 +509,20 @@ func (dr *DependencyResolver) handleTerminalState(workflow *WorkflowState, jobID
 func (dr *DependencyResolver) isRequirementImpossible(req Requirement, workflow *WorkflowState) bool {
 	switch req.Type {
 	case RequirementSimple:
-		job, exists := workflow.Jobs[req.JobId]
-		if !exists {
+		// Find job by internal name in workflow
+		var targetJob *JobDependency
+		for _, job := range workflow.Jobs {
+			if job.InternalName == req.JobId {
+				targetJob = job
+				break
+			}
+		}
+		if targetJob == nil {
 			return true
 		}
 
 		// If the job is in a terminal state and doesn't match the requirement
-		if isTerminalState(job.Status) && string(job.Status) != req.Status {
+		if isTerminalState(targetJob.Status) && string(targetJob.Status) != req.Status {
 			return true
 		}
 
