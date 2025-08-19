@@ -138,6 +138,7 @@ app.post('/api/jobs/execute', async (req, res) => {
       uploads = [],
       uploadDirs = [],
       envVars = {},
+      secretEnvVars = {},
       schedule,
       node
     } = req.body;
@@ -150,32 +151,38 @@ app.post('/api/jobs/execute', async (req, res) => {
     const rnxArgs = ['run'];
     
     // Add optional flags first (before command)
-    if (maxCPU) rnxArgs.push('--max-cpu', maxCPU.toString());
-    if (maxMemory) rnxArgs.push('--max-memory', maxMemory.toString());
-    if (maxIOBPS) rnxArgs.push('--max-iobps', maxIOBPS.toString());
-    if (cpuCores) rnxArgs.push('--cpu-cores', cpuCores);
-    if (runtime) rnxArgs.push('--runtime', runtime);
-    if (network) rnxArgs.push('--network', network);
-    if (schedule) rnxArgs.push('--schedule', schedule);
+    // NOTE: Some flags require = syntax instead of space-separated
+    if (maxCPU) rnxArgs.push(`--max-cpu=${maxCPU.toString()}`);
+    if (maxMemory) rnxArgs.push(`--max-memory=${maxMemory.toString()}`);
+    if (maxIOBPS) rnxArgs.push(`--max-iobps=${maxIOBPS.toString()}`);
+    if (cpuCores) rnxArgs.push(`--cpu-cores=${cpuCores}`);
+    if (runtime) rnxArgs.push(`--runtime=${runtime}`);
+    if (network) rnxArgs.push(`--network=${network}`);
+    if (schedule) rnxArgs.push(`--schedule=${schedule}`);
     
     // Add volumes
     volumes.forEach(volume => {
-      rnxArgs.push('--volume', volume);
+      rnxArgs.push(`--volume=${volume}`);
     });
     
     // Add uploads
     uploads.forEach(upload => {
-      rnxArgs.push('--upload', upload);
+      rnxArgs.push(`--upload=${upload}`);
     });
     
     // Add upload directories
     uploadDirs.forEach(dir => {
-      rnxArgs.push('--upload-dir', dir);
+      rnxArgs.push(`--upload-dir=${dir}`);
     });
     
     // Add environment variables
     Object.entries(envVars).forEach(([key, value]) => {
-      rnxArgs.push('--env', `${key}=${value}`);
+      rnxArgs.push(`--env=${key}=${value}`);
+    });
+    
+    // Add secret environment variables
+    Object.entries(secretEnvVars).forEach(([key, value]) => {
+      rnxArgs.push(`--secret-env=${key}=${value}`);
     });
     
     // Add command and args last
@@ -283,32 +290,135 @@ app.get('/api/workflows/:workflowId', async (req, res) => {
     const { workflowId } = req.params;
     const node = req.query.node;
     
-    // First get all workflows to find the specific workflow
-    const workflowsOutput = await execRnx(['list', '--workflow', '--json'], { node });
-    let workflows = [];
-    if (workflowsOutput && workflowsOutput.trim()) {
-      workflows = JSON.parse(workflowsOutput);
+    // Get detailed workflow status including jobs
+    let workflowData;
+    try {
+      const output = await execRnx(['status', '--workflow', workflowId, '--json'], { node });
+      workflowData = JSON.parse(output);
+    } catch (statusError) {
+      // If status fails, try to get from list
+      const workflowsOutput = await execRnx(['list', '--workflow', '--json'], { node });
+      let workflows = [];
+      if (workflowsOutput && workflowsOutput.trim()) {
+        workflows = JSON.parse(workflowsOutput);
+      }
+      
+      const workflow = workflows.find(w => w.id.toString() === workflowId);
+      if (!workflow) {
+        return res.status(404).json({ error: 'Workflow not found' });
+      }
+      
+      workflowData = workflow;
     }
     
-    const workflow = workflows.find(w => w.id.toString() === workflowId);
-    if (!workflow) {
-      return res.status(404).json({ error: 'Workflow not found' });
-    }
+    // Use real job IDs from RNX workflow status
+    // RNX now provides actual job IDs in workflow status
+    // NOTE: Non-starting and cancelled jobs may have ID 0, which causes UI collision
     
-    // Get all jobs to find jobs that belong to this workflow
-    const jobsOutput = await execRnx(['list', '--json'], { node });
-    let allJobs = [];
-    if (jobsOutput && jobsOutput.trim()) {
-      allJobs = JSON.parse(jobsOutput);
-    }
+    // First pass: create a mapping of job names to UI IDs
+    const jobNameToUiId = new Map();
+    (workflowData.jobs || []).forEach((job, index) => {
+      const rnxJobId = job.id !== undefined && job.id !== null ? job.id : null;
+      let uiJobId;
+      
+      // For non-starting jobs (ID 0 or null), create a unique UI identifier
+      if (rnxJobId === 0 || rnxJobId === null) {
+        const baseName = job.name || `job-${index}`;
+        const jobStatus = job.status || 'PENDING';
+        const statusSuffix = jobStatus.toLowerCase().replace(/[^a-z0-9]/g, '');
+        uiJobId = `${baseName}-${statusSuffix}-${index}`;
+      } else {
+        uiJobId = rnxJobId.toString();
+      }
+      
+      jobNameToUiId.set(job.name || `job-${index}`, uiJobId);
+    });
     
-    // For now, we'll return the workflow with empty jobs array since we don't have a direct way
-    // to associate jobs with workflows in the current API
-    // TODO: This could be enhanced if RNX provides workflow-job associations
+    // Second pass: create job objects with properly mapped dependencies
+    const jobsWithDetails = (workflowData.jobs || []).map((job, index) => {
+      // For RNX: job.id can be 0 for non-starting or cancelled jobs, which is valid
+      const rnxJobId = job.id !== undefined && job.id !== null ? job.id : null;
+      const jobStatus = job.status || 'UNKNOWN';
+      
+      // Create unique UI identifier to prevent collisions
+      // Jobs with same RNX ID (especially 0) need unique UI identifiers
+      let uiJobId;
+      
+      if (rnxJobId === 0 || rnxJobId === null) {
+        // For jobs with ID 0 or null (non-starting, cancelled, etc.)
+        // Use job name + status + index to ensure uniqueness
+        const baseName = job.name || `job-${index}`;
+        const statusSuffix = jobStatus.toLowerCase().replace(/[^a-z0-9]/g, ''); // Clean status for ID
+        uiJobId = `${baseName}-${statusSuffix}-${index}`;
+      } else {
+        // For jobs with actual RNX job IDs, use the RNX ID but ensure it's unique
+        // In case multiple jobs somehow have the same RNX ID, add index as fallback
+        const baseId = rnxJobId.toString();
+        // Check if this RNX ID has been used already in this workflow
+        const existingIndex = (workflowData.jobs || []).slice(0, index).findIndex(j => 
+          (j.id !== undefined && j.id !== null && j.id.toString() === baseId)
+        );
+        uiJobId = existingIndex >= 0 ? `${baseId}-${index}` : baseId;
+      }
+      
+      // Determine if job has actually started executing
+      const hasActuallyStarted = rnxJobId !== null && rnxJobId !== 0 && 
+                                ['RUNNING', 'COMPLETED', 'FAILED'].includes(jobStatus);
+      
+      // Map dependencies from job names to UI IDs
+      const mappedDependencies = (job.dependencies || []).map(depName => {
+        // Dependencies might be job names, so map them to UI IDs
+        return jobNameToUiId.get(depName) || depName;
+      });
+      
+      return {
+        id: uiJobId, // UI identifier (guaranteed unique)
+        rnxJobId: rnxJobId, // Original RNX job ID (can be 0 or null)
+        name: job.name || `job-${index}`,
+        status: jobStatus,
+        dependsOn: mappedDependencies, // Dependencies mapped to UI IDs
+        // Mark these as workflow jobs so we know they can be fetched individually
+        isWorkflowJob: true,
+        workflowId: workflowId,
+        // Indicate if job has started executing (not just queued/pending/cancelled)
+        hasStarted: hasActuallyStarted,
+        // Use job name as command for display purposes in the graph
+        command: job.name || uiJobId, // Show job name in the graph
+        args: [],
+        startTime: null, // Will be fetched from individual job status
+        endTime: null,
+        duration: 0,
+        maxCPU: 0,
+        maxMemory: 0,
+        maxIOBPS: 0,
+        network: 'bridge',
+        volumes: [],
+        envVars: {},
+        secretEnvVars: {},
+        exitCode: jobStatus === 'COMPLETED' ? 0 : 
+                  jobStatus === 'FAILED' ? 1 : undefined
+      };
+    });
     
+    // Format workflow data for the UI
     const workflowWithJobs = {
-      ...workflow,
-      jobs: [] // Will be empty for now until we have a way to associate jobs with workflows
+      id: workflowData.id || workflowId,
+      name: workflowData.workflow || workflowData.name || `Workflow ${workflowId}`,
+      workflow: workflowData.workflow || workflowData.name || 'unknown',
+      status: workflowData.status || 'UNKNOWN',
+      total_jobs: workflowData.total_jobs || workflowData.jobs?.length || 0,
+      completed_jobs: workflowData.completed_jobs || 0,
+      failed_jobs: workflowData.failed_jobs || 0,
+      created_at: workflowData.created_at?.seconds ? 
+        new Date(workflowData.created_at.seconds * 1000).toISOString() : 
+        workflowData.created_at || null,
+      started_at: workflowData.started_at?.seconds ? 
+        new Date(workflowData.started_at.seconds * 1000).toISOString() : 
+        workflowData.start_time || null,
+      completed_at: workflowData.completed_at?.seconds ? 
+        new Date(workflowData.completed_at.seconds * 1000).toISOString() : 
+        workflowData.end_time || null,
+      jobs: jobsWithDetails
     };
     
     res.json(workflowWithJobs);
@@ -331,7 +441,32 @@ app.get('/api/jobs/:jobId', async (req, res) => {
     let jobDetails;
     if (output && output.trim()) {
       try {
-        jobDetails = JSON.parse(output);
+        const rawJob = JSON.parse(output);
+        
+        // Map RNX response to expected Job interface
+        jobDetails = {
+          id: rawJob.id || jobId,
+          command: rawJob.command || '',
+          args: rawJob.args || [],
+          status: rawJob.status || 'UNKNOWN',
+          startTime: rawJob.startTime || '',
+          endTime: rawJob.endTime || '',
+          duration: rawJob.duration || 0,
+          exitCode: rawJob.exitCode || rawJob.exit_code,
+          maxCPU: rawJob.maxCPU || rawJob.max_cpu || 0,
+          maxMemory: rawJob.maxMemory || rawJob.max_memory || 0,
+          maxIOBPS: rawJob.maxIOBPS || rawJob.max_iobps || 0,
+          cpuCores: rawJob.cpuCores || rawJob.cpu_cores || '',
+          runtime: rawJob.runtime || '',
+          network: rawJob.network || 'bridge',
+          volumes: rawJob.volumes || [],
+          uploads: rawJob.uploads || [],
+          uploadDirs: rawJob.uploadDirs || rawJob.upload_dirs || [],
+          envVars: rawJob.environment || {},
+          secretEnvVars: {}, // Note: RNX doesn't distinguish between regular and secret vars in response
+          dependsOn: rawJob.dependsOn || rawJob.depends_on || [],
+          resourceUsage: rawJob.resourceUsage || rawJob.resource_usage
+        };
       } catch (e) {
         console.warn('Failed to parse JSON from rnx status:', e.message);
         jobDetails = {
@@ -354,7 +489,7 @@ app.get('/api/jobs/:jobId', async (req, res) => {
     res.status(500).json({ 
       error: 'Failed to get job details', 
       message: error.message,
-      id: jobId,
+      id: req.params.jobId,
       status: 'ERROR'
     });
   }

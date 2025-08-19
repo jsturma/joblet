@@ -1,10 +1,11 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {Job} from '../../types/job';
+import {Job, WorkflowJob} from '../../types/job';
 import {JobNode} from './JobNode';
 import {Maximize2, RotateCcw, ZoomIn, ZoomOut} from 'lucide-react';
+import clsx from 'clsx';
 
 interface WorkflowGraphProps {
-    jobs: Job[];
+    jobs: WorkflowJob[];
     onJobSelect?: (job: Job | null) => void;
     onJobAction?: (job: Job, action: string) => void;
 }
@@ -23,8 +24,8 @@ interface Edge {
 
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 120;
-const HORIZONTAL_SPACING = 200;
-const VERTICAL_SPACING = 150;
+const HORIZONTAL_SPACING = 280;
+const VERTICAL_SPACING = 200;
 
 export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                                                                 jobs,
@@ -36,12 +37,21 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
     const [pan, setPan] = useState({x: 0, y: 0});
     const [isPanning, setIsPanning] = useState(false);
     const [lastPanPoint, setLastPanPoint] = useState({x: 0, y: 0});
+    const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
+    const [jobOverrides, setJobOverrides] = useState<Map<string, Position>>(new Map());
 
     // Calculate job positions using a simple layered layout
     const {jobPositions, edges} = useMemo(() => {
         if (jobs.length === 0) {
             return {jobPositions: new Map<string, Position>(), edges: []};
         }
+        
+        // Debug: Log job dependencies
+        console.log('Workflow jobs with dependencies:', jobs.map(j => ({
+            id: j.id,
+            name: j.name,
+            dependsOn: j.dependsOn
+        })));
 
         // Create dependency graph
         const dependencies = new Map<string, string[]>();
@@ -110,6 +120,13 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             });
         });
 
+        // Apply any user position overrides
+        jobOverrides.forEach((overridePos, jobId) => {
+            if (positions.has(jobId)) {
+                positions.set(jobId, overridePos);
+            }
+        });
+
         // Calculate edges
         const calculatedEdges: Edge[] = [];
         jobs.forEach(job => {
@@ -135,8 +152,11 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             });
         });
 
+        // Debug: Log calculated edges
+        console.log('Calculated dependency edges:', calculatedEdges);
+        
         return {jobPositions: positions, edges: calculatedEdges};
-    }, [jobs]);
+    }, [jobs, jobOverrides]);
 
     const handleJobClick = useCallback((job: Job) => {
         setSelectedJobId(job.id);
@@ -159,15 +179,18 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         setZoom(1);
         setPan({x: 0, y: 0});
         setSelectedJobId(null);
+        setJobOverrides(new Map()); // Reset all position overrides
         onJobSelect?.(null);
     }, [onJobSelect]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
+        // Allow panning if not dragging a job node
+        if (!draggedJobId) {
             setIsPanning(true);
             setLastPanPoint({x: e.clientX, y: e.clientY});
+            e.preventDefault();
         }
-    }, []);
+    }, [draggedJobId]);
 
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
         if (isPanning) {
@@ -183,6 +206,49 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
     const handleMouseUp = useCallback(() => {
         setIsPanning(false);
+        setDraggedJobId(null);
+    }, []);
+    
+    const handleJobMouseDown = useCallback((e: React.MouseEvent, jobId: string) => {
+        e.stopPropagation();
+        setDraggedJobId(jobId);
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setLastPanPoint({
+            x: e.clientX,
+            y: e.clientY
+        });
+    }, []);
+    
+    const handleJobMouseMove = useCallback((e: React.MouseEvent) => {
+        if (draggedJobId) {
+            e.stopPropagation();
+            const deltaX = (e.clientX - lastPanPoint.x) / zoom;
+            const deltaY = (e.clientY - lastPanPoint.y) / zoom;
+            
+            const currentPos = jobPositions.get(draggedJobId);
+            if (currentPos) {
+                const newPos = {
+                    x: currentPos.x + deltaX,
+                    y: currentPos.y + deltaY
+                };
+                
+                // Update the override position for this job
+                setJobOverrides(prev => {
+                    const newOverrides = new Map(prev);
+                    newOverrides.set(draggedJobId, newPos);
+                    return newOverrides;
+                });
+            }
+            
+            setLastPanPoint({
+                x: e.clientX,
+                y: e.clientY
+            });
+        }
+    }, [draggedJobId, lastPanPoint, jobPositions, zoom]);
+    
+    const handleJobMouseUp = useCallback(() => {
+        setDraggedJobId(null);
     }, []);
 
     const selectedJob = jobs.find(job => job.id === selectedJobId);
@@ -194,22 +260,19 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                 <button
                     onClick={handleZoomIn}
                     className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
-                    title="Zoom In"
-                >
+                    title="Zoom In">
                     <ZoomIn className="w-4 h-4"/>
                 </button>
                 <button
                     onClick={handleZoomOut}
                     className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
-                    title="Zoom Out"
-                >
+                    title="Zoom Out">
                     <ZoomOut className="w-4 h-4"/>
                 </button>
                 <button
                     onClick={handleResetView}
                     className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
-                    title="Reset View"
-                >
+                    title="Reset View & Positions">
                     <RotateCcw className="w-4 h-4"/>
                 </button>
             </div>
@@ -221,27 +284,30 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
             {/* Canvas */}
             <div
-                className="w-full h-full cursor-grab active:cursor-grabbing"
+                className={clsx(
+                    "w-full h-full relative",
+                    isPanning ? "cursor-grabbing" : "cursor-grab"
+                )}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
             >
+                {/* Invisible background for drag interaction */}
+                <div className="absolute inset-0 w-full h-full bg-transparent"/>
                 <svg
-                    className="absolute inset-0 w-full h-full"
+                    className="absolute inset-0 w-full h-full pointer-events-none"
                     style={{
                         transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                         transformOrigin: '0 0'
-                    }}
-                >
-                    {/* Grid Pattern */}
+                    }}>
+                    {/* Definitions for patterns and markers */}
                     <defs>
                         <pattern
                             id="grid"
                             width="20"
                             height="20"
-                            patternUnits="userSpaceOnUse"
-                        >
+                            patternUnits="userSpaceOnUse">
                             <path
                                 d="M 20 0 L 0 0 0 20"
                                 fill="none"
@@ -250,40 +316,42 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                                 opacity="0.5"
                             />
                         </pattern>
+                        {/* Single arrow marker definition */}
+                        <marker
+                            id="arrowhead"
+                            markerWidth="8"
+                            markerHeight="6"
+                            refX="7"
+                            refY="3"
+                            orient="auto">
+                            <polygon
+                                points="0 0, 8 3, 0 6"
+                                fill="#4b5563"
+                            />
+                        </marker>
                     </defs>
+                    
+                    {/* Grid background */}
                     <rect width="100%" height="100%" fill="url(#grid)"/>
 
-                    {/* Edges */}
-                    {edges.map((edge, index) => (
-                        <g key={`edge-${edge.from}-${edge.to}-${index}`}>
+                    {/* Dependency Edges/Arrows */}
+                    <g className="dependency-arrows">
+                        {edges.map((edge, index) => (
                             <path
+                                key={`edge-${edge.from}-${edge.to}-${index}`}
                                 d={`M ${edge.fromPos.x} ${edge.fromPos.y} 
-                   C ${edge.fromPos.x + 50} ${edge.fromPos.y} 
-                     ${edge.toPos.x - 50} ${edge.toPos.y} 
-                     ${edge.toPos.x} ${edge.toPos.y}`}
+                                    C ${edge.fromPos.x + 50} ${edge.fromPos.y} 
+                                      ${edge.toPos.x - 50} ${edge.toPos.y} 
+                                      ${edge.toPos.x} ${edge.toPos.y}`}
                                 fill="none"
-                                stroke="#9ca3af"
-                                strokeWidth="2"
+                                stroke="#4b5563"
+                                strokeWidth="2.5"
+                                strokeDasharray="none"
                                 markerEnd="url(#arrowhead)"
+                                opacity="0.9"
                             />
-                            {/* Arrow marker */}
-                            <defs>
-                                <marker
-                                    id="arrowhead"
-                                    markerWidth="10"
-                                    markerHeight="7"
-                                    refX="9"
-                                    refY="3.5"
-                                    orient="auto"
-                                >
-                                    <polygon
-                                        points="0 0, 10 3.5, 0 7"
-                                        fill="#9ca3af"
-                                    />
-                                </marker>
-                            </defs>
-                        </g>
-                    ))}
+                        ))}
+                    </g>
                 </svg>
 
                 {/* Job Nodes */}
@@ -293,19 +361,22 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                         transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                         transformOrigin: '0 0'
                     }}
-                >
-                    {jobs.map(job => {
+                    onMouseMove={handleJobMouseMove}
+                    onMouseUp={handleJobMouseUp}>
+                    {jobs.map((job, index) => {
                         const position = jobPositions.get(job.id);
                         if (!position) return null;
 
                         return (
                             <JobNode
-                                key={job.id}
+                                key={`${job.id}-${index}`}
                                 job={job}
                                 position={position}
                                 selected={selectedJobId === job.id}
                                 onClick={() => handleJobClick(job)}
                                 onDoubleClick={() => handleJobDoubleClick(job)}
+                                onMouseDown={(e) => handleJobMouseDown(e, job.id)}
+                                isDragging={draggedJobId === job.id}
                             />
                         );
                     })}
@@ -330,21 +401,139 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             {/* Job Details Panel */}
             {selectedJob && (
                 <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-20">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                        {selectedJob.id}
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        <span>{selectedJob.name || selectedJob.id}</span>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            selectedJob.status === 'RUNNING' ? 'bg-yellow-100 text-yellow-800' :
+                                selectedJob.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                                    selectedJob.status === 'FAILED' ? 'bg-red-100 text-red-800' :
+                                        selectedJob.status === 'CANCELLED' ? 'bg-orange-100 text-orange-800' :
+                                            selectedJob.status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                                                'bg-gray-100 text-gray-800'
+                        }`}>
+                            {selectedJob.status}
+                        </span>
                     </h4>
                     <div className="space-y-1 text-sm text-gray-600">
-                        <div>Status: <span className="font-medium">{selectedJob.status}</span></div>
+                        {selectedJob.id && selectedJob.name && (
+                            <div>ID: <span className="font-mono text-xs">{selectedJob.id}</span></div>
+                        )}
+
                         <div>Command: <span className="font-mono">{selectedJob.command}</span></div>
+
+                        {selectedJob.args && selectedJob.args.length > 0 && (
+                            <div>Args: <span className="font-mono">{selectedJob.args.join(' ')}</span></div>
+                        )}
+
                         {selectedJob.dependsOn && selectedJob.dependsOn.length > 0 && (
                             <div>
                                 Dependencies: <span className="font-medium">{selectedJob.dependsOn.length}</span>
+                                <div className="ml-2 text-xs">
+                                    {selectedJob.dependsOn.map(dep => (
+                                        <div key={dep} className="font-mono">→ {dep}</div>
+                                    ))}
+                                </div>
                             </div>
                         )}
+
+                        {selectedJob.startTime && (
+                            <div>Started: <span
+                                className="font-medium">{new Date(selectedJob.startTime).toLocaleString()}</span></div>
+                        )}
+
+                        {selectedJob.endTime && (
+                            <div>Ended: <span
+                                className="font-medium">{new Date(selectedJob.endTime).toLocaleString()}</span></div>
+                        )}
+
+                        {selectedJob.duration > 0 && (
+                            <div>Duration: <span className="font-medium">
+                                {selectedJob.duration > 3600000 ?
+                                    `${Math.floor(selectedJob.duration / 3600000)}h ${Math.floor((selectedJob.duration % 3600000) / 60000)}m` :
+                                    selectedJob.duration > 60000 ?
+                                        `${Math.floor(selectedJob.duration / 60000)}m ${Math.floor((selectedJob.duration % 60000) / 1000)}s` :
+                                        `${Math.floor(selectedJob.duration / 1000)}s`
+                                }
+                            </span></div>
+                        )}
+
+                        {selectedJob.exitCode !== undefined && selectedJob.exitCode !== null && (
+                            <div>Exit Code: <span
+                                className={`font-medium ${selectedJob.exitCode === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {selectedJob.exitCode}
+                            </span></div>
+                        )}
+
+                        {/* Resource Limits - only show if set */}
+                        {(selectedJob.maxCPU > 0 || selectedJob.maxMemory > 0 || selectedJob.maxIOBPS > 0 || selectedJob.cpuCores) && (
+                            <div className="mt-2 pt-2 border-t">
+                                <div className="text-xs font-medium text-gray-500 mb-1">Resource Limits</div>
+                                {selectedJob.maxCPU > 0 && (
+                                    <div>Max CPU: <span className="font-medium">{selectedJob.maxCPU}%</span></div>
+                                )}
+                                {selectedJob.maxMemory > 0 && (
+                                    <div>Max Memory: <span className="font-medium">{selectedJob.maxMemory}MB</span>
+                                    </div>
+                                )}
+                                {selectedJob.maxIOBPS > 0 && (
+                                    <div>Max IO: <span className="font-medium">{selectedJob.maxIOBPS} BPS</span></div>
+                                )}
+                                {selectedJob.cpuCores && (
+                                    <div>CPU Cores: <span className="font-medium">{selectedJob.cpuCores}</span></div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Runtime Configuration - only show if set */}
+                        {(selectedJob.runtime || selectedJob.network !== 'default' ||
+                            (selectedJob.volumes && selectedJob.volumes.length > 0) ||
+                            (selectedJob.uploads && selectedJob.uploads.length > 0)) && (
+                            <div className="mt-2 pt-2 border-t">
+                                <div className="text-xs font-medium text-gray-500 mb-1">Configuration</div>
+                                {selectedJob.runtime && (
+                                    <div>Runtime: <span className="font-medium">{selectedJob.runtime}</span></div>
+                                )}
+                                {selectedJob.network && selectedJob.network !== 'default' && (
+                                    <div>Network: <span className="font-medium">{selectedJob.network}</span></div>
+                                )}
+                                {selectedJob.volumes && selectedJob.volumes.length > 0 && (
+                                    <div>Volumes: <span className="font-medium">{selectedJob.volumes.length}</span>
+                                    </div>
+                                )}
+                                {selectedJob.uploads && selectedJob.uploads.length > 0 && (
+                                    <div>Uploads: <span className="font-medium">{selectedJob.uploads.length}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Environment Variables - only show if set */}
+                        {(Object.keys(selectedJob.envVars || {}).length > 0 ||
+                            Object.keys(selectedJob.secretEnvVars || {}).length > 0) && (
+                            <div className="mt-2 pt-2 border-t">
+                                <div className="text-xs font-medium text-gray-500 mb-1">Environment</div>
+                                {Object.keys(selectedJob.envVars || {}).length > 0 && (
+                                    <div>Variables: <span
+                                        className="font-medium">{Object.keys(selectedJob.envVars || {}).length}</span></div>
+                                )}
+                                {Object.keys(selectedJob.secretEnvVars || {}).length > 0 && (
+                                    <div>Secrets: <span
+                                        className="font-medium">{Object.keys(selectedJob.secretEnvVars || {}).length}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Resource Usage - only show if available */}
                         {selectedJob.resourceUsage && (
                             <div className="mt-2 pt-2 border-t">
-                                <div>CPU: {Math.round(selectedJob.resourceUsage.cpuPercent)}%</div>
-                                <div>Memory: {Math.round(selectedJob.resourceUsage.memoryPercent)}%</div>
+                                <div className="text-xs font-medium text-gray-500 mb-1">Current Usage</div>
+                                <div>CPU: <span
+                                    className="font-medium">{Math.round(selectedJob.resourceUsage.cpuPercent)}%</span>
+                                </div>
+                                <div>Memory: <span
+                                    className="font-medium">{Math.round(selectedJob.resourceUsage.memoryPercent)}%</span>
+                                </div>
                             </div>
                         )}
                     </div>

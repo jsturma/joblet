@@ -17,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({children}) => {
         {name: 'Dashboard', href: '/', icon: Home},
         {name: 'Jobs', href: '/jobs', icon: List},
         {name: 'Workflows', href: '/workflows', icon: Workflow},
-        {name: 'Monitoring', href: '/monitoring', icon: Activity},
+        {name: 'System Monitoring', href: '/monitoring', icon: Activity},
         {name: 'Resources', href: '/resources', icon: HardDrive},
     ];
 

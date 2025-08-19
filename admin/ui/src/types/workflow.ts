@@ -2,10 +2,10 @@ export interface WorkflowTemplate {
     version: string;
     name: string;
     description?: string;
-    jobs: Record<string, WorkflowJob>;
+    jobs: Record<string, WorkflowJobTemplate>;
 }
 
-export interface WorkflowJob {
+export interface WorkflowJobTemplate {
     command: string[];
     dependsOn?: string[];
     uploads?: {

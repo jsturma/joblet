@@ -1,38 +1,44 @@
 import React from 'react';
-import {Job, JobStatus} from '../../types/job';
+import {JobStatus, WorkflowJob} from '../../types/job';
 import {Clock, Cpu, HardDrive} from 'lucide-react';
 import clsx from 'clsx';
 
 interface JobNodeProps {
-    job: Job;
+    job: WorkflowJob;
     position: { x: number; y: number };
     selected: boolean;
     onClick: () => void;
     onDoubleClick?: () => void;
+    onMouseDown?: (e: React.MouseEvent) => void;
+    isDragging?: boolean;
 }
 
 const getStatusColor = (status: JobStatus): string => {
-    const colors: Record<JobStatus, string> = {
+    const colors: Record<string, string> = {
         'INITIALIZING': 'border-gray-400 bg-gray-50',
         'RUNNING': 'border-yellow-400 bg-yellow-50',
         'COMPLETED': 'border-green-400 bg-green-50',
         'FAILED': 'border-red-400 bg-red-50',
         'STOPPED': 'border-gray-400 bg-gray-100',
         'QUEUED': 'border-blue-400 bg-blue-50',
-        'WAITING': 'border-purple-400 bg-purple-50'
+        'WAITING': 'border-purple-400 bg-purple-50',
+        'CANCELLED': 'border-orange-400 bg-orange-50',
+        'PENDING': 'border-indigo-400 bg-indigo-50'
     };
     return colors[status] || 'border-gray-400 bg-gray-50';
 };
 
 const getStatusIcon = (status: JobStatus): string => {
-    const icons: Record<JobStatus, string> = {
+    const icons: Record<string, string> = {
         'INITIALIZING': '🔄',
         'RUNNING': '🟡',
         'COMPLETED': '✅',
         'FAILED': '❌',
         'STOPPED': '⏹',
         'QUEUED': '⚪',
-        'WAITING': '⏸'
+        'WAITING': '⏸',
+        'CANCELLED': '🚫',
+        'PENDING': '⏳'
     };
     return icons[status] || '⚪';
 };
@@ -57,7 +63,9 @@ export const JobNode: React.FC<JobNodeProps> = ({
                                                     position,
                                                     selected,
                                                     onClick,
-                                                    onDoubleClick
+                                                    onDoubleClick,
+                                                    onMouseDown,
+                                                    isDragging
                                                 }) => {
     const statusColor = getStatusColor(job.status);
     const statusIcon = getStatusIcon(job.status);
@@ -65,26 +73,32 @@ export const JobNode: React.FC<JobNodeProps> = ({
     return (
         <div
             className={clsx(
-                'absolute cursor-pointer transition-all duration-200 transform',
+                'absolute transition-all duration-200 transform select-none',
+                isDragging ? 'cursor-grabbing z-20' : 'cursor-grab',
                 selected ? 'scale-105 z-10' : 'z-0 hover:scale-102'
             )}
             style={{
                 left: position.x,
                 top: position.y,
-                transform: selected ? 'scale(1.05)' : 'scale(1)'
+                transform: selected ? 'scale(1.05)' : 'scale(1)',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                MozUserSelect: 'none',
+                msUserSelect: 'none'
             }}
             onClick={onClick}
             onDoubleClick={onDoubleClick}
+            onMouseDown={onMouseDown}
         >
             <div className={clsx(
-                'bg-white rounded-lg shadow-md border-2 p-3 min-w-[140px] max-w-[200px]',
+                'bg-white rounded-lg shadow-md border-2 p-3 min-w-[140px] max-w-[200px] select-none',
                 statusColor,
                 selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
             )}>
-                {/* Header */}
+                {/* Header with Job Name */}
                 <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-900 truncate flex-1">
-            {job.id.slice(0, 8)}
+          <span className="text-sm font-semibold text-gray-900 truncate flex-1" title={job.name || job.id}>
+            {job.name || job.id}
           </span>
                     <span className="text-lg ml-2">{statusIcon}</span>
                 </div>
@@ -94,10 +108,12 @@ export const JobNode: React.FC<JobNodeProps> = ({
                     {job.status}
                 </div>
 
-                {/* Command */}
-                <div className="text-xs text-gray-500 mb-2 truncate" title={`${job.command} ${job.args?.join(' ') || ''}`}>
-                    {job.command}
-                </div>
+                {/* Job ID (if different from name) */}
+                {job.name && job.name !== job.id && (
+                    <div className="text-xs text-gray-400 mb-2 truncate" title={job.id}>
+                        ID: {job.id.slice(0, 8)}...
+                    </div>
+                )}
 
                 {/* Duration */}
                 {(job.status === 'RUNNING' || job.status === 'COMPLETED') && (

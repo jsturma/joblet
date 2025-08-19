@@ -28,6 +28,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
         network: 'bridge',
         volumes: [],
         envVars: {},
+        secretEnvVars: {},
         schedule: ''
     });
 
@@ -56,6 +57,21 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
             const newEnvVars = {...prev.envVars};
             delete newEnvVars[key];
             return {...prev, envVars: newEnvVars};
+        });
+    }, []);
+
+    const updateSecretEnvVar = useCallback((key: string, value: string) => {
+        setConfig(prev => ({
+            ...prev,
+            secretEnvVars: {...prev.secretEnvVars, [key]: value}
+        }));
+    }, []);
+
+    const removeSecretEnvVar = useCallback((key: string) => {
+        setConfig(prev => {
+            const newSecretEnvVars = {...prev.secretEnvVars};
+            delete newSecretEnvVars[key];
+            return {...prev, secretEnvVars: newSecretEnvVars};
         });
     }, []);
 
@@ -225,6 +241,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                 uploads: config.files, // These are now actual file paths from upload handler
                 uploadDirs: config.directories, // These are now actual directory paths
                 envVars: config.envVars,
+                secretEnvVars: config.secretEnvVars,
                 schedule: config.schedule || undefined
             };
 
@@ -244,6 +261,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                 network: 'bridge',
                 volumes: [],
                 envVars: {},
+                secretEnvVars: {},
                 schedule: ''
             });
             setUploadedFiles([]);
@@ -266,6 +284,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
             network: 'bridge',
             volumes: [],
             envVars: {},
+            secretEnvVars: {},
             schedule: ''
         });
     }, []);
@@ -514,6 +533,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                         <option value="bridge">Bridge (default)</option>
                                         <option value="host">Host</option>
                                         <option value="none">None</option>
+                                        <option value="isolated">Isolated</option>
                                     </select>
                                 </div>
                             </div>
@@ -605,7 +625,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                                 <input
                                                     type="text"
                                                     value={key}
-                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-800 text-gray-500 font-medium"
                                                     disabled
                                                 />
                                                 <input
@@ -670,6 +690,87 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                                 className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                                             >
                                                 Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                
+                                    {/* Secret Environment Variables */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-white mb-2 flex items-center">
+                                            <span>Secret Environment Variables</span>
+                                            <span className="ml-2 text-xs text-yellow-400 bg-yellow-900 px-2 py-1 rounded">Hidden from logs</span>
+                                        </label>
+                                        {Object.entries(config.secretEnvVars).map(([key, value]) => (
+                                            <div key={key} className="flex space-x-2 mb-2">
+                                                <input
+                                                    type="text"
+                                                    value={key}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-800 font-medium"
+                                                    disabled
+                                                />
+                                                <input
+                                                    type="password"
+                                                    value={value}
+                                                    onChange={(e) => updateSecretEnvVar(key, e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-yellow-500 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-50"
+                                                    placeholder="Hidden value"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeSecretEnvVar(key)}
+                                                    className="px-3 py-2 text-red-600 hover:text-red-800"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <div className="flex space-x-2">
+                                            <input
+                                                type="text"
+                                                placeholder="SECRET_KEY"
+                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                onKeyPress={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const keyInput = e.currentTarget;
+                                                        const valueInput = keyInput.nextElementSibling as HTMLInputElement;
+                                                        if (keyInput.value && valueInput.value) {
+                                                            updateSecretEnvVar(keyInput.value, valueInput.value);
+                                                            keyInput.value = '';
+                                                            valueInput.value = '';
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <input
+                                                type="password"
+                                                placeholder="secret_value"
+                                                className="flex-1 px-3 py-2 border border-yellow-500 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-50"
+                                                onKeyPress={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const valueInput = e.currentTarget;
+                                                        const keyInput = valueInput.previousElementSibling as HTMLInputElement;
+                                                        if (keyInput.value && valueInput.value) {
+                                                            updateSecretEnvVar(keyInput.value, valueInput.value);
+                                                            keyInput.value = '';
+                                                            valueInput.value = '';
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    const valueInput = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                                    const keyInput = valueInput.previousElementSibling as HTMLInputElement;
+                                                    if (keyInput.value && valueInput.value) {
+                                                        updateSecretEnvVar(keyInput.value, valueInput.value);
+                                                        keyInput.value = '';
+                                                        valueInput.value = '';
+                                                    }
+                                                }}
+                                                className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                                            >
+                                                Add Secret
                                             </button>
                                         </div>
                                     </div>

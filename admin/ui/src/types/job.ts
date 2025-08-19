@@ -5,7 +5,9 @@ export type JobStatus =
     | 'FAILED'
     | 'STOPPED'
     | 'QUEUED'
-    | 'WAITING';
+    | 'WAITING'
+    | 'CANCELLED'
+    | 'PENDING';
 
 export interface Job {
     id: string;
@@ -26,8 +28,18 @@ export interface Job {
     uploads: string[];
     uploadDirs: string[];
     envVars: Record<string, string>;
+    secretEnvVars?: Record<string, string>;
     dependsOn: string[];
     resourceUsage?: ResourceUsage;
+}
+
+// Extended interface for workflow jobs with additional fields
+export interface WorkflowJob extends Job {
+    name: string;
+    rnxJobId: number | null;
+    hasStarted: boolean;
+    isWorkflowJob: boolean;
+    workflowId: string;
 }
 
 export interface ResourceUsage {
@@ -51,6 +63,7 @@ export interface JobConfig {
     network: string;
     volumes: string[];
     envVars: Record<string, string>;
+    secretEnvVars: Record<string, string>;
     schedule: string;
 }
 
@@ -67,6 +80,7 @@ export interface JobExecuteRequest {
     uploads?: string[];
     uploadDirs?: string[];
     envVars?: Record<string, string>;
+    secretEnvVars?: Record<string, string>;
     schedule?: string;
 }
 
