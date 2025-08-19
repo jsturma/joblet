@@ -299,15 +299,21 @@ Core job representation used across all API responses.
 ```protobuf
 message Job {
   string id = 1;                    // Unique job identifier
-  string command = 2;               // Command being executed
-  repeated string args = 3;         // Command arguments
-  int32 maxCPU = 4;                // CPU limit in percent
-  int32 maxMemory = 5;             // Memory limit in MB
-  int32 maxIOBPS = 6;              // IO limit in bytes per second
-  string status = 7;               // Current job status
-  string startTime = 8;            // Start time (RFC3339 format)
-  string endTime = 9;              // End time (RFC3339 format, empty if running)
-  int32 exitCode = 10;             // Process exit code
+  string name = 2;                  // Human-readable job name (from workflows, empty for individual jobs)
+  string command = 3;               // Command being executed
+  repeated string args = 4;         // Command arguments
+  int32 maxCPU = 5;                // CPU limit in percent
+  string cpuCores = 6;             // CPU core binding specification
+  int32 maxMemory = 7;             // Memory limit in MB
+  int32 maxIOBPS = 8;              // IO limit in bytes per second
+  string status = 9;               // Current job status
+  string startTime = 10;           // Start time (RFC3339 format)
+  string endTime = 11;             // End time (RFC3339 format, empty if running)
+  int32 exitCode = 12;             // Process exit code
+  string scheduledTime = 13;       // Scheduled execution time (RFC3339 format)
+  string runtime = 14;             // Runtime specification used
+  map<string, string> environment = 15;       // Regular environment variables (visible)
+  map<string, string> secret_environment = 16; // Secret environment variables (masked)
 }
 ```
 
@@ -597,9 +603,117 @@ sudo journalctl -u joblet -f
 - **Network**: Monitor gRPC connection count and latency
 - **Memory**: Track job output buffer sizes and cleanup efficiency
 
+## Workflow API
+
+### Overview
+
+Joblet provides comprehensive workflow orchestration through YAML-defined job dependencies. Workflows enable complex multi-job execution with dependency management, resource isolation, and comprehensive monitoring.
+
+### Key Workflow Features
+
+- **Job Names**: Human-readable job names derived from YAML job keys
+- **Dependency Management**: Define job execution order with `requires` clauses
+- **Resource Isolation**: Per-job resource limits and network configuration
+- **Real-time Monitoring**: Track workflow progress with job-level status updates
+- **Validation**: Pre-execution validation prevents runtime failures
+
+### Workflow Services
+
+The API provides dedicated workflow services for orchestration:
+
+```protobuf
+service JobService {
+  // Workflow execution
+  rpc RunWorkflow(RunWorkflowRequest) returns (RunWorkflowResponse);
+  rpc GetWorkflowStatus(GetWorkflowStatusRequest) returns (GetWorkflowStatusResponse);
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc GetWorkflowJobs(GetWorkflowJobsRequest) returns (GetWorkflowJobsResponse);
+}
+```
+
+### Workflow Messages
+
+#### WorkflowJob
+Represents a job within a workflow with dependency information.
+
+```protobuf
+message WorkflowJob {
+  string jobId = 1;                      // Actual job ID assigned by joblet
+  string jobName = 2;                    // Human-readable job name from workflow YAML
+  string status = 3;                     // Current job status
+  repeated string dependencies = 4;       // List of job names this job depends on
+  Timestamp startTime = 5;               // Job start time
+  Timestamp endTime = 6;                 // Job completion time
+  int32 exitCode = 7;                    // Process exit code
+}
+```
+
+#### GetWorkflowStatusResponse
+Provides comprehensive workflow status with job details.
+
+```protobuf
+message GetWorkflowStatusResponse {
+  WorkflowInfo workflow = 1;             // Overall workflow information
+  repeated WorkflowJob jobs = 2;         // Detailed job information with dependencies
+}
+```
+
+### Job Names in Workflows
+
+Workflow jobs have **human-readable names** derived from YAML job keys:
+
+```yaml
+# workflow.yaml
+jobs:
+  setup-data:        # Job name: "setup-data"
+    command: "python3"
+    args: ["setup.py"]
+    
+  process-data:      # Job name: "process-data" 
+    command: "python3"
+    args: ["process.py"]
+    requires:
+      - setup-data: "COMPLETED"
+```
+
+**Job ID vs Job Name:**
+- **Job ID**: Unique identifier assigned by joblet (e.g., "42", "43", "44")
+- **Job Name**: Human-readable name from workflow YAML (e.g., "setup-data", "process-data")
+
+**Status Display:**
+```
+JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
+-----------------------------------------------------------------------------------------
+42              setup-data           COMPLETED    0          -                   
+43              process-data         RUNNING      -          setup-data          
+```
+
+### CLI Integration
+
+Workflow status commands automatically display job names for better visibility:
+
+```bash
+# Get workflow status with job names and dependencies
+rnx status --workflow 1
+
+# List workflows
+rnx list --workflow
+
+# Execute workflow
+rnx run --workflow=pipeline.yaml
+```
+
 ## Recent Updates
 
 ### Version 2.10.0 (August 2025)
+
+#### Workflow Enhancements
+
+- **Job Names Support**: Added human-readable job names for workflow jobs
+    - Job names derived from YAML job keys (e.g., "setup-data", "process-data")
+    - Enhanced CLI display with separate JOB ID and JOB NAME columns
+    - Updated protobuf messages to include name field
+    - Improved workflow monitoring and dependency visualization
 
 #### API Implementations
 

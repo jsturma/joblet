@@ -85,6 +85,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 func formatJobList(jobs []*pb.Job) {
 	maxIDWidth := len("ID")
+	maxNameWidth := len("NAME")
 	maxStatusWidth := len("STATUS")
 
 	// find the maximum width needed for each column
@@ -92,25 +93,35 @@ func formatJobList(jobs []*pb.Job) {
 		if len(job.Id) > maxIDWidth {
 			maxIDWidth = len(job.Id)
 		}
+		jobName := job.Name
+		if jobName == "" {
+			jobName = "-"
+		}
+		if len(jobName) > maxNameWidth {
+			maxNameWidth = len(jobName)
+		}
 		if len(job.Status) > maxStatusWidth {
 			maxStatusWidth = len(job.Status)
 		}
 	}
 
-	// some padding
-	maxIDWidth += 2
+	// some padding and limit max widths for readability
+	maxIDWidth = min(maxIDWidth+2, 20)
+	maxNameWidth = min(maxNameWidth+2, 25)
 	maxStatusWidth += 2
 
 	// header
-	fmt.Printf("%-*s %-*s %-19s %s\n",
+	fmt.Printf("%-*s %-*s %-*s %-19s %s\n",
 		maxIDWidth, "ID",
+		maxNameWidth, "NAME",
 		maxStatusWidth, "STATUS",
 		"START TIME",
 		"COMMAND")
 
 	// separator line
-	fmt.Printf("%s %s %s %s\n",
+	fmt.Printf("%s %s %s %s %s\n",
 		strings.Repeat("-", maxIDWidth),
+		strings.Repeat("-", maxNameWidth),
 		strings.Repeat("-", maxStatusWidth),
 		strings.Repeat("-", 19), // length of "START TIME"
 		strings.Repeat("-", 7))  // length of "COMMAND"
@@ -123,15 +134,33 @@ func formatJobList(jobs []*pb.Job) {
 		// truncate long commands
 		command := formatCommand(job.Command, job.Args)
 
+		// Format job name
+		jobName := job.Name
+		if jobName == "" {
+			jobName = "-"
+		}
+		if len(jobName) > maxNameWidth-2 {
+			jobName = jobName[:maxNameWidth-5] + "..."
+		}
+
 		// Get status color
 		statusColor, resetColor := getStatusColor(job.Status)
 
-		fmt.Printf("%-*s %s%-*s%s %-19s %s\n",
+		fmt.Printf("%-*s %-*s %s%-*s%s %-19s %s\n",
 			maxIDWidth, job.Id,
+			maxNameWidth, jobName,
 			statusColor, maxStatusWidth, job.Status, resetColor,
 			startTime,
 			command)
 	}
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func formatStartTime(timeStr string) string {
@@ -169,6 +198,7 @@ func outputJobsJSON(jobs []*pb.Job) error {
 	// Convert protobuf jobs to a simpler structure for JSON output
 	type jsonJob struct {
 		ID            string   `json:"id"`
+		Name          string   `json:"name,omitempty"`
 		Status        string   `json:"status"`
 		StartTime     string   `json:"start_time"`
 		EndTime       string   `json:"end_time,omitempty"`
@@ -186,6 +216,7 @@ func outputJobsJSON(jobs []*pb.Job) error {
 	for i, job := range jobs {
 		jsonJobs[i] = jsonJob{
 			ID:            job.Id,
+			Name:          job.Name,
 			Status:        job.Status,
 			StartTime:     job.StartTime,
 			EndTime:       job.EndTime,

@@ -68,20 +68,21 @@ func (x *Jobs) GetJobs() []*Job {
 type Job struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Command           string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
-	Args              []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
-	MaxCPU            int32                  `protobuf:"varint,4,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
-	CpuCores          string                 `protobuf:"bytes,5,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
-	MaxMemory         int32                  `protobuf:"varint,6,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
-	MaxIOBPS          int32                  `protobuf:"varint,7,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
-	Status            string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	StartTime         string                 `protobuf:"bytes,9,opt,name=startTime,proto3" json:"startTime,omitempty"`
-	EndTime           string                 `protobuf:"bytes,10,opt,name=endTime,proto3" json:"endTime,omitempty"`
-	ExitCode          int32                  `protobuf:"varint,11,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
-	ScheduledTime     string                 `protobuf:"bytes,12,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (RFC3339 format, empty if immediate)
-	Runtime           string                 `protobuf:"bytes,13,opt,name=runtime,proto3" json:"runtime,omitempty"`                                                                                                                        // Runtime specification used for the job
-	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
-	SecretEnvironment map[string]string      `protobuf:"bytes,15,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Command           string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
+	Args              []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
+	MaxCPU            int32                  `protobuf:"varint,5,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
+	CpuCores          string                 `protobuf:"bytes,6,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
+	MaxMemory         int32                  `protobuf:"varint,7,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
+	MaxIOBPS          int32                  `protobuf:"varint,8,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
+	Status            string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	StartTime         string                 `protobuf:"bytes,10,opt,name=startTime,proto3" json:"startTime,omitempty"`
+	EndTime           string                 `protobuf:"bytes,11,opt,name=endTime,proto3" json:"endTime,omitempty"`
+	ExitCode          int32                  `protobuf:"varint,12,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (RFC3339 format, empty if immediate)
+	Runtime           string                 `protobuf:"bytes,14,opt,name=runtime,proto3" json:"runtime,omitempty"`                                                                                                                        // Runtime specification used for the job
+	Environment       map[string]string      `protobuf:"bytes,15,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
+	SecretEnvironment map[string]string      `protobuf:"bytes,16,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -119,6 +120,13 @@ func (*Job) Descriptor() ([]byte, []int) {
 func (x *Job) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *Job) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -373,19 +381,20 @@ func (x *GetJobStatusReq) GetId() string {
 type GetJobStatusRes struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Command           string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
-	Args              []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
-	MaxCPU            int32                  `protobuf:"varint,4,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
-	CpuCores          string                 `protobuf:"bytes,5,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
-	MaxMemory         int32                  `protobuf:"varint,6,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
-	MaxIOBPS          int32                  `protobuf:"varint,7,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
-	Status            string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	StartTime         string                 `protobuf:"bytes,9,opt,name=startTime,proto3" json:"startTime,omitempty"`
-	EndTime           string                 `protobuf:"bytes,10,opt,name=endTime,proto3" json:"endTime,omitempty"`
-	ExitCode          int32                  `protobuf:"varint,11,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
-	ScheduledTime     string                 `protobuf:"bytes,12,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (empty if immediate)
-	Environment       map[string]string      `protobuf:"bytes,13,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
-	SecretEnvironment map[string]string      `protobuf:"bytes,14,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Command           string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
+	Args              []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
+	MaxCPU            int32                  `protobuf:"varint,5,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
+	CpuCores          string                 `protobuf:"bytes,6,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
+	MaxMemory         int32                  `protobuf:"varint,7,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
+	MaxIOBPS          int32                  `protobuf:"varint,8,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
+	Status            string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	StartTime         string                 `protobuf:"bytes,10,opt,name=startTime,proto3" json:"startTime,omitempty"`
+	EndTime           string                 `protobuf:"bytes,11,opt,name=endTime,proto3" json:"endTime,omitempty"`
+	ExitCode          int32                  `protobuf:"varint,12,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (empty if immediate)
+	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
+	SecretEnvironment map[string]string      `protobuf:"bytes,15,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -423,6 +432,13 @@ func (*GetJobStatusRes) Descriptor() ([]byte, []int) {
 func (x *GetJobStatusRes) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *GetJobStatusRes) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -3187,24 +3203,25 @@ func (x *RuntimeTestRes) GetExitCode() int32 {
 
 type RunJobRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Command           string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
-	Args              []string               `protobuf:"bytes,2,rep,name=args,proto3" json:"args,omitempty"`
-	MaxCpu            int32                  `protobuf:"varint,3,opt,name=maxCpu,proto3" json:"maxCpu,omitempty"`
-	CpuCores          string                 `protobuf:"bytes,4,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
-	MaxMemory         int32                  `protobuf:"varint,5,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
-	MaxIobps          int32                  `protobuf:"varint,6,opt,name=maxIobps,proto3" json:"maxIobps,omitempty"`
-	Uploads           []*FileUpload          `protobuf:"bytes,7,rep,name=uploads,proto3" json:"uploads,omitempty"`
-	Schedule          string                 `protobuf:"bytes,8,opt,name=schedule,proto3" json:"schedule,omitempty"`
-	Network           string                 `protobuf:"bytes,9,opt,name=network,proto3" json:"network,omitempty"`
-	Volumes           []string               `protobuf:"bytes,10,rep,name=volumes,proto3" json:"volumes,omitempty"`
-	Runtime           string                 `protobuf:"bytes,11,opt,name=runtime,proto3" json:"runtime,omitempty"`
-	WorkDir           string                 `protobuf:"bytes,12,opt,name=workDir,proto3" json:"workDir,omitempty"`
-	Environment       map[string]string      `protobuf:"bytes,13,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SecretEnvironment map[string]string      `protobuf:"bytes,17,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (not logged)
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Command           string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	Args              []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
+	MaxCpu            int32                  `protobuf:"varint,4,opt,name=maxCpu,proto3" json:"maxCpu,omitempty"`
+	CpuCores          string                 `protobuf:"bytes,5,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
+	MaxMemory         int32                  `protobuf:"varint,6,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
+	MaxIobps          int32                  `protobuf:"varint,7,opt,name=maxIobps,proto3" json:"maxIobps,omitempty"`
+	Uploads           []*FileUpload          `protobuf:"bytes,8,rep,name=uploads,proto3" json:"uploads,omitempty"`
+	Schedule          string                 `protobuf:"bytes,9,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	Network           string                 `protobuf:"bytes,10,opt,name=network,proto3" json:"network,omitempty"`
+	Volumes           []string               `protobuf:"bytes,11,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	Runtime           string                 `protobuf:"bytes,12,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	WorkDir           string                 `protobuf:"bytes,13,opt,name=workDir,proto3" json:"workDir,omitempty"`
+	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SecretEnvironment map[string]string      `protobuf:"bytes,18,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (not logged)
 	// Workflow fields (optional - only used for workflow jobs)
-	WorkflowId    int32             `protobuf:"varint,14,opt,name=workflowId,proto3" json:"workflowId,omitempty"`
-	JobId         string            `protobuf:"bytes,15,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Requirements  []*JobRequirement `protobuf:"bytes,16,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	WorkflowId    int32             `protobuf:"varint,15,opt,name=workflowId,proto3" json:"workflowId,omitempty"`
+	JobId         string            `protobuf:"bytes,16,opt,name=jobId,proto3" json:"jobId,omitempty"`
+	Requirements  []*JobRequirement `protobuf:"bytes,17,rep,name=requirements,proto3" json:"requirements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3237,6 +3254,13 @@ func (x *RunJobRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RunJobRequest.ProtoReflect.Descriptor instead.
 func (*RunJobRequest) Descriptor() ([]byte, []int) {
 	return file_joblet_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RunJobRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 func (x *RunJobRequest) GetCommand() string {
@@ -4069,11 +4093,12 @@ func (x *WorkflowInfo) GetCompletedAt() *Timestamp {
 type WorkflowJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JobId         string                 `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	Dependencies  []string               `protobuf:"bytes,3,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
-	StartTime     *Timestamp             `protobuf:"bytes,4,opt,name=startTime,proto3" json:"startTime,omitempty"`
-	EndTime       *Timestamp             `protobuf:"bytes,5,opt,name=endTime,proto3" json:"endTime,omitempty"`
-	ExitCode      int32                  `protobuf:"varint,6,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	JobName       string                 `protobuf:"bytes,2,opt,name=jobName,proto3" json:"jobName,omitempty"` // Human-readable job name from workflow
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Dependencies  []string               `protobuf:"bytes,4,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	StartTime     *Timestamp             `protobuf:"bytes,5,opt,name=startTime,proto3" json:"startTime,omitempty"`
+	EndTime       *Timestamp             `protobuf:"bytes,6,opt,name=endTime,proto3" json:"endTime,omitempty"`
+	ExitCode      int32                  `protobuf:"varint,7,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4111,6 +4136,13 @@ func (*WorkflowJob) Descriptor() ([]byte, []int) {
 func (x *WorkflowJob) GetJobId() string {
 	if x != nil {
 		return x.JobId
+	}
+	return ""
+}
+
+func (x *WorkflowJob) GetJobName() string {
+	if x != nil {
+		return x.JobName
 	}
 	return ""
 }
@@ -4208,24 +4240,25 @@ const file_joblet_proto_rawDesc = "" +
 	"\n" +
 	"\fjoblet.proto\x12\x06joblet\"'\n" +
 	"\x04Jobs\x12\x1f\n" +
-	"\x04jobs\x18\x01 \x03(\v2\v.joblet.JobR\x04jobs\"\xf6\x04\n" +
+	"\x04jobs\x18\x01 \x03(\v2\v.joblet.JobR\x04jobs\"\x8a\x05\n" +
 	"\x03Job\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
-	"\x04args\x18\x03 \x03(\tR\x04args\x12\x16\n" +
-	"\x06maxCPU\x18\x04 \x01(\x05R\x06maxCPU\x12\x1a\n" +
-	"\bcpuCores\x18\x05 \x01(\tR\bcpuCores\x12\x1c\n" +
-	"\tmaxMemory\x18\x06 \x01(\x05R\tmaxMemory\x12\x1a\n" +
-	"\bmaxIOBPS\x18\a \x01(\x05R\bmaxIOBPS\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\x12\x1c\n" +
-	"\tstartTime\x18\t \x01(\tR\tstartTime\x12\x18\n" +
-	"\aendTime\x18\n" +
-	" \x01(\tR\aendTime\x12\x1a\n" +
-	"\bexitCode\x18\v \x01(\x05R\bexitCode\x12$\n" +
-	"\rscheduledTime\x18\f \x01(\tR\rscheduledTime\x12\x18\n" +
-	"\aruntime\x18\r \x01(\tR\aruntime\x12>\n" +
-	"\venvironment\x18\x0e \x03(\v2\x1c.joblet.Job.EnvironmentEntryR\venvironment\x12Q\n" +
-	"\x12secret_environment\x18\x0f \x03(\v2\".joblet.Job.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x03 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x04 \x03(\tR\x04args\x12\x16\n" +
+	"\x06maxCPU\x18\x05 \x01(\x05R\x06maxCPU\x12\x1a\n" +
+	"\bcpuCores\x18\x06 \x01(\tR\bcpuCores\x12\x1c\n" +
+	"\tmaxMemory\x18\a \x01(\x05R\tmaxMemory\x12\x1a\n" +
+	"\bmaxIOBPS\x18\b \x01(\x05R\bmaxIOBPS\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1c\n" +
+	"\tstartTime\x18\n" +
+	" \x01(\tR\tstartTime\x12\x18\n" +
+	"\aendTime\x18\v \x01(\tR\aendTime\x12\x1a\n" +
+	"\bexitCode\x18\f \x01(\x05R\bexitCode\x12$\n" +
+	"\rscheduledTime\x18\r \x01(\tR\rscheduledTime\x12\x18\n" +
+	"\aruntime\x18\x0e \x01(\tR\aruntime\x12>\n" +
+	"\venvironment\x18\x0f \x03(\v2\x1c.joblet.Job.EnvironmentEntryR\venvironment\x12Q\n" +
+	"\x12secret_environment\x18\x10 \x03(\v2\".joblet.Job.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
@@ -4240,23 +4273,24 @@ const file_joblet_proto_rawDesc = "" +
 	"\x04mode\x18\x03 \x01(\rR\x04mode\x12 \n" +
 	"\visDirectory\x18\x04 \x01(\bR\visDirectory\"!\n" +
 	"\x0fGetJobStatusReq\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x80\x05\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x94\x05\n" +
 	"\x0fGetJobStatusRes\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
-	"\x04args\x18\x03 \x03(\tR\x04args\x12\x16\n" +
-	"\x06maxCPU\x18\x04 \x01(\x05R\x06maxCPU\x12\x1a\n" +
-	"\bcpuCores\x18\x05 \x01(\tR\bcpuCores\x12\x1c\n" +
-	"\tmaxMemory\x18\x06 \x01(\x05R\tmaxMemory\x12\x1a\n" +
-	"\bmaxIOBPS\x18\a \x01(\x05R\bmaxIOBPS\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\x12\x1c\n" +
-	"\tstartTime\x18\t \x01(\tR\tstartTime\x12\x18\n" +
-	"\aendTime\x18\n" +
-	" \x01(\tR\aendTime\x12\x1a\n" +
-	"\bexitCode\x18\v \x01(\x05R\bexitCode\x12$\n" +
-	"\rscheduledTime\x18\f \x01(\tR\rscheduledTime\x12J\n" +
-	"\venvironment\x18\r \x03(\v2(.joblet.GetJobStatusRes.EnvironmentEntryR\venvironment\x12]\n" +
-	"\x12secret_environment\x18\x0e \x03(\v2..joblet.GetJobStatusRes.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x03 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x04 \x03(\tR\x04args\x12\x16\n" +
+	"\x06maxCPU\x18\x05 \x01(\x05R\x06maxCPU\x12\x1a\n" +
+	"\bcpuCores\x18\x06 \x01(\tR\bcpuCores\x12\x1c\n" +
+	"\tmaxMemory\x18\a \x01(\x05R\tmaxMemory\x12\x1a\n" +
+	"\bmaxIOBPS\x18\b \x01(\x05R\bmaxIOBPS\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1c\n" +
+	"\tstartTime\x18\n" +
+	" \x01(\tR\tstartTime\x12\x18\n" +
+	"\aendTime\x18\v \x01(\tR\aendTime\x12\x1a\n" +
+	"\bexitCode\x18\f \x01(\x05R\bexitCode\x12$\n" +
+	"\rscheduledTime\x18\r \x01(\tR\rscheduledTime\x12J\n" +
+	"\venvironment\x18\x0e \x03(\v2(.joblet.GetJobStatusRes.EnvironmentEntryR\venvironment\x12]\n" +
+	"\x12secret_environment\x18\x0f \x03(\v2..joblet.GetJobStatusRes.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
@@ -4509,28 +4543,29 @@ const file_joblet_proto_rawDesc = "" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x16\n" +
 	"\x06output\x18\x03 \x01(\tR\x06output\x12\x14\n" +
 	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1a\n" +
-	"\bexitCode\x18\x05 \x01(\x05R\bexitCode\"\xfc\x05\n" +
-	"\rRunJobRequest\x12\x18\n" +
-	"\acommand\x18\x01 \x01(\tR\acommand\x12\x12\n" +
-	"\x04args\x18\x02 \x03(\tR\x04args\x12\x16\n" +
-	"\x06maxCpu\x18\x03 \x01(\x05R\x06maxCpu\x12\x1a\n" +
-	"\bcpuCores\x18\x04 \x01(\tR\bcpuCores\x12\x1c\n" +
-	"\tmaxMemory\x18\x05 \x01(\x05R\tmaxMemory\x12\x1a\n" +
-	"\bmaxIobps\x18\x06 \x01(\x05R\bmaxIobps\x12,\n" +
-	"\auploads\x18\a \x03(\v2\x12.joblet.FileUploadR\auploads\x12\x1a\n" +
-	"\bschedule\x18\b \x01(\tR\bschedule\x12\x18\n" +
-	"\anetwork\x18\t \x01(\tR\anetwork\x12\x18\n" +
-	"\avolumes\x18\n" +
-	" \x03(\tR\avolumes\x12\x18\n" +
-	"\aruntime\x18\v \x01(\tR\aruntime\x12\x18\n" +
-	"\aworkDir\x18\f \x01(\tR\aworkDir\x12H\n" +
-	"\venvironment\x18\r \x03(\v2&.joblet.RunJobRequest.EnvironmentEntryR\venvironment\x12[\n" +
-	"\x12secret_environment\x18\x11 \x03(\v2,.joblet.RunJobRequest.SecretEnvironmentEntryR\x11secretEnvironment\x12\x1e\n" +
+	"\bexitCode\x18\x05 \x01(\x05R\bexitCode\"\x90\x06\n" +
+	"\rRunJobRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x03 \x03(\tR\x04args\x12\x16\n" +
+	"\x06maxCpu\x18\x04 \x01(\x05R\x06maxCpu\x12\x1a\n" +
+	"\bcpuCores\x18\x05 \x01(\tR\bcpuCores\x12\x1c\n" +
+	"\tmaxMemory\x18\x06 \x01(\x05R\tmaxMemory\x12\x1a\n" +
+	"\bmaxIobps\x18\a \x01(\x05R\bmaxIobps\x12,\n" +
+	"\auploads\x18\b \x03(\v2\x12.joblet.FileUploadR\auploads\x12\x1a\n" +
+	"\bschedule\x18\t \x01(\tR\bschedule\x12\x18\n" +
+	"\anetwork\x18\n" +
+	" \x01(\tR\anetwork\x12\x18\n" +
+	"\avolumes\x18\v \x03(\tR\avolumes\x12\x18\n" +
+	"\aruntime\x18\f \x01(\tR\aruntime\x12\x18\n" +
+	"\aworkDir\x18\r \x01(\tR\aworkDir\x12H\n" +
+	"\venvironment\x18\x0e \x03(\v2&.joblet.RunJobRequest.EnvironmentEntryR\venvironment\x12[\n" +
+	"\x12secret_environment\x18\x12 \x03(\v2,.joblet.RunJobRequest.SecretEnvironmentEntryR\x11secretEnvironment\x12\x1e\n" +
 	"\n" +
-	"workflowId\x18\x0e \x01(\x05R\n" +
+	"workflowId\x18\x0f \x01(\x05R\n" +
 	"workflowId\x12\x14\n" +
-	"\x05jobId\x18\x0f \x01(\tR\x05jobId\x12:\n" +
-	"\frequirements\x18\x10 \x03(\v2\x16.joblet.JobRequirementR\frequirements\x1a>\n" +
+	"\x05jobId\x18\x10 \x01(\tR\x05jobId\x12:\n" +
+	"\frequirements\x18\x11 \x03(\v2\x16.joblet.JobRequirementR\frequirements\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
@@ -4598,14 +4633,15 @@ const file_joblet_proto_rawDesc = "" +
 	"\tcreatedAt\x18\b \x01(\v2\x11.joblet.TimestampR\tcreatedAt\x12/\n" +
 	"\tstartedAt\x18\t \x01(\v2\x11.joblet.TimestampR\tstartedAt\x123\n" +
 	"\vcompletedAt\x18\n" +
-	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xd9\x01\n" +
+	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xf3\x01\n" +
 	"\vWorkflowJob\x12\x14\n" +
-	"\x05jobId\x18\x01 \x01(\tR\x05jobId\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\x12\"\n" +
-	"\fdependencies\x18\x03 \x03(\tR\fdependencies\x12/\n" +
-	"\tstartTime\x18\x04 \x01(\v2\x11.joblet.TimestampR\tstartTime\x12+\n" +
-	"\aendTime\x18\x05 \x01(\v2\x11.joblet.TimestampR\aendTime\x12\x1a\n" +
-	"\bexitCode\x18\x06 \x01(\x05R\bexitCode\";\n" +
+	"\x05jobId\x18\x01 \x01(\tR\x05jobId\x12\x18\n" +
+	"\ajobName\x18\x02 \x01(\tR\ajobName\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\"\n" +
+	"\fdependencies\x18\x04 \x03(\tR\fdependencies\x12/\n" +
+	"\tstartTime\x18\x05 \x01(\v2\x11.joblet.TimestampR\tstartTime\x12+\n" +
+	"\aendTime\x18\x06 \x01(\v2\x11.joblet.TimestampR\aendTime\x12\x1a\n" +
+	"\bexitCode\x18\a \x01(\x05R\bexitCode\";\n" +
 	"\tTimestamp\x12\x18\n" +
 	"\aseconds\x18\x01 \x01(\x03R\aseconds\x12\x14\n" +
 	"\x05nanos\x18\x02 \x01(\x05R\x05nanos2\xf8\x04\n" +

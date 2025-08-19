@@ -84,6 +84,18 @@ jobs:
       max_cpu: 400
 ```
 
+```bash
+# Execute and monitor workflow with job names
+rnx run --workflow=ml-pipeline.yaml
+rnx status --workflow 1
+
+# Output shows human-readable job names and dependencies:
+# JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
+# -----------------------------------------------------------------------------------------
+# 42              data-extraction      COMPLETED    0          -                   
+# 43              model-training       RUNNING      -          data-extraction     
+```
+
 ### **SRE & Reliability Engineering**
 ```bash
 # Resource-bounded health checks with timeout

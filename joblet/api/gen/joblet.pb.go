@@ -66,22 +66,25 @@ func (x *Jobs) GetJobs() []*Job {
 }
 
 type Job struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
-	Args          []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
-	MaxCPU        int32                  `protobuf:"varint,4,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
-	CpuCores      string                 `protobuf:"bytes,5,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
-	MaxMemory     int32                  `protobuf:"varint,6,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
-	MaxIOBPS      int32                  `protobuf:"varint,7,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	StartTime     string                 `protobuf:"bytes,9,opt,name=startTime,proto3" json:"startTime,omitempty"`
-	EndTime       string                 `protobuf:"bytes,10,opt,name=endTime,proto3" json:"endTime,omitempty"`
-	ExitCode      int32                  `protobuf:"varint,11,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
-	ScheduledTime string                 `protobuf:"bytes,12,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"` // When the job should execute (RFC3339 format, empty if immediate)
-	Runtime       string                 `protobuf:"bytes,13,opt,name=runtime,proto3" json:"runtime,omitempty"`             // Runtime specification used for the job
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Command           string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
+	Args              []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
+	MaxCPU            int32                  `protobuf:"varint,5,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
+	CpuCores          string                 `protobuf:"bytes,6,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
+	MaxMemory         int32                  `protobuf:"varint,7,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
+	MaxIOBPS          int32                  `protobuf:"varint,8,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
+	Status            string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	StartTime         string                 `protobuf:"bytes,10,opt,name=startTime,proto3" json:"startTime,omitempty"`
+	EndTime           string                 `protobuf:"bytes,11,opt,name=endTime,proto3" json:"endTime,omitempty"`
+	ExitCode          int32                  `protobuf:"varint,12,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (RFC3339 format, empty if immediate)
+	Runtime           string                 `protobuf:"bytes,14,opt,name=runtime,proto3" json:"runtime,omitempty"`                                                                                                                        // Runtime specification used for the job
+	Environment       map[string]string      `protobuf:"bytes,15,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
+	SecretEnvironment map[string]string      `protobuf:"bytes,16,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Job) Reset() {
@@ -117,6 +120,13 @@ func (*Job) Descriptor() ([]byte, []int) {
 func (x *Job) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *Job) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -203,6 +213,20 @@ func (x *Job) GetRuntime() string {
 		return x.Runtime
 	}
 	return ""
+}
+
+func (x *Job) GetEnvironment() map[string]string {
+	if x != nil {
+		return x.Environment
+	}
+	return nil
+}
+
+func (x *Job) GetSecretEnvironment() map[string]string {
+	if x != nil {
+		return x.SecretEnvironment
+	}
+	return nil
 }
 
 type EmptyRequest struct {
@@ -355,21 +379,24 @@ func (x *GetJobStatusReq) GetId() string {
 }
 
 type GetJobStatusRes struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
-	Args          []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
-	MaxCPU        int32                  `protobuf:"varint,4,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
-	CpuCores      string                 `protobuf:"bytes,5,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
-	MaxMemory     int32                  `protobuf:"varint,6,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
-	MaxIOBPS      int32                  `protobuf:"varint,7,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	StartTime     string                 `protobuf:"bytes,9,opt,name=startTime,proto3" json:"startTime,omitempty"`
-	EndTime       string                 `protobuf:"bytes,10,opt,name=endTime,proto3" json:"endTime,omitempty"`
-	ExitCode      int32                  `protobuf:"varint,11,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
-	ScheduledTime string                 `protobuf:"bytes,12,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"` // When the job should execute (empty if immediate)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Command           string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
+	Args              []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
+	MaxCPU            int32                  `protobuf:"varint,5,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
+	CpuCores          string                 `protobuf:"bytes,6,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
+	MaxMemory         int32                  `protobuf:"varint,7,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
+	MaxIOBPS          int32                  `protobuf:"varint,8,opt,name=maxIOBPS,proto3" json:"maxIOBPS,omitempty"`
+	Status            string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	StartTime         string                 `protobuf:"bytes,10,opt,name=startTime,proto3" json:"startTime,omitempty"`
+	EndTime           string                 `protobuf:"bytes,11,opt,name=endTime,proto3" json:"endTime,omitempty"`
+	ExitCode          int32                  `protobuf:"varint,12,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (empty if immediate)
+	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
+	SecretEnvironment map[string]string      `protobuf:"bytes,15,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetJobStatusRes) Reset() {
@@ -405,6 +432,13 @@ func (*GetJobStatusRes) Descriptor() ([]byte, []int) {
 func (x *GetJobStatusRes) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *GetJobStatusRes) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -484,6 +518,20 @@ func (x *GetJobStatusRes) GetScheduledTime() string {
 		return x.ScheduledTime
 	}
 	return ""
+}
+
+func (x *GetJobStatusRes) GetEnvironment() map[string]string {
+	if x != nil {
+		return x.Environment
+	}
+	return nil
+}
+
+func (x *GetJobStatusRes) GetSecretEnvironment() map[string]string {
+	if x != nil {
+		return x.SecretEnvironment
+	}
+	return nil
 }
 
 // StopJob
@@ -3155,24 +3203,25 @@ func (x *RuntimeTestRes) GetExitCode() int32 {
 
 type RunJobRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Command           string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
-	Args              []string               `protobuf:"bytes,2,rep,name=args,proto3" json:"args,omitempty"`
-	MaxCpu            int32                  `protobuf:"varint,3,opt,name=maxCpu,proto3" json:"maxCpu,omitempty"`
-	CpuCores          string                 `protobuf:"bytes,4,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
-	MaxMemory         int32                  `protobuf:"varint,5,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
-	MaxIobps          int32                  `protobuf:"varint,6,opt,name=maxIobps,proto3" json:"maxIobps,omitempty"`
-	Uploads           []*FileUpload          `protobuf:"bytes,7,rep,name=uploads,proto3" json:"uploads,omitempty"`
-	Schedule          string                 `protobuf:"bytes,8,opt,name=schedule,proto3" json:"schedule,omitempty"`
-	Network           string                 `protobuf:"bytes,9,opt,name=network,proto3" json:"network,omitempty"`
-	Volumes           []string               `protobuf:"bytes,10,rep,name=volumes,proto3" json:"volumes,omitempty"`
-	Runtime           string                 `protobuf:"bytes,11,opt,name=runtime,proto3" json:"runtime,omitempty"`
-	WorkDir           string                 `protobuf:"bytes,12,opt,name=workDir,proto3" json:"workDir,omitempty"`
-	Environment       map[string]string      `protobuf:"bytes,13,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SecretEnvironment map[string]string      `protobuf:"bytes,17,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (not logged)
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Command           string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	Args              []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
+	MaxCpu            int32                  `protobuf:"varint,4,opt,name=maxCpu,proto3" json:"maxCpu,omitempty"`
+	CpuCores          string                 `protobuf:"bytes,5,opt,name=cpuCores,proto3" json:"cpuCores,omitempty"`
+	MaxMemory         int32                  `protobuf:"varint,6,opt,name=maxMemory,proto3" json:"maxMemory,omitempty"`
+	MaxIobps          int32                  `protobuf:"varint,7,opt,name=maxIobps,proto3" json:"maxIobps,omitempty"`
+	Uploads           []*FileUpload          `protobuf:"bytes,8,rep,name=uploads,proto3" json:"uploads,omitempty"`
+	Schedule          string                 `protobuf:"bytes,9,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	Network           string                 `protobuf:"bytes,10,opt,name=network,proto3" json:"network,omitempty"`
+	Volumes           []string               `protobuf:"bytes,11,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	Runtime           string                 `protobuf:"bytes,12,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	WorkDir           string                 `protobuf:"bytes,13,opt,name=workDir,proto3" json:"workDir,omitempty"`
+	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SecretEnvironment map[string]string      `protobuf:"bytes,18,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (not logged)
 	// Workflow fields (optional - only used for workflow jobs)
-	WorkflowId    int32             `protobuf:"varint,14,opt,name=workflowId,proto3" json:"workflowId,omitempty"`
-	JobId         string            `protobuf:"bytes,15,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Requirements  []*JobRequirement `protobuf:"bytes,16,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	WorkflowId    int32             `protobuf:"varint,15,opt,name=workflowId,proto3" json:"workflowId,omitempty"`
+	JobId         string            `protobuf:"bytes,16,opt,name=jobId,proto3" json:"jobId,omitempty"`
+	Requirements  []*JobRequirement `protobuf:"bytes,17,rep,name=requirements,proto3" json:"requirements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3205,6 +3254,13 @@ func (x *RunJobRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RunJobRequest.ProtoReflect.Descriptor instead.
 func (*RunJobRequest) Descriptor() ([]byte, []int) {
 	return file_api_proto_joblet_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RunJobRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 func (x *RunJobRequest) GetCommand() string {
@@ -4037,11 +4093,12 @@ func (x *WorkflowInfo) GetCompletedAt() *Timestamp {
 type WorkflowJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JobId         string                 `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	Dependencies  []string               `protobuf:"bytes,3,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
-	StartTime     *Timestamp             `protobuf:"bytes,4,opt,name=startTime,proto3" json:"startTime,omitempty"`
-	EndTime       *Timestamp             `protobuf:"bytes,5,opt,name=endTime,proto3" json:"endTime,omitempty"`
-	ExitCode      int32                  `protobuf:"varint,6,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	JobName       string                 `protobuf:"bytes,2,opt,name=jobName,proto3" json:"jobName,omitempty"` // Human-readable job name from workflow
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Dependencies  []string               `protobuf:"bytes,4,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	StartTime     *Timestamp             `protobuf:"bytes,5,opt,name=startTime,proto3" json:"startTime,omitempty"`
+	EndTime       *Timestamp             `protobuf:"bytes,6,opt,name=endTime,proto3" json:"endTime,omitempty"`
+	ExitCode      int32                  `protobuf:"varint,7,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4079,6 +4136,13 @@ func (*WorkflowJob) Descriptor() ([]byte, []int) {
 func (x *WorkflowJob) GetJobId() string {
 	if x != nil {
 		return x.JobId
+	}
+	return ""
+}
+
+func (x *WorkflowJob) GetJobName() string {
+	if x != nil {
+		return x.JobName
 	}
 	return ""
 }
@@ -4176,22 +4240,31 @@ const file_api_proto_joblet_proto_rawDesc = "" +
 	"\n" +
 	"\x16api/proto/joblet.proto\x12\x06joblet\"'\n" +
 	"\x04Jobs\x12\x1f\n" +
-	"\x04jobs\x18\x01 \x03(\v2\v.joblet.JobR\x04jobs\"\xdd\x02\n" +
+	"\x04jobs\x18\x01 \x03(\v2\v.joblet.JobR\x04jobs\"\x8a\x05\n" +
 	"\x03Job\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
-	"\x04args\x18\x03 \x03(\tR\x04args\x12\x16\n" +
-	"\x06maxCPU\x18\x04 \x01(\x05R\x06maxCPU\x12\x1a\n" +
-	"\bcpuCores\x18\x05 \x01(\tR\bcpuCores\x12\x1c\n" +
-	"\tmaxMemory\x18\x06 \x01(\x05R\tmaxMemory\x12\x1a\n" +
-	"\bmaxIOBPS\x18\a \x01(\x05R\bmaxIOBPS\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\x12\x1c\n" +
-	"\tstartTime\x18\t \x01(\tR\tstartTime\x12\x18\n" +
-	"\aendTime\x18\n" +
-	" \x01(\tR\aendTime\x12\x1a\n" +
-	"\bexitCode\x18\v \x01(\x05R\bexitCode\x12$\n" +
-	"\rscheduledTime\x18\f \x01(\tR\rscheduledTime\x12\x18\n" +
-	"\aruntime\x18\r \x01(\tR\aruntime\"\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x03 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x04 \x03(\tR\x04args\x12\x16\n" +
+	"\x06maxCPU\x18\x05 \x01(\x05R\x06maxCPU\x12\x1a\n" +
+	"\bcpuCores\x18\x06 \x01(\tR\bcpuCores\x12\x1c\n" +
+	"\tmaxMemory\x18\a \x01(\x05R\tmaxMemory\x12\x1a\n" +
+	"\bmaxIOBPS\x18\b \x01(\x05R\bmaxIOBPS\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1c\n" +
+	"\tstartTime\x18\n" +
+	" \x01(\tR\tstartTime\x12\x18\n" +
+	"\aendTime\x18\v \x01(\tR\aendTime\x12\x1a\n" +
+	"\bexitCode\x18\f \x01(\x05R\bexitCode\x12$\n" +
+	"\rscheduledTime\x18\r \x01(\tR\rscheduledTime\x12\x18\n" +
+	"\aruntime\x18\x0e \x01(\tR\aruntime\x12>\n" +
+	"\venvironment\x18\x0f \x03(\v2\x1c.joblet.Job.EnvironmentEntryR\venvironment\x12Q\n" +
+	"\x12secret_environment\x18\x10 \x03(\v2\".joblet.Job.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
+	"\x10EnvironmentEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
+	"\x16SecretEnvironmentEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x0e\n" +
 	"\fEmptyRequest\"p\n" +
 	"\n" +
 	"FileUpload\x12\x12\n" +
@@ -4200,21 +4273,30 @@ const file_api_proto_joblet_proto_rawDesc = "" +
 	"\x04mode\x18\x03 \x01(\rR\x04mode\x12 \n" +
 	"\visDirectory\x18\x04 \x01(\bR\visDirectory\"!\n" +
 	"\x0fGetJobStatusReq\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xcf\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x94\x05\n" +
 	"\x0fGetJobStatusRes\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
-	"\x04args\x18\x03 \x03(\tR\x04args\x12\x16\n" +
-	"\x06maxCPU\x18\x04 \x01(\x05R\x06maxCPU\x12\x1a\n" +
-	"\bcpuCores\x18\x05 \x01(\tR\bcpuCores\x12\x1c\n" +
-	"\tmaxMemory\x18\x06 \x01(\x05R\tmaxMemory\x12\x1a\n" +
-	"\bmaxIOBPS\x18\a \x01(\x05R\bmaxIOBPS\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\x12\x1c\n" +
-	"\tstartTime\x18\t \x01(\tR\tstartTime\x12\x18\n" +
-	"\aendTime\x18\n" +
-	" \x01(\tR\aendTime\x12\x1a\n" +
-	"\bexitCode\x18\v \x01(\x05R\bexitCode\x12$\n" +
-	"\rscheduledTime\x18\f \x01(\tR\rscheduledTime\"\x1c\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x03 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x04 \x03(\tR\x04args\x12\x16\n" +
+	"\x06maxCPU\x18\x05 \x01(\x05R\x06maxCPU\x12\x1a\n" +
+	"\bcpuCores\x18\x06 \x01(\tR\bcpuCores\x12\x1c\n" +
+	"\tmaxMemory\x18\a \x01(\x05R\tmaxMemory\x12\x1a\n" +
+	"\bmaxIOBPS\x18\b \x01(\x05R\bmaxIOBPS\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1c\n" +
+	"\tstartTime\x18\n" +
+	" \x01(\tR\tstartTime\x12\x18\n" +
+	"\aendTime\x18\v \x01(\tR\aendTime\x12\x1a\n" +
+	"\bexitCode\x18\f \x01(\x05R\bexitCode\x12$\n" +
+	"\rscheduledTime\x18\r \x01(\tR\rscheduledTime\x12J\n" +
+	"\venvironment\x18\x0e \x03(\v2(.joblet.GetJobStatusRes.EnvironmentEntryR\venvironment\x12]\n" +
+	"\x12secret_environment\x18\x0f \x03(\v2..joblet.GetJobStatusRes.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
+	"\x10EnvironmentEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
+	"\x16SecretEnvironmentEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x1c\n" +
 	"\n" +
 	"StopJobReq\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"j\n" +
@@ -4461,28 +4543,29 @@ const file_api_proto_joblet_proto_rawDesc = "" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x16\n" +
 	"\x06output\x18\x03 \x01(\tR\x06output\x12\x14\n" +
 	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1a\n" +
-	"\bexitCode\x18\x05 \x01(\x05R\bexitCode\"\xfc\x05\n" +
-	"\rRunJobRequest\x12\x18\n" +
-	"\acommand\x18\x01 \x01(\tR\acommand\x12\x12\n" +
-	"\x04args\x18\x02 \x03(\tR\x04args\x12\x16\n" +
-	"\x06maxCpu\x18\x03 \x01(\x05R\x06maxCpu\x12\x1a\n" +
-	"\bcpuCores\x18\x04 \x01(\tR\bcpuCores\x12\x1c\n" +
-	"\tmaxMemory\x18\x05 \x01(\x05R\tmaxMemory\x12\x1a\n" +
-	"\bmaxIobps\x18\x06 \x01(\x05R\bmaxIobps\x12,\n" +
-	"\auploads\x18\a \x03(\v2\x12.joblet.FileUploadR\auploads\x12\x1a\n" +
-	"\bschedule\x18\b \x01(\tR\bschedule\x12\x18\n" +
-	"\anetwork\x18\t \x01(\tR\anetwork\x12\x18\n" +
-	"\avolumes\x18\n" +
-	" \x03(\tR\avolumes\x12\x18\n" +
-	"\aruntime\x18\v \x01(\tR\aruntime\x12\x18\n" +
-	"\aworkDir\x18\f \x01(\tR\aworkDir\x12H\n" +
-	"\venvironment\x18\r \x03(\v2&.joblet.RunJobRequest.EnvironmentEntryR\venvironment\x12[\n" +
-	"\x12secret_environment\x18\x11 \x03(\v2,.joblet.RunJobRequest.SecretEnvironmentEntryR\x11secretEnvironment\x12\x1e\n" +
+	"\bexitCode\x18\x05 \x01(\x05R\bexitCode\"\x90\x06\n" +
+	"\rRunJobRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x03 \x03(\tR\x04args\x12\x16\n" +
+	"\x06maxCpu\x18\x04 \x01(\x05R\x06maxCpu\x12\x1a\n" +
+	"\bcpuCores\x18\x05 \x01(\tR\bcpuCores\x12\x1c\n" +
+	"\tmaxMemory\x18\x06 \x01(\x05R\tmaxMemory\x12\x1a\n" +
+	"\bmaxIobps\x18\a \x01(\x05R\bmaxIobps\x12,\n" +
+	"\auploads\x18\b \x03(\v2\x12.joblet.FileUploadR\auploads\x12\x1a\n" +
+	"\bschedule\x18\t \x01(\tR\bschedule\x12\x18\n" +
+	"\anetwork\x18\n" +
+	" \x01(\tR\anetwork\x12\x18\n" +
+	"\avolumes\x18\v \x03(\tR\avolumes\x12\x18\n" +
+	"\aruntime\x18\f \x01(\tR\aruntime\x12\x18\n" +
+	"\aworkDir\x18\r \x01(\tR\aworkDir\x12H\n" +
+	"\venvironment\x18\x0e \x03(\v2&.joblet.RunJobRequest.EnvironmentEntryR\venvironment\x12[\n" +
+	"\x12secret_environment\x18\x12 \x03(\v2,.joblet.RunJobRequest.SecretEnvironmentEntryR\x11secretEnvironment\x12\x1e\n" +
 	"\n" +
-	"workflowId\x18\x0e \x01(\x05R\n" +
+	"workflowId\x18\x0f \x01(\x05R\n" +
 	"workflowId\x12\x14\n" +
-	"\x05jobId\x18\x0f \x01(\tR\x05jobId\x12:\n" +
-	"\frequirements\x18\x10 \x03(\v2\x16.joblet.JobRequirementR\frequirements\x1a>\n" +
+	"\x05jobId\x18\x10 \x01(\tR\x05jobId\x12:\n" +
+	"\frequirements\x18\x11 \x03(\v2\x16.joblet.JobRequirementR\frequirements\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
@@ -4550,14 +4633,15 @@ const file_api_proto_joblet_proto_rawDesc = "" +
 	"\tcreatedAt\x18\b \x01(\v2\x11.joblet.TimestampR\tcreatedAt\x12/\n" +
 	"\tstartedAt\x18\t \x01(\v2\x11.joblet.TimestampR\tstartedAt\x123\n" +
 	"\vcompletedAt\x18\n" +
-	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xd9\x01\n" +
+	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xf3\x01\n" +
 	"\vWorkflowJob\x12\x14\n" +
-	"\x05jobId\x18\x01 \x01(\tR\x05jobId\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\x12\"\n" +
-	"\fdependencies\x18\x03 \x03(\tR\fdependencies\x12/\n" +
-	"\tstartTime\x18\x04 \x01(\v2\x11.joblet.TimestampR\tstartTime\x12+\n" +
-	"\aendTime\x18\x05 \x01(\v2\x11.joblet.TimestampR\aendTime\x12\x1a\n" +
-	"\bexitCode\x18\x06 \x01(\x05R\bexitCode\";\n" +
+	"\x05jobId\x18\x01 \x01(\tR\x05jobId\x12\x18\n" +
+	"\ajobName\x18\x02 \x01(\tR\ajobName\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\"\n" +
+	"\fdependencies\x18\x04 \x03(\tR\fdependencies\x12/\n" +
+	"\tstartTime\x18\x05 \x01(\v2\x11.joblet.TimestampR\tstartTime\x12+\n" +
+	"\aendTime\x18\x06 \x01(\v2\x11.joblet.TimestampR\aendTime\x12\x1a\n" +
+	"\bexitCode\x18\a \x01(\x05R\bexitCode\";\n" +
 	"\tTimestamp\x12\x18\n" +
 	"\aseconds\x18\x01 \x01(\x03R\aseconds\x12\x14\n" +
 	"\x05nanos\x18\x02 \x01(\x05R\x05nanos2\xf8\x04\n" +
@@ -4601,7 +4685,7 @@ func file_api_proto_joblet_proto_rawDescGZIP() []byte {
 	return file_api_proto_joblet_proto_rawDescData
 }
 
-var file_api_proto_joblet_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
+var file_api_proto_joblet_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
 var file_api_proto_joblet_proto_goTypes = []any{
 	(*Jobs)(nil),                      // 0: joblet.Jobs
 	(*Job)(nil),                       // 1: joblet.Job
@@ -4659,96 +4743,104 @@ var file_api_proto_joblet_proto_goTypes = []any{
 	(*WorkflowInfo)(nil),              // 53: joblet.WorkflowInfo
 	(*WorkflowJob)(nil),               // 54: joblet.WorkflowJob
 	(*Timestamp)(nil),                 // 55: joblet.Timestamp
-	nil,                               // 56: joblet.CloudInfo.MetadataEntry
-	nil,                               // 57: joblet.RunJobRequest.EnvironmentEntry
-	nil,                               // 58: joblet.RunJobRequest.SecretEnvironmentEntry
+	nil,                               // 56: joblet.Job.EnvironmentEntry
+	nil,                               // 57: joblet.Job.SecretEnvironmentEntry
+	nil,                               // 58: joblet.GetJobStatusRes.EnvironmentEntry
+	nil,                               // 59: joblet.GetJobStatusRes.SecretEnvironmentEntry
+	nil,                               // 60: joblet.CloudInfo.MetadataEntry
+	nil,                               // 61: joblet.RunJobRequest.EnvironmentEntry
+	nil,                               // 62: joblet.RunJobRequest.SecretEnvironmentEntry
 }
 var file_api_proto_joblet_proto_depIdxs = []int32{
 	1,  // 0: joblet.Jobs.jobs:type_name -> joblet.Job
-	14, // 1: joblet.Networks.networks:type_name -> joblet.Network
-	20, // 2: joblet.Volumes.volumes:type_name -> joblet.Volume
-	25, // 3: joblet.SystemStatusRes.host:type_name -> joblet.HostInfo
-	26, // 4: joblet.SystemStatusRes.cpu:type_name -> joblet.CPUMetrics
-	27, // 5: joblet.SystemStatusRes.memory:type_name -> joblet.MemoryMetrics
-	28, // 6: joblet.SystemStatusRes.disks:type_name -> joblet.DiskMetrics
-	29, // 7: joblet.SystemStatusRes.networks:type_name -> joblet.NetworkMetrics
-	30, // 8: joblet.SystemStatusRes.io:type_name -> joblet.IOMetrics
-	32, // 9: joblet.SystemStatusRes.processes:type_name -> joblet.ProcessMetrics
-	34, // 10: joblet.SystemStatusRes.cloud:type_name -> joblet.CloudInfo
-	25, // 11: joblet.SystemMetricsRes.host:type_name -> joblet.HostInfo
-	26, // 12: joblet.SystemMetricsRes.cpu:type_name -> joblet.CPUMetrics
-	27, // 13: joblet.SystemMetricsRes.memory:type_name -> joblet.MemoryMetrics
-	28, // 14: joblet.SystemMetricsRes.disks:type_name -> joblet.DiskMetrics
-	29, // 15: joblet.SystemMetricsRes.networks:type_name -> joblet.NetworkMetrics
-	30, // 16: joblet.SystemMetricsRes.io:type_name -> joblet.IOMetrics
-	32, // 17: joblet.SystemMetricsRes.processes:type_name -> joblet.ProcessMetrics
-	34, // 18: joblet.SystemMetricsRes.cloud:type_name -> joblet.CloudInfo
-	31, // 19: joblet.IOMetrics.diskIO:type_name -> joblet.DiskIOMetrics
-	33, // 20: joblet.ProcessMetrics.topByCPU:type_name -> joblet.ProcessInfo
-	33, // 21: joblet.ProcessMetrics.topByMemory:type_name -> joblet.ProcessInfo
-	56, // 22: joblet.CloudInfo.metadata:type_name -> joblet.CloudInfo.MetadataEntry
-	36, // 23: joblet.RuntimesRes.runtimes:type_name -> joblet.RuntimeInfo
-	37, // 24: joblet.RuntimeInfo.requirements:type_name -> joblet.RuntimeRequirements
-	36, // 25: joblet.RuntimeInfoRes.runtime:type_name -> joblet.RuntimeInfo
-	3,  // 26: joblet.RunJobRequest.uploads:type_name -> joblet.FileUpload
-	57, // 27: joblet.RunJobRequest.environment:type_name -> joblet.RunJobRequest.EnvironmentEntry
-	58, // 28: joblet.RunJobRequest.secret_environment:type_name -> joblet.RunJobRequest.SecretEnvironmentEntry
-	44, // 29: joblet.RunJobRequest.requirements:type_name -> joblet.JobRequirement
-	3,  // 30: joblet.RunWorkflowRequest.workflowFiles:type_name -> joblet.FileUpload
-	53, // 31: joblet.GetWorkflowStatusResponse.workflow:type_name -> joblet.WorkflowInfo
-	54, // 32: joblet.GetWorkflowStatusResponse.jobs:type_name -> joblet.WorkflowJob
-	53, // 33: joblet.ListWorkflowsResponse.workflows:type_name -> joblet.WorkflowInfo
-	54, // 34: joblet.GetWorkflowJobsResponse.jobs:type_name -> joblet.WorkflowJob
-	55, // 35: joblet.WorkflowInfo.createdAt:type_name -> joblet.Timestamp
-	55, // 36: joblet.WorkflowInfo.startedAt:type_name -> joblet.Timestamp
-	55, // 37: joblet.WorkflowInfo.completedAt:type_name -> joblet.Timestamp
-	55, // 38: joblet.WorkflowJob.startTime:type_name -> joblet.Timestamp
-	55, // 39: joblet.WorkflowJob.endTime:type_name -> joblet.Timestamp
-	42, // 40: joblet.JobService.RunJob:input_type -> joblet.RunJobRequest
-	4,  // 41: joblet.JobService.GetJobStatus:input_type -> joblet.GetJobStatusReq
-	6,  // 42: joblet.JobService.StopJob:input_type -> joblet.StopJobReq
-	8,  // 43: joblet.JobService.GetJobLogs:input_type -> joblet.GetJobLogsReq
-	2,  // 44: joblet.JobService.ListJobs:input_type -> joblet.EmptyRequest
-	45, // 45: joblet.JobService.RunWorkflow:input_type -> joblet.RunWorkflowRequest
-	47, // 46: joblet.JobService.GetWorkflowStatus:input_type -> joblet.GetWorkflowStatusRequest
-	49, // 47: joblet.JobService.ListWorkflows:input_type -> joblet.ListWorkflowsRequest
-	51, // 48: joblet.JobService.GetWorkflowJobs:input_type -> joblet.GetWorkflowJobsRequest
-	10, // 49: joblet.NetworkService.CreateNetwork:input_type -> joblet.CreateNetworkReq
-	2,  // 50: joblet.NetworkService.ListNetworks:input_type -> joblet.EmptyRequest
-	12, // 51: joblet.NetworkService.RemoveNetwork:input_type -> joblet.RemoveNetworkReq
-	16, // 52: joblet.VolumeService.CreateVolume:input_type -> joblet.CreateVolumeReq
-	2,  // 53: joblet.VolumeService.ListVolumes:input_type -> joblet.EmptyRequest
-	18, // 54: joblet.VolumeService.RemoveVolume:input_type -> joblet.RemoveVolumeReq
-	2,  // 55: joblet.MonitoringService.GetSystemStatus:input_type -> joblet.EmptyRequest
-	24, // 56: joblet.MonitoringService.StreamSystemMetrics:input_type -> joblet.StreamMetricsReq
-	2,  // 57: joblet.RuntimeService.ListRuntimes:input_type -> joblet.EmptyRequest
-	38, // 58: joblet.RuntimeService.GetRuntimeInfo:input_type -> joblet.RuntimeInfoReq
-	40, // 59: joblet.RuntimeService.TestRuntime:input_type -> joblet.RuntimeTestReq
-	43, // 60: joblet.JobService.RunJob:output_type -> joblet.RunJobResponse
-	5,  // 61: joblet.JobService.GetJobStatus:output_type -> joblet.GetJobStatusRes
-	7,  // 62: joblet.JobService.StopJob:output_type -> joblet.StopJobRes
-	9,  // 63: joblet.JobService.GetJobLogs:output_type -> joblet.DataChunk
-	0,  // 64: joblet.JobService.ListJobs:output_type -> joblet.Jobs
-	46, // 65: joblet.JobService.RunWorkflow:output_type -> joblet.RunWorkflowResponse
-	48, // 66: joblet.JobService.GetWorkflowStatus:output_type -> joblet.GetWorkflowStatusResponse
-	50, // 67: joblet.JobService.ListWorkflows:output_type -> joblet.ListWorkflowsResponse
-	52, // 68: joblet.JobService.GetWorkflowJobs:output_type -> joblet.GetWorkflowJobsResponse
-	11, // 69: joblet.NetworkService.CreateNetwork:output_type -> joblet.CreateNetworkRes
-	15, // 70: joblet.NetworkService.ListNetworks:output_type -> joblet.Networks
-	13, // 71: joblet.NetworkService.RemoveNetwork:output_type -> joblet.RemoveNetworkRes
-	17, // 72: joblet.VolumeService.CreateVolume:output_type -> joblet.CreateVolumeRes
-	21, // 73: joblet.VolumeService.ListVolumes:output_type -> joblet.Volumes
-	19, // 74: joblet.VolumeService.RemoveVolume:output_type -> joblet.RemoveVolumeRes
-	22, // 75: joblet.MonitoringService.GetSystemStatus:output_type -> joblet.SystemStatusRes
-	23, // 76: joblet.MonitoringService.StreamSystemMetrics:output_type -> joblet.SystemMetricsRes
-	35, // 77: joblet.RuntimeService.ListRuntimes:output_type -> joblet.RuntimesRes
-	39, // 78: joblet.RuntimeService.GetRuntimeInfo:output_type -> joblet.RuntimeInfoRes
-	41, // 79: joblet.RuntimeService.TestRuntime:output_type -> joblet.RuntimeTestRes
-	60, // [60:80] is the sub-list for method output_type
-	40, // [40:60] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	56, // 1: joblet.Job.environment:type_name -> joblet.Job.EnvironmentEntry
+	57, // 2: joblet.Job.secret_environment:type_name -> joblet.Job.SecretEnvironmentEntry
+	58, // 3: joblet.GetJobStatusRes.environment:type_name -> joblet.GetJobStatusRes.EnvironmentEntry
+	59, // 4: joblet.GetJobStatusRes.secret_environment:type_name -> joblet.GetJobStatusRes.SecretEnvironmentEntry
+	14, // 5: joblet.Networks.networks:type_name -> joblet.Network
+	20, // 6: joblet.Volumes.volumes:type_name -> joblet.Volume
+	25, // 7: joblet.SystemStatusRes.host:type_name -> joblet.HostInfo
+	26, // 8: joblet.SystemStatusRes.cpu:type_name -> joblet.CPUMetrics
+	27, // 9: joblet.SystemStatusRes.memory:type_name -> joblet.MemoryMetrics
+	28, // 10: joblet.SystemStatusRes.disks:type_name -> joblet.DiskMetrics
+	29, // 11: joblet.SystemStatusRes.networks:type_name -> joblet.NetworkMetrics
+	30, // 12: joblet.SystemStatusRes.io:type_name -> joblet.IOMetrics
+	32, // 13: joblet.SystemStatusRes.processes:type_name -> joblet.ProcessMetrics
+	34, // 14: joblet.SystemStatusRes.cloud:type_name -> joblet.CloudInfo
+	25, // 15: joblet.SystemMetricsRes.host:type_name -> joblet.HostInfo
+	26, // 16: joblet.SystemMetricsRes.cpu:type_name -> joblet.CPUMetrics
+	27, // 17: joblet.SystemMetricsRes.memory:type_name -> joblet.MemoryMetrics
+	28, // 18: joblet.SystemMetricsRes.disks:type_name -> joblet.DiskMetrics
+	29, // 19: joblet.SystemMetricsRes.networks:type_name -> joblet.NetworkMetrics
+	30, // 20: joblet.SystemMetricsRes.io:type_name -> joblet.IOMetrics
+	32, // 21: joblet.SystemMetricsRes.processes:type_name -> joblet.ProcessMetrics
+	34, // 22: joblet.SystemMetricsRes.cloud:type_name -> joblet.CloudInfo
+	31, // 23: joblet.IOMetrics.diskIO:type_name -> joblet.DiskIOMetrics
+	33, // 24: joblet.ProcessMetrics.topByCPU:type_name -> joblet.ProcessInfo
+	33, // 25: joblet.ProcessMetrics.topByMemory:type_name -> joblet.ProcessInfo
+	60, // 26: joblet.CloudInfo.metadata:type_name -> joblet.CloudInfo.MetadataEntry
+	36, // 27: joblet.RuntimesRes.runtimes:type_name -> joblet.RuntimeInfo
+	37, // 28: joblet.RuntimeInfo.requirements:type_name -> joblet.RuntimeRequirements
+	36, // 29: joblet.RuntimeInfoRes.runtime:type_name -> joblet.RuntimeInfo
+	3,  // 30: joblet.RunJobRequest.uploads:type_name -> joblet.FileUpload
+	61, // 31: joblet.RunJobRequest.environment:type_name -> joblet.RunJobRequest.EnvironmentEntry
+	62, // 32: joblet.RunJobRequest.secret_environment:type_name -> joblet.RunJobRequest.SecretEnvironmentEntry
+	44, // 33: joblet.RunJobRequest.requirements:type_name -> joblet.JobRequirement
+	3,  // 34: joblet.RunWorkflowRequest.workflowFiles:type_name -> joblet.FileUpload
+	53, // 35: joblet.GetWorkflowStatusResponse.workflow:type_name -> joblet.WorkflowInfo
+	54, // 36: joblet.GetWorkflowStatusResponse.jobs:type_name -> joblet.WorkflowJob
+	53, // 37: joblet.ListWorkflowsResponse.workflows:type_name -> joblet.WorkflowInfo
+	54, // 38: joblet.GetWorkflowJobsResponse.jobs:type_name -> joblet.WorkflowJob
+	55, // 39: joblet.WorkflowInfo.createdAt:type_name -> joblet.Timestamp
+	55, // 40: joblet.WorkflowInfo.startedAt:type_name -> joblet.Timestamp
+	55, // 41: joblet.WorkflowInfo.completedAt:type_name -> joblet.Timestamp
+	55, // 42: joblet.WorkflowJob.startTime:type_name -> joblet.Timestamp
+	55, // 43: joblet.WorkflowJob.endTime:type_name -> joblet.Timestamp
+	42, // 44: joblet.JobService.RunJob:input_type -> joblet.RunJobRequest
+	4,  // 45: joblet.JobService.GetJobStatus:input_type -> joblet.GetJobStatusReq
+	6,  // 46: joblet.JobService.StopJob:input_type -> joblet.StopJobReq
+	8,  // 47: joblet.JobService.GetJobLogs:input_type -> joblet.GetJobLogsReq
+	2,  // 48: joblet.JobService.ListJobs:input_type -> joblet.EmptyRequest
+	45, // 49: joblet.JobService.RunWorkflow:input_type -> joblet.RunWorkflowRequest
+	47, // 50: joblet.JobService.GetWorkflowStatus:input_type -> joblet.GetWorkflowStatusRequest
+	49, // 51: joblet.JobService.ListWorkflows:input_type -> joblet.ListWorkflowsRequest
+	51, // 52: joblet.JobService.GetWorkflowJobs:input_type -> joblet.GetWorkflowJobsRequest
+	10, // 53: joblet.NetworkService.CreateNetwork:input_type -> joblet.CreateNetworkReq
+	2,  // 54: joblet.NetworkService.ListNetworks:input_type -> joblet.EmptyRequest
+	12, // 55: joblet.NetworkService.RemoveNetwork:input_type -> joblet.RemoveNetworkReq
+	16, // 56: joblet.VolumeService.CreateVolume:input_type -> joblet.CreateVolumeReq
+	2,  // 57: joblet.VolumeService.ListVolumes:input_type -> joblet.EmptyRequest
+	18, // 58: joblet.VolumeService.RemoveVolume:input_type -> joblet.RemoveVolumeReq
+	2,  // 59: joblet.MonitoringService.GetSystemStatus:input_type -> joblet.EmptyRequest
+	24, // 60: joblet.MonitoringService.StreamSystemMetrics:input_type -> joblet.StreamMetricsReq
+	2,  // 61: joblet.RuntimeService.ListRuntimes:input_type -> joblet.EmptyRequest
+	38, // 62: joblet.RuntimeService.GetRuntimeInfo:input_type -> joblet.RuntimeInfoReq
+	40, // 63: joblet.RuntimeService.TestRuntime:input_type -> joblet.RuntimeTestReq
+	43, // 64: joblet.JobService.RunJob:output_type -> joblet.RunJobResponse
+	5,  // 65: joblet.JobService.GetJobStatus:output_type -> joblet.GetJobStatusRes
+	7,  // 66: joblet.JobService.StopJob:output_type -> joblet.StopJobRes
+	9,  // 67: joblet.JobService.GetJobLogs:output_type -> joblet.DataChunk
+	0,  // 68: joblet.JobService.ListJobs:output_type -> joblet.Jobs
+	46, // 69: joblet.JobService.RunWorkflow:output_type -> joblet.RunWorkflowResponse
+	48, // 70: joblet.JobService.GetWorkflowStatus:output_type -> joblet.GetWorkflowStatusResponse
+	50, // 71: joblet.JobService.ListWorkflows:output_type -> joblet.ListWorkflowsResponse
+	52, // 72: joblet.JobService.GetWorkflowJobs:output_type -> joblet.GetWorkflowJobsResponse
+	11, // 73: joblet.NetworkService.CreateNetwork:output_type -> joblet.CreateNetworkRes
+	15, // 74: joblet.NetworkService.ListNetworks:output_type -> joblet.Networks
+	13, // 75: joblet.NetworkService.RemoveNetwork:output_type -> joblet.RemoveNetworkRes
+	17, // 76: joblet.VolumeService.CreateVolume:output_type -> joblet.CreateVolumeRes
+	21, // 77: joblet.VolumeService.ListVolumes:output_type -> joblet.Volumes
+	19, // 78: joblet.VolumeService.RemoveVolume:output_type -> joblet.RemoveVolumeRes
+	22, // 79: joblet.MonitoringService.GetSystemStatus:output_type -> joblet.SystemStatusRes
+	23, // 80: joblet.MonitoringService.StreamSystemMetrics:output_type -> joblet.SystemMetricsRes
+	35, // 81: joblet.RuntimeService.ListRuntimes:output_type -> joblet.RuntimesRes
+	39, // 82: joblet.RuntimeService.GetRuntimeInfo:output_type -> joblet.RuntimeInfoRes
+	41, // 83: joblet.RuntimeService.TestRuntime:output_type -> joblet.RuntimeTestRes
+	64, // [64:84] is the sub-list for method output_type
+	44, // [44:64] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_joblet_proto_init() }
@@ -4762,7 +4854,7 @@ func file_api_proto_joblet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_joblet_proto_rawDesc), len(file_api_proto_joblet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   59,
+			NumMessages:   63,
 			NumExtensions: 0,
 			NumServices:   5,
 		},

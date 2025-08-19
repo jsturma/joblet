@@ -24,9 +24,16 @@ var (
 	ErrInvalidCommand = errors.New("job command cannot be empty")
 )
 
-// Job represents a job with improved resource limits using value objects
+// Job represents a job with improved resource limits using value objects.
+//
+// JOB NAMES FEATURE:
+// The Name field provides human-readable identification for jobs within workflows.
+// - For workflow jobs: Contains the job name from YAML (e.g., "setup-data", "process-data")
+// - For individual jobs: Empty string (only Id is used for identification)
+// This enables better workflow visibility and dependency tracking in CLI tools.
 type Job struct {
-	Id                string            // Unique identifier for job tracking
+	Id                string            // Unique identifier for job tracking (always populated)
+	Name              string            // Human-readable job name (workflow jobs only, empty for individual jobs)
 	Command           string            // Executable command path
 	Args              []string          // Command line arguments
 	Limits            ResourceLimits    // CPU/memory/IO constraints using value objects
@@ -102,7 +109,33 @@ func (j *Job) Validate() error {
 	return nil
 }
 
-// DeepCopy creates a deep copy of the job
+// DeepCopy creates a deep copy of the job including the Name field.
+//
+// RESPONSIBILITY:
+// - Creates an independent copy of the Job struct with all fields properly duplicated
+// - Handles deep copying of slices, maps, and pointer fields to prevent shared references
+// - Ensures the Name field (job names feature) is properly preserved in the copy
+// - Provides thread-safe job duplication for concurrent operations
+//
+// JOB NAMES INTEGRATION:
+// - Preserves the Name field which contains human-readable job names for workflow jobs
+// - Maintains job identity information for proper workflow status display
+// - Ensures copied jobs retain their workflow context and naming information
+//
+// DEEP COPY BEHAVIOR:
+// - Primitive fields: Direct value copy (Id, Name, Command, Status, etc.)
+// - Slices: Creates new slices with copied elements (Args, Volumes)
+// - Maps: Creates new maps with all key-value pairs copied (Environment, SecretEnvironment)
+// - Pointers: Creates new pointer instances with copied values (EndTime, ScheduledTime)
+// - Value objects: Safe to copy directly (ResourceLimits uses value semantics)
+//
+// THREAD SAFETY:
+// - Safe for concurrent use as it creates completely independent copies
+// - No shared state between original and copied job instances
+// - Prevents race conditions when jobs are accessed from multiple goroutines
+//
+// USAGE:
+// Called by job store adapters and workflow managers when job isolation is required.
 func (j *Job) DeepCopy() *Job {
 	if j == nil {
 		return nil
@@ -110,6 +143,7 @@ func (j *Job) DeepCopy() *Job {
 
 	jobCopy := &Job{
 		Id:                j.Id,
+		Name:              j.Name,
 		Command:           j.Command,
 		Args:              make([]string, len(j.Args)),
 		Limits:            j.Limits, // Value objects are safe to copy

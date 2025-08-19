@@ -23,6 +23,7 @@ func NewJobMapper() *JobMapper {
 func (m *JobMapper) DomainToProtobuf(job *domain.Job) *pb.Job {
 	pbJob := &pb.Job{
 		Id:                job.Id,
+		Name:              job.Name, // Include job name
 		Command:           job.Command,
 		Args:              job.Args,
 		MaxCPU:            job.Limits.CPU.Value(),
@@ -60,6 +61,7 @@ func (m *JobMapper) ProtobufToDomain(pbJob *pb.Job) (*domain.Job, error) {
 
 	job := &domain.Job{
 		Id:                pbJob.Id,
+		Name:              pbJob.Name, // Include job name
 		Command:           pbJob.Command,
 		Args:              pbJob.Args,
 		Limits:            *limits,
@@ -222,6 +224,7 @@ func (m *JobMapper) ProtobufToStartJobRequest(req *pb.RunJobRequest) (*interface
 	}
 
 	return &interfaces.StartJobRequest{
+		Name:    req.Name, // Include job name from request
 		Command: req.Command,
 		Args:    req.Args,
 		Resources: interfaces.ResourceLimits{
@@ -253,6 +256,7 @@ func (m *JobMapper) StartJobRequestToProtobuf(req *interfaces.StartJobRequest) *
 	}
 
 	return &pb.RunJobRequest{
+		Name:              req.Name, // Include job name in protobuf request
 		Command:           req.Command,
 		Args:              req.Args,
 		MaxCpu:            req.Resources.MaxCPU,

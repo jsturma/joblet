@@ -184,6 +184,7 @@ rnx list [flags]
 **Table Format (default):**
 
 - **ID**: Job identifier
+- **NAME**: Job name (from workflows, "-" for individual jobs)
 - **STATUS**: Current job status (RUNNING, COMPLETED, FAILED, STOPPED, SCHEDULED)
 - **START TIME**: When the job started (format: YYYY-MM-DD HH:MM:SS)
 - **COMMAND**: The command being executed (truncated to 80 chars if too long)
@@ -199,12 +200,12 @@ information.
 rnx list
 
 # Example output:
-# ID     STATUS      START TIME           COMMAND
-# -----  ----------  -------------------  -------
-# 1      COMPLETED   2025-08-03 10:15:32  echo "Hello World"
-# 2      RUNNING     2025-08-03 10:16:45  python3 script.py
-# 3      FAILED      2025-08-03 10:17:20  invalid_command
-# 4      SCHEDULED   N/A                  backup.sh
+# ID   NAME         STATUS      START TIME           COMMAND
+# ---- ------------ ----------  -------------------  -------
+# 1    setup-data   COMPLETED   2025-08-03 10:15:32  echo "Hello World"
+# 2    process-data RUNNING     2025-08-03 10:16:45  python3 script.py
+# 3    -            FAILED      2025-08-03 10:17:20  invalid_command
+# 4    -            SCHEDULED   N/A                  backup.sh
 
 # JSON output for scripting
 rnx list --json
@@ -213,6 +214,7 @@ rnx list --json
 # [
 #   {
 #     "id": "1",
+#     "name": "setup-data",
 #     "status": "COMPLETED",
 #     "start_time": "2025-08-03T10:15:32Z",
 #     "end_time": "2025-08-03T10:15:33Z",
@@ -222,6 +224,7 @@ rnx list --json
 #   },
 #   {
 #     "id": "2",
+#     "name": "process-data",
 #     "status": "RUNNING",
 #     "start_time": "2025-08-03T10:16:45Z",
 #     "command": "python3",
@@ -250,6 +253,12 @@ The status command automatically detects whether the ID refers to a job or workf
 
 - **Job IDs**: String identifiers (e.g., "42", "abc-123")  
 - **Workflow IDs**: Numeric identifiers (e.g., 1, 2, 3)
+
+**Workflow Status Features:**
+- Displays job names, dependencies, status, and exit codes in a tabular format
+- Shows dependency relationships between workflow jobs  
+- Real-time progress tracking with job-level details
+- Color-coded status indicators (RUNNING, COMPLETED, FAILED, etc.)
 
 #### Flags
 
@@ -281,9 +290,25 @@ for id in 1 2 3; do rnx status $id; done
 rnx status --json 42 | jq .status      # Job status
 rnx status --json 1 | jq .total_jobs   # Workflow progress
 
-# Example JSON output:
+# Example workflow status output:
+# Workflow ID: 1
+# Workflow: data-pipeline.yaml
+# Status: COMPLETED
+# Progress: 4/4 jobs completed
+# 
+# Jobs in Workflow:
+# -----------------------------------------------------------------------------------------
+# JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
+# -----------------------------------------------------------------------------------------
+# 42              setup-data           COMPLETED    0          -                   
+# 43              process-data         COMPLETED    0          setup-data          
+# 44              validate-results     COMPLETED    0          process-data        
+# 45              generate-report      COMPLETED    0          validate-results    
+
+# Example JSON output for individual job:
 # {
 #   "id": "42",
+#   "name": "process-data",
 #   "command": "python3",
 #   "args": ["process_data.py"],
 #   "maxCPU": 100,

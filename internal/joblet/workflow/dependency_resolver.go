@@ -159,6 +159,60 @@ func (dr *DependencyResolver) CreateWorkflow(workflow string, jobs map[string]*J
 	return workflowID, nil
 }
 
+// UpdateJobID updates the job ID mapping in the dependency resolver.
+//
+// RESPONSIBILITY:
+// - Synchronizes job ID mappings with the workflow manager updates
+// - Updates all internal tracking structures to use actual job IDs
+// - Maintains dependency resolution consistency during job execution
+// - Ensures job state cache integrity across ID transitions
+//
+// WORKFLOW:
+// 1. Updates jobToWorkflow mapping from job name to actual job ID
+// 2. Migrates job state cache entries from job name to actual job ID
+// 3. Updates JobDependency.JobID field in workflow structures
+// 4. Maintains referential integrity across all internal mappings
+//
+// PARAMETERS:
+// - jobName: Original job name from workflow YAML (e.g., "setup-data")
+// - actualJobID: Unique job identifier returned by joblet service (e.g., "42")
+//
+// THREAD SAFETY:
+// - Uses write lock to ensure atomic updates
+// - Prevents race conditions during concurrent job state changes
+//
+// INTEGRATION:
+// - Called by WorkflowManager.UpdateJobID to maintain consistency
+// - Ensures dependency resolution works with actual job IDs
+func (dr *DependencyResolver) UpdateJobID(jobName string, actualJobID string) {
+	dr.mu.Lock()
+	defer dr.mu.Unlock()
+
+	// Update jobToWorkflow mapping
+	if workflowID, exists := dr.jobToWorkflow[jobName]; exists {
+		delete(dr.jobToWorkflow, jobName)
+		dr.jobToWorkflow[actualJobID] = workflowID
+	}
+
+	// Update jobStateCache
+	if status, exists := dr.jobStateCache[jobName]; exists {
+		delete(dr.jobStateCache, jobName)
+		dr.jobStateCache[actualJobID] = status
+	}
+
+	// Update workflow Jobs map
+	for _, workflow := range dr.workflows {
+		if jobDep, exists := workflow.Jobs[jobName]; exists {
+			// Update the JobID field
+			jobDep.JobID = actualJobID
+			// Move the entry from jobName key to actualJobID key
+			delete(workflow.Jobs, jobName)
+			workflow.Jobs[actualJobID] = jobDep
+			break
+		}
+	}
+}
+
 // OnJobStateChange processes job status updates and cascades dependency effects.
 // This is the core orchestration method that:
 // 1. Updates the job state cache for dependency evaluation

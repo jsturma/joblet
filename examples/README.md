@@ -427,6 +427,40 @@ Each example directory contains detailed README files:
 - **[Basic Usage README](./basic-usage/README.md)** - Fundamental concepts
 - **[Advanced README](./advanced/README.md)** - Job coordination patterns
 
+## 🔗 Workflow Orchestration Examples
+
+Advanced multi-job workflows with dependency management and job names feature:
+
+### 📁 [Workflow Templates](./workflows/)
+
+- **[ML Pipeline](./workflows/ml-pipeline/)** - Complete machine learning workflow
+- **[Data Pipeline](./workflows/data-pipeline/)** - ETL processing with volume sharing  
+- **[Parallel Jobs](./workflows/parallel-jobs/)** - Independent batch processing
+- **[Test Workflows](./workflows/tests/)** - Job names feature validation 🧪
+
+### 🧪 Job Names Testing
+
+Test workflows specifically for validating job names functionality:
+
+```bash
+# Test job names with 2-job workflow
+rnx run --workflow=examples/workflows/tests/test-simple-workflow.yaml
+
+# Test comprehensive job names with 4-job dependency chain  
+rnx run --workflow=examples/workflows/tests/test-workflow-names.yaml
+
+# View workflow status with job names
+rnx status --workflow <workflow-id>
+```
+
+**Expected Output Format:**
+```
+JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
+-----------------------------------------------------------------------------------------
+42              setup-data           COMPLETED    0          -                   
+43              process-data         RUNNING      -          setup-data          
+```
+
 ## 🚀 Next Steps
 
 ### 🏎️ Runtime Approach (Recommended)

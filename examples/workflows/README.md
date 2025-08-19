@@ -55,7 +55,21 @@ Simple workflow examples demonstrating basic functionality.
 - **Scripts**: Python analytics script with sample data
 - **Test**: `cd examples/workflows/basic-usage && rnx run --workflow=basic-jobs.yaml:hello`
 
-### 6. `java-microservices/`
+### 6. `tests/` - Job Names Feature Testing 🧪
+
+Test workflows specifically for validating job names functionality and workflow features.
+
+- **Location**: `examples/workflows/tests/`
+- **Commands**: `bash`, `echo`, `sleep` for simple testing
+- **Features**: Job names display, dependency visualization, CLI testing
+- **Files**:
+  - `test-simple-workflow.yaml` - 2-job workflow for basic job names testing
+  - `test-workflow-names.yaml` - 4-job workflow for comprehensive job names testing  
+  - `demo-workflow.yaml` - Basic 3-step sequential workflow
+- **Test**: `cd examples/workflows/tests && rnx run --workflow=test-workflow-names.yaml`
+- **Purpose**: Validate that workflow jobs display proper job IDs vs job names in CLI
+
+### 7. `java-microservices/`
 
 Java-based microservices architecture examples.
 

@@ -22,12 +22,13 @@ Workflows allow you to define complex job orchestration with dependencies, resou
 
 ### Key Features
 
-- **Job Dependencies**: Define execution order with `requires` clauses
+- **Job Names**: Human-readable job names for better workflow visibility
+- **Job Dependencies**: Define execution order with `requires` clauses  
 - **Network Isolation**: Specify network for each job (bridge, isolated, none, custom)
 - **File Uploads**: Automatically upload required files for each job
 - **Resource Limits**: Set CPU, memory, and I/O limits per job
 - **Validation**: Comprehensive pre-execution validation prevents runtime failures
-- **Monitoring**: Real-time workflow progress tracking
+- **Monitoring**: Real-time workflow progress tracking with job names and dependencies
 
 ## Workflow YAML Format
 
@@ -35,7 +36,7 @@ Workflows allow you to define complex job orchestration with dependencies, resou
 
 ```yaml
 jobs:
-  job-name:
+  job-name:                          # Job name (used for dependencies and monitoring)
     command: "python3"
     args: ["script.py", "--option", "value"]
     runtime: "python:3.11-ml"
@@ -51,6 +52,12 @@ jobs:
       max_io_bps: 10485760
       cpu_cores: "0-3"
 ```
+
+**Job Names:**
+- Job names are the keys in the `jobs` section (e.g., `job-name`, `previous-job`)
+- Names should be descriptive and unique within the workflow
+- Used for dependency references and monitoring displays
+- Displayed in `rnx status --workflow` and `rnx list` commands
 
 ### Job Specification Fields
 
@@ -291,8 +298,8 @@ rnx run --workflow=ml-workflow.yaml  # Automatically uploads files specified in 
 # List all workflows
 rnx list --workflow
 
-# Check specific workflow status
-rnx status <workflow-id>
+# Check specific workflow status (enhanced with job names and dependencies)
+rnx status --workflow <workflow-id>
 
 # Monitor job logs
 rnx log <job-id>
@@ -300,6 +307,7 @@ rnx log <job-id>
 
 ### Workflow Status
 
+**List View:**
 ```bash
 ID   NAME                 STATUS      PROGRESS
 ---- -------------------- ----------- ---------
@@ -307,6 +315,30 @@ ID   NAME                 STATUS      PROGRESS
 21   client-workflow-1... RUNNING     3/5
 22   client-workflow-1... PENDING     0/4
 ```
+
+**Detailed Workflow Status:**
+```bash
+# rnx status --workflow 1
+Workflow ID: 1
+Workflow: data-pipeline.yaml
+Status: RUNNING
+Progress: 2/4 jobs completed
+
+Jobs in Workflow:
+-----------------------------------------------------------------------------------------
+JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
+-----------------------------------------------------------------------------------------
+42              setup-data           COMPLETED    0          -                   
+43              process-data         RUNNING      -          setup-data          
+44              validate-results     PENDING      -          process-data        
+45              generate-report      PENDING      -          validate-results    
+```
+
+**Features:**
+- Job names clearly displayed for easy identification
+- Dependency relationships shown (e.g., process-data depends on setup-data)
+- Real-time status updates with color coding
+- Exit codes for completed jobs
 
 ## Examples
 

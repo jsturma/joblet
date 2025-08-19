@@ -104,6 +104,9 @@ func getJobStatus(jobID string) error {
 
 	// Display basic job information
 	fmt.Printf("Job ID: %s\n", response.Id)
+	if response.Name != "" {
+		fmt.Printf("Job Name: %s\n", response.Name)
+	}
 	fmt.Printf("Command: %s %s\n", response.Command, strings.Join(response.Args, " "))
 
 	// Display status with color coding (if terminal supports it)
@@ -270,7 +273,44 @@ func outputJobStatusJSON(response *pb.GetJobStatusRes) error {
 	return encoder.Encode(response)
 }
 
-// getWorkflowStatus retrieves and displays workflow status
+// getWorkflowStatus retrieves and displays comprehensive workflow status with job names.
+//
+// RESPONSIBILITY:
+// - Fetches detailed workflow status from the joblet server
+// - Formats and displays workflow information with job names and dependencies
+// - Provides both tabular and JSON output formats for different use cases
+// - Integrates job names feature to show human-readable job identifiers
+//
+// JOB NAMES DISPLAY:
+// - JOB ID column: Shows actual job IDs (e.g., "42", "43") for started jobs
+// - JOB NAME column: Shows human-readable names from workflow YAML (e.g., "setup-data")
+// - DEPENDENCIES column: Lists job name dependencies for clarity
+// - Properly handles jobs that haven't been started (show job names in ID column)
+//
+// OUTPUT FORMATS:
+// 1. Tabular format (default):
+//   - Workflow summary (ID, status, progress, timing)
+//   - Job table with columns: JOB ID, JOB NAME, STATUS, EXIT CODE, DEPENDENCIES
+//   - Color-coded status indicators
+//   - Helpful action suggestions based on workflow state
+//
+// 2. JSON format (--json flag):
+//   - Complete workflow metadata
+//   - Detailed job information including dependencies and timing
+//   - Machine-readable format for scripting and automation
+//
+// WORKFLOW:
+// 1. Creates gRPC client connection to joblet server
+// 2. Sends GetWorkflowStatus request with workflow ID
+// 3. Processes response based on output format preference
+// 4. Formats and displays comprehensive workflow status
+// 5. Provides contextual next-step suggestions
+//
+// PARAMETERS:
+// - workflowID: Unique numeric identifier for the workflow
+//
+// RETURNS:
+// - error: If client creation fails, request fails, or formatting errors occur
 func getWorkflowStatus(workflowID int) error {
 	client, err := common.NewJobClient()
 	if err != nil {
@@ -338,9 +378,9 @@ func getWorkflowStatus(workflowID int) error {
 	// Display jobs with detailed information
 	if len(res.Jobs) > 0 {
 		fmt.Printf("Jobs in Workflow:\n")
-		fmt.Printf("-------------------------------------------------------------------\n")
-		fmt.Printf("%-20s %-12s %-10s %-20s\n", "JOB ID", "STATUS", "EXIT CODE", "DEPENDENCIES")
-		fmt.Printf("-------------------------------------------------------------------\n")
+		fmt.Printf("-----------------------------------------------------------------------------------------\n")
+		fmt.Printf("%-15s %-20s %-12s %-10s %-20s\n", "JOB ID", "JOB NAME", "STATUS", "EXIT CODE", "DEPENDENCIES")
+		fmt.Printf("-----------------------------------------------------------------------------------------\n")
 
 		for _, job := range res.Jobs {
 			// Format status with color
@@ -359,8 +399,23 @@ func getWorkflowStatus(workflowID int) error {
 				}
 			}
 
-			fmt.Printf("%-20s %s%-12s%s %-10s %-20s\n",
-				job.JobId,
+			// Truncate job name if too long for display
+			jobName := job.JobName
+			if jobName == "" {
+				jobName = "-"
+			} else if len(jobName) > 20 {
+				jobName = jobName[:17] + "..."
+			}
+
+			// Truncate job ID for display
+			jobID := job.JobId
+			if len(jobID) > 15 {
+				jobID = jobID[:12] + "..."
+			}
+
+			fmt.Printf("%-15s %-20s %s%-12s%s %-10s %-20s\n",
+				jobID,
+				jobName,
 				jobStatusColor, job.Status, resetColor,
 				exitCodeStr,
 				deps)
@@ -415,11 +470,21 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 	// Add job details
 	for _, job := range res.Jobs {
 		jobData := map[string]interface{}{
-			"name":   job.JobId,
+			"id":     job.JobId,
+			"name":   job.JobName,
 			"status": job.Status,
+		}
+		if job.ExitCode != 0 {
+			jobData["exit_code"] = job.ExitCode
 		}
 		if len(job.Dependencies) > 0 {
 			jobData["dependencies"] = job.Dependencies
+		}
+		if job.StartTime != nil && job.StartTime.Seconds > 0 {
+			jobData["start_time"] = job.StartTime
+		}
+		if job.EndTime != nil && job.EndTime.Seconds > 0 {
+			jobData["end_time"] = job.EndTime
 		}
 		statusData["jobs"] = append(statusData["jobs"].([]map[string]interface{}), jobData)
 	}

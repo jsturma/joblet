@@ -86,6 +86,7 @@ func (j *JobletImplementation) StartJob(ctx context.Context, req interfaces.Star
 	// 4. Create the job using value objects
 	job := &domain.Job{
 		Id:                jobID,
+		Name:              req.Name,
 		Command:           req.Command,
 		Args:              req.Args,
 		Limits:            *resourceLimits, // Use the built ResourceLimits directly

@@ -277,14 +277,20 @@ rnx status <job-id>
 ### Monitoring Job Progress
 
 ```bash
-# Real-time status
+# Real-time status (shows job name for workflow jobs)
 watch -n 1 rnx status <job-id>
+
+# Workflow status with job names and dependencies
+rnx status --workflow <workflow-id>
 
 # Follow logs
 rnx log -f <job-id>
 
-# List running jobs
+# List running jobs (shows names and status)
 rnx list --json | jq '.[] | select(.status == "RUNNING")'
+
+# Filter by job name (for workflow jobs)
+rnx list --json | jq '.[] | select(.name == "process-data")'
 ```
 
 ### Job Completion
