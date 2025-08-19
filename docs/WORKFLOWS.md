@@ -330,11 +330,12 @@ JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES
 -----------------------------------------------------------------------------------------
 42              setup-data           COMPLETED    0          -                   
 43              process-data         RUNNING      -          setup-data          
-44              validate-results     PENDING      -          process-data        
-45              generate-report      PENDING      -          validate-results    
+0               validate-results     PENDING      -          process-data        
+0               generate-report      PENDING      -          validate-results    
 ```
 
 **Features:**
+- **Job ID Display**: Started jobs show actual job IDs (e.g., "42", "43"), non-started jobs show "0"
 - Job names clearly displayed for easy identification
 - Dependency relationships shown (e.g., process-data depends on setup-data)
 - Real-time status updates with color coding

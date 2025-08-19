@@ -370,9 +370,16 @@ func (s *WorkflowServiceServer) convertWorkflowStateToInfo(ws *workflow.Workflow
 func (s *WorkflowServiceServer) convertJobDependenciesToWorkflowJobs(jobs map[string]*workflow.JobDependency) []*pb.WorkflowJob {
 	var workflowJobs []*pb.WorkflowJob
 
-	for jobID, jobDep := range jobs {
+	for _, jobDep := range jobs {
+		// For non-started jobs, JobID still contains the job name, so show "0"
+		jobID := jobDep.JobID
+		if jobID == jobDep.InternalName {
+			// Job hasn't been started yet, show "0"
+			jobID = "0"
+		}
+
 		wfJob := &pb.WorkflowJob{
-			JobId:   jobID,
+			JobId:   jobID,               // Show actual job ID for started jobs, "0" for non-started jobs
 			JobName: jobDep.InternalName, // Use InternalName as the job name from workflow
 			Status:  string(jobDep.Status),
 		}

@@ -48,12 +48,12 @@ JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES
 -----------------------------------------------------------------------------------------
 42              setup-data           COMPLETED    0          -                   
 43              process-data         RUNNING      -          setup-data          
-44              validate-results     PENDING      -          process-data        
-45              generate-report      PENDING      -          validate-results    
+0               validate-results     PENDING      -          process-data        
+0               generate-report      PENDING      -          validate-results    
 ```
 
 ### Key Distinctions
-- **JOB ID**: Actual unique identifier assigned by joblet (e.g., "42", "43")
+- **JOB ID**: Actual unique identifier for started jobs (e.g., "42", "43"), "0" for non-started jobs
 - **JOB NAME**: Human-readable name from YAML (e.g., "setup-data", "process-data")
 - **DEPENDENCIES**: Lists job names for clarity (not job IDs)
 
@@ -90,7 +90,7 @@ done
 When testing job names functionality:
 
 ### ✅ CLI Display Validation
-- [ ] JOB ID column shows actual job IDs for started jobs
+- [ ] JOB ID column shows actual job IDs for started jobs, "0" for non-started jobs
 - [ ] JOB NAME column shows YAML job names
 - [ ] DEPENDENCIES column shows job name relationships
 - [ ] Status colors work correctly

@@ -259,6 +259,7 @@ The status command automatically detects whether the ID refers to a job or workf
 - Shows dependency relationships between workflow jobs  
 - Real-time progress tracking with job-level details
 - Color-coded status indicators (RUNNING, COMPLETED, FAILED, etc.)
+- **Job ID Display**: Started jobs show actual job IDs (e.g., "42", "43"), non-started jobs show "0"
 
 #### Flags
 
@@ -293,8 +294,8 @@ rnx status --json 1 | jq .total_jobs   # Workflow progress
 # Example workflow status output:
 # Workflow ID: 1
 # Workflow: data-pipeline.yaml
-# Status: COMPLETED
-# Progress: 4/4 jobs completed
+# Status: RUNNING
+# Progress: 2/4 jobs completed
 # 
 # Jobs in Workflow:
 # -----------------------------------------------------------------------------------------
@@ -302,8 +303,8 @@ rnx status --json 1 | jq .total_jobs   # Workflow progress
 # -----------------------------------------------------------------------------------------
 # 42              setup-data           COMPLETED    0          -                   
 # 43              process-data         COMPLETED    0          setup-data          
-# 44              validate-results     COMPLETED    0          process-data        
-# 45              generate-report      COMPLETED    0          validate-results    
+# 0               validate-results     PENDING      -          process-data        
+# 0               generate-report      PENDING      -          validate-results    
 
 # Example JSON output for individual job:
 # {

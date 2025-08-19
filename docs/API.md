@@ -638,7 +638,7 @@ Represents a job within a workflow with dependency information.
 
 ```protobuf
 message WorkflowJob {
-  string jobId = 1;                      // Actual job ID assigned by joblet
+  string jobId = 1;                      // Actual job ID for started jobs, "0" for non-started jobs
   string jobName = 2;                    // Human-readable job name from workflow YAML
   string status = 3;                     // Current job status
   repeated string dependencies = 4;       // List of job names this job depends on
@@ -647,6 +647,10 @@ message WorkflowJob {
   int32 exitCode = 7;                    // Process exit code
 }
 ```
+
+**Job ID Behavior:**
+- **Started jobs**: `jobId` contains actual job ID assigned by joblet (e.g., "42", "43")
+- **Non-started jobs**: `jobId` shows "0" to indicate the job hasn't been started yet
 
 #### GetWorkflowStatusResponse
 Provides comprehensive workflow status with job details.
