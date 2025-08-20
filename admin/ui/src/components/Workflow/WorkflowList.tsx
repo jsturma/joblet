@@ -3,7 +3,7 @@ import {Calendar, ChevronLeft, ChevronRight, Clock, Network, Play, Square} from 
 
 interface WorkflowListProps {
     workflows: Array<{
-        id: number;
+        id: string | number; // Support both UUID strings and legacy numeric IDs
         name: string;
         workflow: string;
         status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
@@ -105,10 +105,14 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                 </div>
             ) : (
                 <div className="divide-y divide-gray-700">
-                    {workflows.map((workflow) => (
+                    {workflows.map((workflow, index) => (
                         <div
-                            key={workflow.id}
-                            onClick={() => onWorkflowClick(workflow.id.toString())}
+                            key={`workflow-${workflow.id || index}-${index}`}
+                            onClick={() => {
+                                if (workflow.id) {
+                                    onWorkflowClick(workflow.id.toString());
+                                }
+                            }}
                             className="p-6 hover:bg-gray-700 cursor-pointer transition-colors"
                         >
                             <div className="flex items-center justify-between">
@@ -127,6 +131,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                     <p className="text-sm text-gray-300 mt-1">
                                         {workflow.workflow}
                                     </p>
+                                    
 
                                     <div className="flex items-center space-x-6 mt-3">
                                         <div className="flex items-center text-sm text-gray-400">

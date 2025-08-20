@@ -4,7 +4,7 @@ import {apiService} from '../services/apiService';
 type WorkflowStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
 
 export interface Workflow {
-    id: number;
+    id: string | number; // Support both UUID strings and legacy numeric IDs
     name: string;
     workflow: string;
     status: WorkflowStatus;
@@ -47,8 +47,27 @@ export const useWorkflows = (): UseWorkflowsReturn => {
             }
             setError(null);
             const response = await apiService.getWorkflows();
-            // Sort workflows in descending order by ID (newest first)
-            const sortedWorkflows = response.sort((a, b) => b.id - a.id);
+            
+            // Transform API response: map 'uuid' to 'id' and add name field
+            const transformedWorkflows = response.map(workflow => ({
+                ...workflow,
+                id: workflow.uuid || workflow.id, // Map uuid to id for consistency
+                name: workflow.workflow || `Workflow ${workflow.uuid ? workflow.uuid.substring(0, 8) : workflow.id}` // Use workflow filename as name
+            }));
+            
+            // Sort workflows by creation date (newest first), fallback to ID comparison
+            const sortedWorkflows = transformedWorkflows.sort((a, b) => {
+                // First try to sort by created_at timestamp
+                if (a.created_at && b.created_at) {
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                }
+                // Fallback to ID comparison only if both are numbers
+                if (typeof a.id === 'number' && typeof b.id === 'number') {
+                    return b.id - a.id;
+                }
+                // For UUIDs or mixed types, use string comparison
+                return String(b.id).localeCompare(String(a.id));
+            });
             setWorkflows(sortedWorkflows);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch workflows');

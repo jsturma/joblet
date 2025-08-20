@@ -41,23 +41,58 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
     const [jobOverrides, setJobOverrides] = useState<Map<string, Position>>(new Map());
 
     // Calculate job positions using a simple layered layout
-    const {jobPositions, edges} = useMemo(() => {
+    const {jobPositions, edges, processedJobs} = useMemo(() => {
         if (jobs.length === 0) {
-            return {jobPositions: new Map<string, Position>(), edges: []};
+            return {jobPositions: new Map<string, Position>(), edges: [], processedJobs: []};
         }
 
-        // Debug: Log job dependencies
+        // Debug: Log job dependencies and identify potential issues
         console.log('Workflow jobs with dependencies:', jobs.map(j => ({
             id: j.id,
             name: j.name,
-            dependsOn: j.dependsOn
+            dependsOn: j.dependsOn,
+            hasValidId: !!(j.id && j.id.toString().length > 0)
         })));
+
+        // Filter and ensure unique IDs for jobs to prevent overlapping
+        const seenIds = new Set<string>();
+        const validJobs: WorkflowJob[] = [];
+        
+        jobs.forEach((job, index) => {
+            if (job.id && job.id.toString().length > 0) {
+                const jobIdStr = job.id.toString();
+                if (!seenIds.has(jobIdStr)) {
+                    seenIds.add(jobIdStr);
+                    validJobs.push(job);
+                } else {
+                    // Create unique ID for duplicate jobs
+                    const uniqueId = `${jobIdStr}-duplicate-${index}`;
+                    console.warn(`Duplicate job ID found: ${jobIdStr}, using unique ID: ${uniqueId}`);
+                    validJobs.push({
+                        ...job,
+                        id: uniqueId
+                    });
+                }
+            } else {
+                // Create unique ID for jobs with invalid/missing IDs
+                const fallbackId = `job-${index}-${Date.now()}`;
+                console.warn(`Job with invalid ID found, using fallback ID: ${fallbackId}`);
+                validJobs.push({
+                    ...job,
+                    id: fallbackId
+                });
+            }
+        });
+        
+        if (validJobs.length !== jobs.length) {
+            console.warn(`Processed ${jobs.length} jobs, resulted in ${validJobs.length} valid jobs`);
+        }
 
         // Create dependency graph
         const dependencies = new Map<string, string[]>();
         const dependents = new Map<string, string[]>();
 
-        jobs.forEach(job => {
+        validJobs.forEach(job => {
             dependencies.set(job.id, job.dependsOn || []);
             job.dependsOn?.forEach(depId => {
                 if (!dependents.has(depId)) {
@@ -73,12 +108,12 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         const inDegree = new Map<string, number>();
 
         // Calculate in-degrees
-        jobs.forEach(job => {
+        validJobs.forEach(job => {
             inDegree.set(job.id, job.dependsOn?.length || 0);
         });
 
         // Find jobs with no dependencies (layer 0)
-        let currentLayer = jobs.filter(job => (job.dependsOn?.length || 0) === 0).map(job => job.id);
+        let currentLayer = validJobs.filter(job => (job.dependsOn?.length || 0) === 0).map(job => job.id);
 
         while (currentLayer.length > 0) {
             layers.push([...currentLayer]);
@@ -100,7 +135,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         }
 
         // Handle any remaining jobs (cycles or orphans)
-        const remaining = jobs.filter(job => !visited.has(job.id));
+        const remaining = validJobs.filter(job => !visited.has(job.id));
         if (remaining.length > 0) {
             layers.push(remaining.map(job => job.id));
         }
@@ -110,7 +145,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
         layers.forEach((layer, layerIndex) => {
             const layerHeight = layer.length * VERTICAL_SPACING;
-            const startY = (600 - layerHeight) / 2; // Center vertically in 600px canvas
+            const startY = Math.max(50, (600 - layerHeight) / 2); // Center vertically in 600px canvas, with minimum top margin
 
             layer.forEach((jobId, jobIndex) => {
                 positions.set(jobId, {
@@ -129,7 +164,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
         // Calculate edges
         const calculatedEdges: Edge[] = [];
-        jobs.forEach(job => {
+        validJobs.forEach(job => {
             const toPos = positions.get(job.id);
             if (!toPos) return;
 
@@ -155,7 +190,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         // Debug: Log calculated edges
         console.log('Calculated dependency edges:', calculatedEdges);
 
-        return {jobPositions: positions, edges: calculatedEdges};
+        return {jobPositions: positions, edges: calculatedEdges, processedJobs: validJobs};
     }, [jobs, jobOverrides]);
 
     const handleJobClick = useCallback((job: Job) => {
@@ -250,6 +285,8 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         setDraggedJobId(null);
     }, []);
 
+    // Since validJobs is computed in useMemo, we need to access the selected job differently
+    // Use the original jobs array to find selected job for display purposes
     const selectedJob = jobs.find(job => job.id === selectedJobId);
 
     return (
@@ -362,7 +399,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                     }}
                     onMouseMove={handleJobMouseMove}
                     onMouseUp={handleJobMouseUp}>
-                    {jobs.map((job, index) => {
+                    {processedJobs.map((job, index) => {
                         const position = jobPositions.get(job.id);
                         if (!position) return null;
 
@@ -383,7 +420,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             </div>
 
             {/* Empty State */}
-            {jobs.length === 0 && (
+            {processedJobs.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                         <Maximize2 className="w-12 h-12 text-gray-400 mx-auto mb-4"/>

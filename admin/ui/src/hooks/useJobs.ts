@@ -25,17 +25,17 @@ const getNumericId = (id: string): number => {
     return match ? parseInt(match[0], 10) : 0;
 };
 
-// Sort jobs by startTime (newest first), then by numeric ID in descending order
+// Sort jobs by startTime (oldest first), then by numeric ID in ascending order
 const sortJobs = (jobs: Job[]): Job[] => {
     return [...jobs].sort((a, b) => {
-        // Primary sort: by startTime (newer jobs first) - check both field name variations
+        // Primary sort: by startTime (older jobs first) - check both field name variations
         const aTime = (a as any).start_time || a.startTime;
         const bTime = (b as any).start_time || b.startTime;
         if (aTime && bTime) {
             const timeA = new Date(aTime).getTime();
             const timeB = new Date(bTime).getTime();
             if (timeA !== timeB) {
-                return timeB - timeA; // Descending order (newest first)
+                return timeA - timeB; // Ascending order (oldest first)
             }
         }
 
@@ -44,7 +44,7 @@ const sortJobs = (jobs: Job[]): Job[] => {
         const numB = getNumericId(b.id);
 
         if (numA !== numB) {
-            return numB - numA; // Descending order by numeric ID
+            return numA - numB; // Ascending order by numeric ID
         }
 
         // Fallback: string comparison if numeric parts are equal

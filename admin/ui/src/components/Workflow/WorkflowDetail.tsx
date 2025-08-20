@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {Job, JobStatus, WorkflowJob} from '@/types';
 import {WorkflowGraph} from './WorkflowGraph';
-import {ArrowLeft, BarChart3, FileText, List, Network, Play, RotateCcw, X} from 'lucide-react';
+import {ArrowLeft, BarChart3, FileText, List, Network, RotateCcw, X} from 'lucide-react';
 import {apiService} from '@/services/apiService.ts';
 import {useLogStream} from '../../hooks/useLogStream';
 import clsx from 'clsx';
@@ -13,7 +13,7 @@ interface WorkflowDetailProps {
 }
 
 interface WorkflowData {
-    id: number;
+    id: string | number; // Support both UUID strings and legacy numeric IDs
     name: string;
     workflow: string;
     status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
@@ -38,7 +38,6 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     const [workflow, setWorkflow] = useState<WorkflowData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [executing, setExecuting] = useState<boolean>(false);
 
     // Job Details Modal State
     const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -70,33 +69,15 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         fetchWorkflow();
     }, [fetchWorkflow]);
 
+    // Automatically navigate back if workflow fails to load (not found)
+    useEffect(() => {
+        if (error && error.includes('not found')) {
+            onBack();
+        }
+    }, [error, onBack]);
+
     const handleJobSelect = (job: Job | null) => {
         setSelectedJob(job);
-    };
-
-    const handleExecuteWorkflow = async () => {
-        if (!workflow || executing) return;
-
-        setExecuting(true);
-        setError(null);
-
-        try {
-            // We need the workflow file path to execute it
-            // For now, we'll show an alert since we don't have the file path stored
-            // In a real implementation, you'd store the file path with the workflow
-            alert('Workflow execution requires the original workflow file path. This feature will be available once file paths are tracked with workflows.');
-
-            // When file paths are available:
-            // const result = await apiService.executeWorkflow(workflow.filePath, true);
-            // console.log('Workflow started:', result);
-            // 
-            // // Refresh workflow to see new execution
-            // await fetchWorkflow();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to execute workflow');
-        } finally {
-            setExecuting(false);
-        }
     };
 
     const handleJobAction = (job: Job, action: string) => {
@@ -369,20 +350,6 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                         <p className="mt-2 text-gray-300">Workflow: {workflow.workflow}</p>
                     </div>
                     <div className="flex space-x-2">
-                        {workflow.status !== 'RUNNING' && (
-                            <button
-                                onClick={handleExecuteWorkflow}
-                                disabled={executing}
-                                className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-                                    executing
-                                        ? 'border border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
-                                        : 'border border-transparent text-white bg-green-600 hover:bg-green-700'
-                                }`}
-                            >
-                                <Play className="w-4 h-4 mr-2"/>
-                                {executing ? 'Starting...' : 'Execute Workflow'}
-                            </button>
-                        )}
                         <button
                             onClick={onRefresh}
                             className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"

@@ -194,12 +194,19 @@ app.post('/api/jobs/execute', async (req, res) => {
         // Execute the job
         const output = await execRnx(rnxArgs, {node});
 
-        // Extract job ID from output (format: "Job started:\nID: 45\nCommand: ...\nStatus: RUNNING\nStartTime:")
+        // Extract job UUID from output (format may now include UUID instead of numeric ID)
         let jobId = `job-${Date.now()}`;
         if (output) {
-            const idMatch = output.match(/ID:\s*(\d+)/);
-            if (idMatch && idMatch[1]) {
-                jobId = idMatch[1];
+            // Try to match UUID format first (both full and short form)
+            const uuidMatch = output.match(/(?:Job UUID|ID):\s*([a-f0-9-]{8,36})/i);
+            if (uuidMatch && uuidMatch[1]) {
+                jobId = uuidMatch[1];
+            } else {
+                // Fallback to numeric ID format for backward compatibility
+                const idMatch = output.match(/ID:\s*(\d+)/);
+                if (idMatch && idMatch[1]) {
+                    jobId = idMatch[1];
+                }
             }
         }
 
@@ -303,7 +310,11 @@ app.get('/api/workflows/:workflowId', async (req, res) => {
                 workflows = JSON.parse(workflowsOutput);
             }
 
-            const workflow = workflows.find(w => w.id.toString() === workflowId);
+            const workflow = workflows.find(w => 
+                (w.uuid && w.uuid.toString() === workflowId) ||
+                (w.workflowUuid && w.workflowUuid.toString() === workflowId) ||
+                (w.id && w.id.toString() === workflowId)
+            );
             if (!workflow) {
                 return res.status(404).json({error: 'Workflow not found'});
             }
@@ -311,24 +322,26 @@ app.get('/api/workflows/:workflowId', async (req, res) => {
             workflowData = workflow;
         }
 
-        // Use real job IDs from RNX workflow status
-        // RNX now provides actual job IDs in workflow status
-        // NOTE: Non-starting and cancelled jobs may have ID 0, which causes UI collision
+        // Use real job UUIDs from RNX workflow status
+        // RNX now provides actual job UUIDs in workflow status
+        // NOTE: Non-starting and cancelled jobs may not have a UUID assigned
 
         // First pass: create a mapping of job names to UI IDs
         const jobNameToUiId = new Map();
         (workflowData.jobs || []).forEach((job, index) => {
-            const rnxJobId = job.id !== undefined && job.id !== null ? job.id : null;
+            // Handle new UUID format: jobUuid instead of id
+            const rnxJobUuid = job.jobUuid || job.id || null;
             let uiJobId;
 
-            // For non-starting jobs (ID 0 or null), create a unique UI identifier
-            if (rnxJobId === 0 || rnxJobId === null) {
+            // For non-starting jobs (no UUID or null), create a unique UI identifier
+            if (!rnxJobUuid) {
                 const baseName = job.name || `job-${index}`;
                 const jobStatus = job.status || 'PENDING';
                 const statusSuffix = jobStatus.toLowerCase().replace(/[^a-z0-9]/g, '');
                 uiJobId = `${baseName}-${statusSuffix}-${index}`;
             } else {
-                uiJobId = rnxJobId.toString();
+                // Use UUID directly as UI ID (UUIDs are already unique)
+                uiJobId = rnxJobUuid;
             }
 
             jobNameToUiId.set(job.name || `job-${index}`, uiJobId);
@@ -336,33 +349,27 @@ app.get('/api/workflows/:workflowId', async (req, res) => {
 
         // Second pass: create job objects with properly mapped dependencies
         const jobsWithDetails = (workflowData.jobs || []).map((job, index) => {
-            // For RNX: job.id can be 0 for non-starting or cancelled jobs, which is valid
-            const rnxJobId = job.id !== undefined && job.id !== null ? job.id : null;
+            // Handle new UUID format: jobUuid instead of id
+            const rnxJobUuid = job.jobUuid || job.id || null;
             const jobStatus = job.status || 'UNKNOWN';
 
-            // Create unique UI identifier to prevent collisions
-            // Jobs with same RNX ID (especially 0) need unique UI identifiers
+            // Create unique UI identifier
             let uiJobId;
 
-            if (rnxJobId === 0 || rnxJobId === null) {
-                // For jobs with ID 0 or null (non-starting, cancelled, etc.)
+            if (!rnxJobUuid) {
+                // For jobs with no UUID (non-starting, cancelled, etc.)
                 // Use job name + status + index to ensure uniqueness
                 const baseName = job.name || `job-${index}`;
                 const statusSuffix = jobStatus.toLowerCase().replace(/[^a-z0-9]/g, ''); // Clean status for ID
                 uiJobId = `${baseName}-${statusSuffix}-${index}`;
             } else {
-                // For jobs with actual RNX job IDs, use the RNX ID but ensure it's unique
-                // In case multiple jobs somehow have the same RNX ID, add index as fallback
-                const baseId = rnxJobId.toString();
-                // Check if this RNX ID has been used already in this workflow
-                const existingIndex = (workflowData.jobs || []).slice(0, index).findIndex(j =>
-                    (j.id !== undefined && j.id !== null && j.id.toString() === baseId)
-                );
-                uiJobId = existingIndex >= 0 ? `${baseId}-${index}` : baseId;
+                // Use UUID directly as UI ID (UUIDs are already unique)
+                uiJobId = rnxJobUuid;
             }
 
             // Determine if job has actually started executing
-            const hasActuallyStarted = rnxJobId !== null && rnxJobId !== 0 &&
+            // With UUIDs, jobs that have started will have a valid UUID
+            const hasActuallyStarted = rnxJobUuid !== null &&
                 ['RUNNING', 'COMPLETED', 'FAILED'].includes(jobStatus);
 
             // Map dependencies from job names to UI IDs
@@ -373,7 +380,7 @@ app.get('/api/workflows/:workflowId', async (req, res) => {
 
             return {
                 id: uiJobId, // UI identifier (guaranteed unique)
-                rnxJobId: rnxJobId, // Original RNX job ID (can be 0 or null)
+                rnxJobId: rnxJobUuid, // Original RNX job UUID (can be null for non-started jobs)
                 name: job.name || `job-${index}`,
                 status: jobStatus,
                 dependsOn: mappedDependencies, // Dependencies mapped to UI IDs
@@ -402,7 +409,7 @@ app.get('/api/workflows/:workflowId', async (req, res) => {
 
         // Format workflow data for the UI
         const workflowWithJobs = {
-            id: workflowData.id || workflowId,
+            id: workflowData.workflowUuid || workflowData.id || workflowId,
             name: workflowData.workflow || workflowData.name || `Workflow ${workflowId}`,
             workflow: workflowData.workflow || workflowData.name || 'unknown',
             status: workflowData.status || 'UNKNOWN',
@@ -445,7 +452,7 @@ app.get('/api/jobs/:jobId', async (req, res) => {
 
                 // Map RNX response to expected Job interface
                 jobDetails = {
-                    id: rawJob.id || jobId,
+                    id: rawJob.jobUuid || rawJob.id || jobId,
                     command: rawJob.command || '',
                     args: rawJob.args || [],
                     status: rawJob.status || 'UNKNOWN',
@@ -1061,12 +1068,19 @@ app.post('/api/workflows/execute', async (req, res) => {
             // Execute the workflow directly from the file path
             const output = await execRnx(['run', '--workflow', filePath], {node});
 
-            // Extract workflow ID from output
+            // Extract workflow UUID from output
             let workflowId = `workflow-${Date.now()}`;
             if (output) {
-                const idMatch = output.match(/Workflow ID:\\s*(\\d+)/);
-                if (idMatch && idMatch[1]) {
-                    workflowId = idMatch[1];
+                // Try to match UUID format first (both full and short form)
+                const uuidMatch = output.match(/(?:Workflow UUID|Workflow ID):\s*([a-f0-9-]{8,36})/i);
+                if (uuidMatch && uuidMatch[1]) {
+                    workflowId = uuidMatch[1];
+                } else {
+                    // Fallback to numeric ID format for backward compatibility
+                    const idMatch = output.match(/Workflow ID:\s*(\d+)/);
+                    if (idMatch && idMatch[1]) {
+                        workflowId = idMatch[1];
+                    }
                 }
             }
 

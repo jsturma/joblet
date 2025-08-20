@@ -59,6 +59,16 @@ const Jobs: React.FC = () => {
         }
     };
 
+    const shortenUuid = (uuid: string) => {
+        if (!uuid) return '-';
+        // If it looks like a UUID (contains hyphens or is long), show first 8 characters
+        if (uuid.includes('-') || uuid.length > 12) {
+            return uuid.substring(0, 8);
+        }
+        // Otherwise return as-is (might already be short)
+        return uuid;
+    };
+
     const handleViewJob = async (jobId: string) => {
         setSelectedJobId(jobId);
         setActiveTab('logs');
@@ -198,8 +208,8 @@ const Jobs: React.FC = () => {
                                         <tr key={job.id} className="hover:bg-gray-700">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div>
-                                                    <div className="text-sm text-white">
-                                                        {job.id}
+                                                    <div className="text-sm text-white font-mono" title={job.id}>
+                                                        {shortenUuid(job.id)}
                                                     </div>
                                                 </div>
                                             </td>
@@ -230,11 +240,12 @@ const Jobs: React.FC = () => {
                                                     >
                                                         <FileText className="h-4 w-4"/>
                                                     </button>
-                                                    {job.status === 'RUNNING' ? (
+                                                    {job.status === 'RUNNING' && (
                                                         <button className="text-red-600 hover:text-red-900">
                                                             <Square className="h-4 w-4"/>
                                                         </button>
-                                                    ) : (
+                                                    )}
+                                                    {job.status === 'SCHEDULED' && (
                                                         <button className="text-blue-600 hover:text-blue-300">
                                                             <Play className="h-4 w-4"/>
                                                         </button>

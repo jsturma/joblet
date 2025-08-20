@@ -58,8 +58,10 @@ const Workflows: React.FC = () => {
     });
 
     const selectedWorkflow = selectedWorkflowId
-        ? allWorkflows.find(w => w.id.toString() === selectedWorkflowId)
+        ? allWorkflows.find(w => w.id && w.id.toString() === selectedWorkflowId)
         : null;
+
+
 
     // Update URL when workflow selection changes
     useEffect(() => {
@@ -184,11 +186,11 @@ const Workflows: React.FC = () => {
         }
     }, [createWorkflowModal.show]);
 
-    // Show workflow detail view if a workflow is selected
-    if (selectedWorkflow) {
+    // Show workflow detail view if a workflow ID is selected (even if not found in list)
+    if (selectedWorkflowId) {
         return (
             <WorkflowDetail
-                workflowId={selectedWorkflow.id.toString()}
+                workflowId={selectedWorkflowId}
                 onBack={handleBack}
                 onRefresh={refreshWorkflows}
             />
