@@ -37,6 +37,19 @@ type FakeJobStoreAdapter struct {
 		result1 *domain.Job
 		result2 bool
 	}
+	GetJobByPrefixStub        func(string) (*domain.Job, bool)
+	getJobByPrefixMutex       sync.RWMutex
+	getJobByPrefixArgsForCall []struct {
+		arg1 string
+	}
+	getJobByPrefixReturns struct {
+		result1 *domain.Job
+		result2 bool
+	}
+	getJobByPrefixReturnsOnCall map[int]struct {
+		result1 *domain.Job
+		result2 bool
+	}
 	GetOutputStub        func(string) ([]byte, bool, error)
 	getOutputMutex       sync.RWMutex
 	getOutputArgsForCall []struct {
@@ -234,6 +247,70 @@ func (fake *FakeJobStoreAdapter) GetJobReturnsOnCall(i int, result1 *domain.Job,
 		})
 	}
 	fake.getJobReturnsOnCall[i] = struct {
+		result1 *domain.Job
+		result2 bool
+	}{result1, result2}
+}
+
+func (fake *FakeJobStoreAdapter) GetJobByPrefix(arg1 string) (*domain.Job, bool) {
+	fake.getJobByPrefixMutex.Lock()
+	ret, specificReturn := fake.getJobByPrefixReturnsOnCall[len(fake.getJobByPrefixArgsForCall)]
+	fake.getJobByPrefixArgsForCall = append(fake.getJobByPrefixArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GetJobByPrefixStub
+	fakeReturns := fake.getJobByPrefixReturns
+	fake.recordInvocation("GetJobByPrefix", []interface{}{arg1})
+	fake.getJobByPrefixMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeJobStoreAdapter) GetJobByPrefixCallCount() int {
+	fake.getJobByPrefixMutex.RLock()
+	defer fake.getJobByPrefixMutex.RUnlock()
+	return len(fake.getJobByPrefixArgsForCall)
+}
+
+func (fake *FakeJobStoreAdapter) GetJobByPrefixCalls(stub func(string) (*domain.Job, bool)) {
+	fake.getJobByPrefixMutex.Lock()
+	defer fake.getJobByPrefixMutex.Unlock()
+	fake.GetJobByPrefixStub = stub
+}
+
+func (fake *FakeJobStoreAdapter) GetJobByPrefixArgsForCall(i int) string {
+	fake.getJobByPrefixMutex.RLock()
+	defer fake.getJobByPrefixMutex.RUnlock()
+	argsForCall := fake.getJobByPrefixArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeJobStoreAdapter) GetJobByPrefixReturns(result1 *domain.Job, result2 bool) {
+	fake.getJobByPrefixMutex.Lock()
+	defer fake.getJobByPrefixMutex.Unlock()
+	fake.GetJobByPrefixStub = nil
+	fake.getJobByPrefixReturns = struct {
+		result1 *domain.Job
+		result2 bool
+	}{result1, result2}
+}
+
+func (fake *FakeJobStoreAdapter) GetJobByPrefixReturnsOnCall(i int, result1 *domain.Job, result2 bool) {
+	fake.getJobByPrefixMutex.Lock()
+	defer fake.getJobByPrefixMutex.Unlock()
+	fake.GetJobByPrefixStub = nil
+	if fake.getJobByPrefixReturnsOnCall == nil {
+		fake.getJobByPrefixReturnsOnCall = make(map[int]struct {
+			result1 *domain.Job
+			result2 bool
+		})
+	}
+	fake.getJobByPrefixReturnsOnCall[i] = struct {
 		result1 *domain.Job
 		result2 bool
 	}{result1, result2}
