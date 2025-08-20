@@ -40,7 +40,7 @@ export const useWorkflows = (): UseWorkflowsReturn => {
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(10);
 
-    const fetchWorkflows = useCallback(async (showLoading: boolean = false): Promise<void> => {
+    const fetchWorkflows = useCallback(async (showLoading = false): Promise<void> => {
         try {
             if (showLoading) {
                 setLoading(true);

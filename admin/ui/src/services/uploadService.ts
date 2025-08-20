@@ -66,8 +66,8 @@ export class UploadService {
 
         // Process files with their paths
         Array.from(files).forEach((file) => {
-            // @ts-ignore - webkitRelativePath is available in browsers
-            const path = file.webkitRelativePath || file.name;
+            const fileWithPath = file as File & { webkitRelativePath?: string };
+            const path = fileWithPath.webkitRelativePath || file.name;
             formData.append(path, file);
         });
 

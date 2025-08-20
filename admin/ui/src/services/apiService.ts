@@ -35,7 +35,7 @@ export const API_BASE_URL = (import.meta as any).env?.DEV
 
 class APIService {
     private baseURL: string;
-    private currentNode: string = 'default';
+    private currentNode = 'default';
 
     constructor() {
         this.baseURL = `${API_BASE_URL}/api`;
@@ -151,7 +151,7 @@ class APIService {
         });
     }
 
-    async createVolume(name: string, size: string, type: string = 'filesystem'): Promise<{
+    async createVolume(name: string, size: string, type = 'filesystem'): Promise<{
         success: boolean;
         message: string
     }> {
@@ -202,7 +202,7 @@ class APIService {
     private async request<T>(
         endpoint: string,
         options: RequestInit = {},
-        includeNode: boolean = true
+        includeNode = true
     ): Promise<T> {
         // Add node parameter to GET requests
         let url = `${this.baseURL}${endpoint}`;

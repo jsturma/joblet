@@ -61,7 +61,7 @@ export const useJobs = (): UseJobsReturn => {
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(10);
 
-    const fetchJobs = useCallback(async (showLoading: boolean = false): Promise<void> => {
+    const fetchJobs = useCallback(async (showLoading = false): Promise<void> => {
         try {
             if (showLoading) {
                 setLoading(true);

@@ -194,10 +194,10 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
             // Check if this looks like a directory structure (files have path separators)
-            const hasDirectoryStructure = Array.from(files).some(file =>
-                // @ts-ignore - webkitRelativePath is available in browsers
-                file.webkitRelativePath && file.webkitRelativePath.includes('/')
-            );
+            const hasDirectoryStructure = Array.from(files).some(file => {
+                const fileWithPath = file as File & { webkitRelativePath?: string };
+                return fileWithPath.webkitRelativePath && fileWithPath.webkitRelativePath.includes('/');
+            });
 
             if (hasDirectoryStructure) {
                 handleDirectoryUpload(files);
@@ -370,9 +370,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                     <input
                                         ref={dirInputRef}
                                         type="file"
-                                        // @ts-ignore
-                                        webkitdirectory="true"
-                                        directory="true"
+                                        {...{webkitdirectory: "true", directory: "true"} as React.InputHTMLAttributes<HTMLInputElement>}
                                         multiple
                                         onChange={(e) => handleDirectoryUpload(e.target.files)}
                                         className="hidden"

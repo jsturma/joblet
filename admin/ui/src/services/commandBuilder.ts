@@ -1,11 +1,10 @@
 import {GeneratedCommand, JobConfig, JobFlag} from '../types/job';
 
 export class CommandBuilder {
-    private command: string = '';
+    private command = '';
     private flags: Map<string, string | string[]> = new Map();
 
-    constructor() {
-    }
+    // Constructor is intentionally empty - initialization done via field declarations
 
     static fromJobConfig(config: JobConfig): GeneratedCommand {
         const builder = new CommandBuilder()
