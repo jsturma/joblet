@@ -245,7 +245,7 @@ const Jobs: React.FC = () => {
                                                             <Square className="h-4 w-4"/>
                                                         </button>
                                                     )}
-                                                    {job.status === 'SCHEDULED' && (
+                                                    {(job.status === 'QUEUED' || job.status === 'PENDING') && (
                                                         <button className="text-blue-600 hover:text-blue-300">
                                                             <Play className="h-4 w-4"/>
                                                         </button>

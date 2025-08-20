@@ -16,8 +16,7 @@ const Workflows: React.FC = () => {
         totalWorkflows,
         totalPages,
         setCurrentPage,
-        setPageSize,
-        workflows: allWorkflows
+        setPageSize
     } = useWorkflows();
 
     // Initialize selected workflow from URL on component mount
@@ -56,10 +55,6 @@ const Workflows: React.FC = () => {
         loading: false,
         error: ''
     });
-
-    const selectedWorkflow = selectedWorkflowId
-        ? allWorkflows.find(w => w.id && w.id.toString() === selectedWorkflowId)
-        : null;
 
 
 

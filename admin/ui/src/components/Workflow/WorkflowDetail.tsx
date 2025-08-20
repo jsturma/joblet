@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {Job, JobStatus, WorkflowJob} from '@/types';
 import {WorkflowGraph} from './WorkflowGraph';
 import {ArrowLeft, BarChart3, FileText, List, Network, RotateCcw, X} from 'lucide-react';
-import {apiService} from '@/services/apiService.ts';
+import {apiService} from '@/services/apiService';
 import {useLogStream} from '../../hooks/useLogStream';
 import clsx from 'clsx';
 
@@ -66,7 +66,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     }, [workflowId]);
 
     useEffect(() => {
-        fetchWorkflow();
+        void fetchWorkflow();
     }, [fetchWorkflow]);
 
     // Automatically navigate back if workflow fails to load (not found)
@@ -82,7 +82,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
 
     const handleJobAction = (job: Job, action: string) => {
         if (action === 'details') {
-            handleViewJob(job.id);
+            void handleViewJob(job.id);
         }
     };
 
@@ -161,7 +161,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                         resourceUsage: undefined
                     });
                 } else {
-                    throw new Error('Job not found in workflow');
+                    console.error('Job not found in workflow');
                 }
             }
         } catch (error) {
@@ -413,7 +413,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                         {workflow.jobs.map(job => (
                                             <div key={job.id}
                                                  className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
-                                                 onClick={() => handleViewJob(job.id)}>
+                                                 onClick={() => { void handleViewJob(job.id); }}>
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex-1">
                                                         <div className="flex items-center space-x-3">
@@ -421,7 +421,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    handleViewJob(job.id);
+                                                                    void handleViewJob(job.id);
                                                                 }}
                                                                 className="text-green-600 hover:text-green-300"
                                                                 title="View Job Details & Logs"
@@ -488,7 +488,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                 return (
                                                     <div key={job.id}
                                                          className="flex items-center space-x-4 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                                                         onClick={() => handleViewJob(job.id)}>
+                                                         onClick={() => { void handleViewJob(job.id); }}>
                                                         <div className="w-8 text-center text-sm text-gray-500">
                                                             {index + 1}
                                                         </div>
@@ -498,7 +498,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        handleViewJob(job.id);
+                                                                        void handleViewJob(job.id);
                                                                     }}
                                                                     className="text-green-600 hover:text-green-300"
                                                                     title="View Job Details & Logs"
