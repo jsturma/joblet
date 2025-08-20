@@ -106,7 +106,8 @@ func formatJobList(jobs []*pb.Job) {
 	}
 
 	// some padding and limit max widths for readability
-	maxIDWidth = min(maxIDWidth+2, 20)
+	// UUID width should accommodate full UUIDs (36 chars) plus padding
+	maxIDWidth = min(maxIDWidth+2, 38) // Full UUID width
 	maxNameWidth = min(maxNameWidth+2, 25)
 	maxStatusWidth += 2
 

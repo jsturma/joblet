@@ -381,9 +381,9 @@ func getWorkflowStatus(workflowID string) error {
 	// Display jobs with detailed information
 	if len(res.Jobs) > 0 {
 		fmt.Printf("Jobs in Workflow:\n")
-		fmt.Printf("-----------------------------------------------------------------------------------------\n")
-		fmt.Printf("%-15s %-20s %-12s %-10s %-20s\n", "JOB ID", "JOB NAME", "STATUS", "EXIT CODE", "DEPENDENCIES")
-		fmt.Printf("-----------------------------------------------------------------------------------------\n")
+		fmt.Printf("-----------------------------------------------------------------------------------------------------------------------------\n")
+		fmt.Printf("%-38s %-20s %-12s %-10s %-20s\n", "JOB ID", "JOB NAME", "STATUS", "EXIT CODE", "DEPENDENCIES")
+		fmt.Printf("-----------------------------------------------------------------------------------------------------------------------------\n")
 
 		for _, job := range res.Jobs {
 			// Format status with color
@@ -410,13 +410,10 @@ func getWorkflowStatus(workflowID string) error {
 				jobName = jobName[:17] + "..."
 			}
 
-			// Truncate job ID for display
+			// Use full job UUID (no truncation needed with wider format)
 			jobID := job.JobUuid
-			if len(jobID) > 15 {
-				jobID = jobID[:12] + "..."
-			}
 
-			fmt.Printf("%-15s %-20s %s%-12s%s %-10s %-20s\n",
+			fmt.Printf("%-38s %-20s %s%-12s%s %-10s %-20s\n",
 				jobID,
 				jobName,
 				jobStatusColor, job.Status, resetColor,
@@ -426,7 +423,7 @@ func getWorkflowStatus(workflowID string) error {
 			// Show timing for completed/running jobs
 			if job.StartTime != nil && job.StartTime.Seconds > 0 {
 				startTime := time.Unix(job.StartTime.Seconds, 0)
-				fmt.Printf("                     Started: %s", startTime.Format("15:04:05"))
+				fmt.Printf("                                        Started: %s", startTime.Format("15:04:05"))
 				if job.EndTime != nil && job.EndTime.Seconds > 0 {
 					endTime := time.Unix(job.EndTime.Seconds, 0)
 					duration := endTime.Sub(startTime)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	pb "joblet/api/gen"
@@ -48,6 +49,10 @@ type WorkflowServiceServer struct {
 	workflowManager   *workflow.WorkflowManager
 	workflowValidator *validation.WorkflowValidator
 	logger            *logger.Logger
+
+	// UUID to workflow ID mapping
+	workflowUuidMap  map[string]int
+	workflowMapMutex sync.RWMutex
 }
 
 // NewWorkflowServiceServer creates a new gRPC service server for workflow operations.
@@ -67,6 +72,7 @@ func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.Jo
 		workflowManager:   workflowManager,
 		workflowValidator: workflowValidator,
 		logger:            logger.WithField("component", "workflow-grpc"),
+		workflowUuidMap:   make(map[string]int),
 	}
 }
 
@@ -94,15 +100,15 @@ func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWork
 	// Check if we have YAML content (client-side upload) or just a workflow path
 	if req.YamlContent != "" {
 		log.Info("detected client-side YAML content, starting workflow orchestration with uploaded files")
-		workflowID, err := s.StartWorkflowOrchestrationWithContent(ctx, req.YamlContent, req.WorkflowFiles)
+		workflowUuid, err := s.StartWorkflowOrchestrationWithContent(ctx, req.YamlContent, req.WorkflowFiles)
 		if err != nil {
 			log.Error("failed to start workflow orchestration with content", "error", err)
 			return nil, status.Errorf(codes.Internal, "failed to start workflow orchestration: %v", err)
 		}
 
-		log.Info("workflow orchestration started successfully with uploaded content", "workflowId", workflowID)
+		log.Info("workflow orchestration started successfully with uploaded content", "workflowUuid", workflowUuid)
 		return &pb.RunWorkflowResponse{
-			WorkflowUuid: s.generateWorkflowUUID(),
+			WorkflowUuid: workflowUuid,
 			Status:       "STARTED",
 		}, nil
 	}
@@ -110,29 +116,33 @@ func (s *WorkflowServiceServer) RunWorkflow(ctx context.Context, req *pb.RunWork
 	// Check if workflow is a YAML file path and parse it (server-side files)
 	if strings.HasSuffix(req.Workflow, ".yaml") || strings.HasSuffix(req.Workflow, ".yml") {
 		log.Info("detected YAML workflow, starting workflow orchestration")
-		workflowID, err := s.StartWorkflowOrchestration(ctx, req.Workflow)
+		workflowUuid, err := s.StartWorkflowOrchestration(ctx, req.Workflow)
 		if err != nil {
 			log.Error("failed to start workflow orchestration", "error", err)
 			return nil, status.Errorf(codes.Internal, "failed to start workflow orchestration: %v", err)
 		}
 
-		log.Info("workflow orchestration started successfully", "workflowId", workflowID)
+		log.Info("workflow orchestration started successfully", "workflowUuid", workflowUuid)
 		return &pb.RunWorkflowResponse{
-			WorkflowUuid: s.generateWorkflowUUID(),
+			WorkflowUuid: workflowUuid,
 			Status:       "STARTED",
 		}, nil
 	}
 
 	// Fallback to simple workflow creation for non-YAML workflows
+	// Generate UUID for simple workflow creation
+	workflowUuid := s.generateWorkflowUUID()
 	workflowID, err := s.workflowManager.CreateWorkflow(req.Workflow, make(map[string]*workflow.JobDependency), req.JobOrder)
 	if err != nil {
 		log.Error("failed to create workflow", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to create workflow: %v", err)
 	}
 
-	log.Info("workflow created successfully", "workflowId", workflowID)
+	// Store workflow UUID -> ID mapping
+	s.storeWorkflowMapping(workflowUuid, workflowID)
+	log.Info("workflow created successfully", "workflowId", workflowID, "workflowUuid", workflowUuid)
 	return &pb.RunWorkflowResponse{
-		WorkflowUuid: s.generateWorkflowUUID(),
+		WorkflowUuid: workflowUuid,
 		Status:       "STARTED",
 	}, nil
 }
@@ -149,8 +159,16 @@ func (s *WorkflowServiceServer) GetWorkflowStatus(ctx context.Context, req *pb.G
 		return nil, err
 	}
 
-	// Convert workflow UUID to internal ID (placeholder implementation)
-	workflowID := s.convertWorkflowUUIDToID(req.WorkflowUuid)
+	// Look up workflow ID by UUID (supports prefix matching)
+	workflowID, found := s.lookupWorkflowID(req.WorkflowUuid)
+	if !found {
+		log.Error("workflow not found", "workflowUuid", req.WorkflowUuid)
+		return nil, status.Errorf(codes.NotFound, "workflow not found: %s", req.WorkflowUuid)
+	}
+
+	// Find the full UUID for this workflow ID
+	fullUuid := s.getFullUuidForWorkflowID(workflowID)
+
 	workflowState, err := s.workflowManager.GetWorkflowStatus(workflowID)
 	if err != nil {
 		log.Error("failed to get workflow status", "error", err)
@@ -158,6 +176,8 @@ func (s *WorkflowServiceServer) GetWorkflowStatus(ctx context.Context, req *pb.G
 	}
 
 	workflowInfo := s.convertWorkflowStateToInfo(workflowState)
+	// Override the UUID with the actual full UUID
+	workflowInfo.Uuid = fullUuid
 	workflowJobs := s.convertJobDependenciesToWorkflowJobs(workflowState.Jobs)
 
 	return &pb.GetWorkflowStatusResponse{
@@ -317,7 +337,7 @@ func (s *WorkflowServiceServer) convertToWorkflowJobRequest(req *pb.RunJobReques
 
 func (s *WorkflowServiceServer) convertWorkflowStateToInfo(ws *workflow.WorkflowState) *pb.WorkflowInfo {
 	info := &pb.WorkflowInfo{
-		Uuid:          s.convertWorkflowIDToUUID(ws.ID),
+		Uuid:          s.getFullUuidForWorkflowID(ws.ID),
 		Workflow:      ws.Workflow,
 		Status:        string(ws.Status),
 		TotalJobs:     int32(ws.TotalJobs),
@@ -411,20 +431,22 @@ func (s *WorkflowServiceServer) convertTimeToTimestamp(t time.Time) *pb.Timestam
 // Parses the workflow definition, creates jobs with dependencies, and begins orchestration.
 // This method handles server-side workflow files stored on the filesystem.
 // Returns the workflow ID for tracking progress and status.
-func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, yamlPath string) (int, error) {
-	log := s.logger.WithField("yamlPath", yamlPath)
+func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, yamlPath string) (string, error) {
+	// Generate UUID for this workflow
+	workflowUuid := s.generateWorkflowUUID()
+	log := s.logger.WithFields("yamlPath", yamlPath, "workflowUuid", workflowUuid)
 	log.Info("starting workflow orchestration from YAML")
 
 	workflowYAML, err := s.parseWorkflowYAML(yamlPath)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse workflow YAML: %w", err)
+		return "", fmt.Errorf("failed to parse workflow YAML: %w", err)
 	}
 
 	// Validate workflow before execution
 	log.Info("performing server-side workflow validation")
 	if err := s.workflowValidator.ValidateWorkflow(*workflowYAML); err != nil {
 		log.Error("workflow validation failed", "error", err)
-		return 0, fmt.Errorf("workflow validation failed: %w", err)
+		return "", fmt.Errorf("workflow validation failed: %w", err)
 	}
 	log.Info("workflow validation passed")
 
@@ -464,8 +486,11 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, 
 		jobOrder,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create workflow: %w", err)
+		return "", fmt.Errorf("failed to create workflow: %w", err)
 	}
+
+	// Store workflow UUID -> ID mapping
+	s.storeWorkflowMapping(workflowUuid, workflowID)
 
 	log.Info("workflow created, starting job orchestration", "workflowId", workflowID)
 
@@ -478,7 +503,7 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestration(ctx context.Context, 
 
 	go s.orchestrateWorkflow(context.Background(), workflowID, workflowYAML, nil)
 
-	return workflowID, nil
+	return workflowUuid, nil
 }
 
 func (s *WorkflowServiceServer) orchestrateWorkflow(ctx context.Context, workflowID int, workflowYAML *WorkflowYAML, uploadedFiles map[string][]byte) {
@@ -698,21 +723,23 @@ type JobResources = types.JobResources
 // Handles client-uploaded workflow definitions with associated files.
 // Creates necessary volumes, processes file uploads, creates jobs, and starts orchestration.
 // This is the primary method for client-side workflow execution via the CLI.
-func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx context.Context, yamlContent string, workflowFiles []*pb.FileUpload) (int, error) {
-	log := s.logger.WithField("contentLength", len(yamlContent))
+func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx context.Context, yamlContent string, workflowFiles []*pb.FileUpload) (string, error) {
+	// Generate UUID for this workflow
+	workflowUuid := s.generateWorkflowUUID()
+	log := s.logger.WithFields("contentLength", len(yamlContent), "workflowUuid", workflowUuid)
 	log.Info("starting workflow orchestration from YAML content")
 
 	// Parse YAML content directly
 	workflowYAML, err := s.parseWorkflowYAMLContent(yamlContent)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse workflow YAML content: %w", err)
+		return "", fmt.Errorf("failed to parse workflow YAML content: %w", err)
 	}
 
 	// Validate workflow before execution
 	log.Info("performing server-side workflow validation")
 	if err := s.workflowValidator.ValidateWorkflow(*workflowYAML); err != nil {
 		log.Error("workflow validation failed", "error", err)
-		return 0, fmt.Errorf("workflow validation failed: %w", err)
+		return "", fmt.Errorf("workflow validation failed: %w", err)
 	}
 	log.Info("workflow validation passed")
 
@@ -762,8 +789,11 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 		jobOrder,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create workflow: %w", err)
+		return "", fmt.Errorf("failed to create workflow: %w", err)
 	}
+
+	// Store workflow UUID -> ID mapping
+	s.storeWorkflowMapping(workflowUuid, workflowID)
 
 	log.Info("workflow created from client content, starting job orchestration", "workflowId", workflowID)
 
@@ -777,7 +807,7 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 	// Start orchestration with background context and uploaded files
 	go s.orchestrateWorkflow(context.Background(), workflowID, workflowYAML, uploadedFiles)
 
-	return workflowID, nil
+	return workflowUuid, nil
 }
 
 // parseWorkflowYAMLContent parses workflow YAML content from a string.
@@ -1096,6 +1126,64 @@ func (s *WorkflowServiceServer) generateWorkflowUUID() string {
 
 	// Fallback: generate a simple UUID-like string
 	return fmt.Sprintf("workflow-%d-%d", time.Now().Unix(), time.Now().Nanosecond())
+}
+
+// storeWorkflowMapping stores the UUID to workflow ID mapping
+func (s *WorkflowServiceServer) storeWorkflowMapping(uuid string, workflowID int) {
+	s.workflowMapMutex.Lock()
+	defer s.workflowMapMutex.Unlock()
+	s.workflowUuidMap[uuid] = workflowID
+	s.logger.Debug("stored workflow UUID mapping", "uuid", uuid, "workflowID", workflowID)
+}
+
+// lookupWorkflowID looks up workflow ID by UUID (supports prefix matching)
+func (s *WorkflowServiceServer) lookupWorkflowID(uuid string) (int, bool) {
+	s.workflowMapMutex.RLock()
+	defer s.workflowMapMutex.RUnlock()
+
+	// First try exact match
+	if id, exists := s.workflowUuidMap[uuid]; exists {
+		return id, true
+	}
+
+	// If exact match fails and it's a prefix (less than 36 chars), try prefix matching
+	if len(uuid) < 36 {
+		var matches []int
+		var matchedUuids []string
+		for storedUuid, id := range s.workflowUuidMap {
+			if strings.HasPrefix(storedUuid, uuid) {
+				matches = append(matches, id)
+				matchedUuids = append(matchedUuids, storedUuid)
+			}
+		}
+
+		if len(matches) == 1 {
+			s.logger.Debug("found unique workflow by prefix", "prefix", uuid, "fullUuid", matchedUuids[0], "workflowID", matches[0])
+			return matches[0], true
+		} else if len(matches) > 1 {
+			s.logger.Warn("workflow prefix matches multiple workflows", "prefix", uuid, "matches", matchedUuids)
+			return 0, false
+		}
+	}
+
+	s.logger.Debug("workflow not found by UUID", "uuid", uuid)
+	return 0, false
+}
+
+// getFullUuidForWorkflowID gets the full UUID for a given workflow ID
+func (s *WorkflowServiceServer) getFullUuidForWorkflowID(workflowID int) string {
+	s.workflowMapMutex.RLock()
+	defer s.workflowMapMutex.RUnlock()
+
+	for uuid, id := range s.workflowUuidMap {
+		if id == workflowID {
+			return uuid
+		}
+	}
+
+	// Fallback if not found (shouldn't happen with our implementation)
+	s.logger.Warn("full UUID not found for workflow ID", "workflowID", workflowID)
+	return fmt.Sprintf("unknown-%d", workflowID)
 }
 
 // convertWorkflowUUIDToID converts workflow UUID to internal integer ID (placeholder implementation)
