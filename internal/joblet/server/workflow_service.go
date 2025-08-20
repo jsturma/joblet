@@ -1193,10 +1193,3 @@ func (s *WorkflowServiceServer) convertWorkflowUUIDToID(uuid string) int {
 	// For now, return a hash-based ID or maintain the mapping in workflow manager
 	return 1 // Simplified for now
 }
-
-// convertWorkflowIDToUUID converts internal workflow ID to UUID (placeholder implementation)
-func (s *WorkflowServiceServer) convertWorkflowIDToUUID(id int) string {
-	// This is a placeholder implementation
-	// In a real system, you would maintain a mapping between internal IDs and UUIDs
-	return s.generateWorkflowUUID()
-}
