@@ -1,5 +1,5 @@
 import React from 'react';
-import { HardDrive } from 'lucide-react';
+import {HardDrive} from 'lucide-react';
 
 interface MemoryDetailsCardProps {
     memoryInfo: {
@@ -17,7 +17,7 @@ interface MemoryDetailsCardProps {
     };
 }
 
-const MemoryDetailsCard: React.FC<MemoryDetailsCardProps> = ({ memoryInfo }) => {
+const MemoryDetailsCard: React.FC<MemoryDetailsCardProps> = ({memoryInfo}) => {
     const formatBytes = (bytes: number) => {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -32,7 +32,7 @@ const MemoryDetailsCard: React.FC<MemoryDetailsCardProps> = ({ memoryInfo }) => 
                 <HardDrive className="h-6 w-6 text-green-600 mr-3"/>
                 <h3 className="text-lg font-semibold text-white">Memory Details</h3>
             </div>
-            
+
             <div className="space-y-4">
                 <div>
                     <div className="flex justify-between mb-2">

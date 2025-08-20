@@ -45,7 +45,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         if (jobs.length === 0) {
             return {jobPositions: new Map<string, Position>(), edges: []};
         }
-        
+
         // Debug: Log job dependencies
         console.log('Workflow jobs with dependencies:', jobs.map(j => ({
             id: j.id,
@@ -154,7 +154,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
         // Debug: Log calculated edges
         console.log('Calculated dependency edges:', calculatedEdges);
-        
+
         return {jobPositions: positions, edges: calculatedEdges};
     }, [jobs, jobOverrides]);
 
@@ -208,30 +208,29 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         setIsPanning(false);
         setDraggedJobId(null);
     }, []);
-    
+
     const handleJobMouseDown = useCallback((e: React.MouseEvent, jobId: string) => {
         e.stopPropagation();
         setDraggedJobId(jobId);
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         setLastPanPoint({
             x: e.clientX,
             y: e.clientY
         });
     }, []);
-    
+
     const handleJobMouseMove = useCallback((e: React.MouseEvent) => {
         if (draggedJobId) {
             e.stopPropagation();
             const deltaX = (e.clientX - lastPanPoint.x) / zoom;
             const deltaY = (e.clientY - lastPanPoint.y) / zoom;
-            
+
             const currentPos = jobPositions.get(draggedJobId);
             if (currentPos) {
                 const newPos = {
                     x: currentPos.x + deltaX,
                     y: currentPos.y + deltaY
                 };
-                
+
                 // Update the override position for this job
                 setJobOverrides(prev => {
                     const newOverrides = new Map(prev);
@@ -239,14 +238,14 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                     return newOverrides;
                 });
             }
-            
+
             setLastPanPoint({
                 x: e.clientX,
                 y: e.clientY
             });
         }
     }, [draggedJobId, lastPanPoint, jobPositions, zoom]);
-    
+
     const handleJobMouseUp = useCallback(() => {
         setDraggedJobId(null);
     }, []);
@@ -330,7 +329,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                             />
                         </marker>
                     </defs>
-                    
+
                     {/* Grid background */}
                     <rect width="100%" height="100%" fill="url(#grid)"/>
 
@@ -514,7 +513,8 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                                 <div className="text-xs font-medium text-gray-500 mb-1">Environment</div>
                                 {Object.keys(selectedJob.envVars || {}).length > 0 && (
                                     <div>Variables: <span
-                                        className="font-medium">{Object.keys(selectedJob.envVars || {}).length}</span></div>
+                                        className="font-medium">{Object.keys(selectedJob.envVars || {}).length}</span>
+                                    </div>
                                 )}
                                 {Object.keys(selectedJob.secretEnvVars || {}).length > 0 && (
                                     <div>Secrets: <span

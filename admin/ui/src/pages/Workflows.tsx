@@ -1,8 +1,8 @@
-import React, {useState, useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {useWorkflows} from '../hooks/useWorkflows';
 import WorkflowList from '../components/Workflow/WorkflowList';
 import WorkflowDetail from '../components/Workflow/WorkflowDetail';
-import {Plus, RotateCcw, X, Folder, FileText, ArrowLeft} from 'lucide-react';
+import {ArrowLeft, FileText, Folder, Plus, RotateCcw, X} from 'lucide-react';
 import {apiService} from '../services/apiService';
 
 const Workflows: React.FC = () => {
@@ -19,13 +19,13 @@ const Workflows: React.FC = () => {
         setPageSize,
         workflows: allWorkflows
     } = useWorkflows();
-    
+
     // Initialize selected workflow from URL on component mount
     const getInitialWorkflowId = () => {
         const params = new URLSearchParams(window.location.search);
         return params.get('id');
     };
-    
+
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(getInitialWorkflowId());
     const [createWorkflowModal, setCreateWorkflowModal] = useState({
         show: false,
@@ -82,8 +82,8 @@ const Workflows: React.FC = () => {
     };
 
     const browseDirectory = async (path?: string) => {
-        setDirectoryBrowser(prev => ({ ...prev, loading: true, error: '' }));
-        
+        setDirectoryBrowser(prev => ({...prev, loading: true, error: ''}));
+
         try {
             const result = await apiService.browseWorkflowDirectory(path);
             setDirectoryBrowser({
@@ -105,8 +105,8 @@ const Workflows: React.FC = () => {
     };
 
     const validateSelectedWorkflow = async (filePath: string) => {
-        setWorkflowValidation(prev => ({ ...prev, loading: true, error: '' }));
-        
+        setWorkflowValidation(prev => ({...prev, loading: true, error: ''}));
+
         try {
             const validation = await apiService.validateWorkflow(filePath);
             setWorkflowValidation({
@@ -133,12 +133,12 @@ const Workflows: React.FC = () => {
 
     const handleCreateWorkflow = async (createVolumes = false) => {
         if (!selectedFile) return;
-        
-        setCreateWorkflowModal(prev => ({ ...prev, creating: true }));
-        
+
+        setCreateWorkflowModal(prev => ({...prev, creating: true}));
+
         try {
             await apiService.executeWorkflow(selectedFile, createVolumes);
-            setCreateWorkflowModal({ show: false, creating: false });
+            setCreateWorkflowModal({show: false, creating: false});
             setSelectedFile(null);
             setWorkflowValidation({
                 valid: true,
@@ -151,7 +151,7 @@ const Workflows: React.FC = () => {
             await refreshWorkflows(); // Refresh the workflow list
         } catch (error) {
             console.error('Failed to create workflow:', error);
-            setCreateWorkflowModal(prev => ({ ...prev, creating: false }));
+            setCreateWorkflowModal(prev => ({...prev, creating: false}));
         }
     };
 
@@ -174,7 +174,7 @@ const Workflows: React.FC = () => {
             loading: false,
             error: ''
         });
-        setCreateWorkflowModal({ show: false, creating: false });
+        setCreateWorkflowModal({show: false, creating: false});
     };
 
     // Load directory browser when modal opens
@@ -218,7 +218,7 @@ const Workflows: React.FC = () => {
                             {loading ? 'Refreshing...' : 'Refresh'}
                         </button>
                         <button
-                            onClick={() => setCreateWorkflowModal({ show: true, creating: false })}
+                            onClick={() => setCreateWorkflowModal({show: true, creating: false})}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4 mr-2"/>
@@ -256,8 +256,10 @@ const Workflows: React.FC = () => {
 
             {/* Create Workflow Modal */}
             {createWorkflowModal.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+                    <div
+                        className="relative bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
                         <div className="flex flex-col h-full">
                             {/* Header */}
                             <div className="flex items-center justify-between p-6 border-b border-gray-600">
@@ -270,7 +272,7 @@ const Workflows: React.FC = () => {
                                     <X className="h-5 w-5"/>
                                 </button>
                             </div>
-                            
+
                             {/* Content */}
                             <div className="flex-1 overflow-y-auto p-6">
                                 {/* Current Path */}
@@ -285,7 +287,8 @@ const Workflows: React.FC = () => {
 
                                 {/* Error Message */}
                                 {directoryBrowser.error && (
-                                    <div className="mb-4 p-3 bg-red-800 bg-opacity-50 border border-red-600 rounded text-red-300">
+                                    <div
+                                        className="mb-4 p-3 bg-red-800 bg-opacity-50 border border-red-600 rounded text-red-300">
                                         {directoryBrowser.error}
                                     </div>
                                 )}
@@ -293,7 +296,8 @@ const Workflows: React.FC = () => {
                                 {/* Loading */}
                                 {directoryBrowser.loading ? (
                                     <div className="flex items-center justify-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                        <div
+                                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                         <span className="ml-3 text-gray-300">Loading directory...</span>
                                     </div>
                                 ) : (
@@ -334,7 +338,8 @@ const Workflows: React.FC = () => {
                                         {(directoryBrowser.yamlFiles.length > 0 || directoryBrowser.otherFiles.length > 0) ? (
                                             <div>
                                                 <h4 className="text-sm font-medium text-gray-300 mb-2">
-                                                    Files ({directoryBrowser.yamlFiles.length + directoryBrowser.otherFiles.length})
+                                                    Files
+                                                    ({directoryBrowser.yamlFiles.length + directoryBrowser.otherFiles.length})
                                                 </h4>
                                                 <div className="space-y-1">
                                                     {/* YAML Files (selectable) */}
@@ -350,12 +355,13 @@ const Workflows: React.FC = () => {
                                                         >
                                                             <FileText className="h-4 w-4 text-green-400"/>
                                                             <span>{file.name}</span>
-                                                            <span className="ml-auto text-xs text-green-400 bg-green-900 px-2 py-1 rounded">
+                                                            <span
+                                                                className="ml-auto text-xs text-green-400 bg-green-900 px-2 py-1 rounded">
                                                                 YAML
                                                             </span>
                                                         </button>
                                                     ))}
-                                                    
+
                                                     {/* Other Files (non-selectable) */}
                                                     {directoryBrowser.otherFiles.map((file) => (
                                                         <div
@@ -364,18 +370,21 @@ const Workflows: React.FC = () => {
                                                         >
                                                             <FileText className="h-4 w-4 text-gray-500"/>
                                                             <span>{file.name}</span>
-                                                            <span className="ml-auto text-xs text-gray-500 bg-gray-700 px-2 py-1 rounded">
+                                                            <span
+                                                                className="ml-auto text-xs text-gray-500 bg-gray-700 px-2 py-1 rounded">
                                                                 Not selectable
                                                             </span>
                                                         </div>
                                                     ))}
                                                 </div>
-                                                
+
                                                 {/* Help text for YAML selection */}
                                                 {directoryBrowser.yamlFiles.length === 0 && directoryBrowser.otherFiles.length > 0 && (
-                                                    <div className="mt-3 p-3 bg-yellow-800 bg-opacity-30 border border-yellow-600 rounded">
+                                                    <div
+                                                        className="mt-3 p-3 bg-yellow-800 bg-opacity-30 border border-yellow-600 rounded">
                                                         <p className="text-yellow-300 text-sm">
-                                                            Only YAML files (.yaml/.yml) can be selected for workflow execution.
+                                                            Only YAML files (.yaml/.yml) can be selected for workflow
+                                                            execution.
                                                         </p>
                                                     </div>
                                                 )}
@@ -395,7 +404,8 @@ const Workflows: React.FC = () => {
                                         {/* Selected File Info */}
                                         {selectedFile && (
                                             <div className="mt-4 space-y-3">
-                                                <div className="p-3 bg-blue-800 bg-opacity-30 border border-blue-600 rounded">
+                                                <div
+                                                    className="p-3 bg-blue-800 bg-opacity-30 border border-blue-600 rounded">
                                                     <div className="flex items-center space-x-2">
                                                         <FileText className="h-4 w-4 text-blue-400"/>
                                                         <span className="text-blue-300 font-medium">Selected:</span>
@@ -404,26 +414,31 @@ const Workflows: React.FC = () => {
                                                         {selectedFile}
                                                     </div>
                                                 </div>
-                                                
+
                                                 {/* Workflow Validation */}
                                                 {workflowValidation.loading ? (
                                                     <div className="p-3 bg-gray-700 border border-gray-600 rounded">
                                                         <div className="flex items-center space-x-2">
-                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                                            <span className="text-gray-300">Validating workflow...</span>
+                                                            <div
+                                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                            <span
+                                                                className="text-gray-300">Validating workflow...</span>
                                                         </div>
                                                     </div>
                                                 ) : workflowValidation.error ? (
-                                                    <div className="p-3 bg-red-800 bg-opacity-50 border border-red-600 rounded">
+                                                    <div
+                                                        className="p-3 bg-red-800 bg-opacity-50 border border-red-600 rounded">
                                                         <div className="flex items-center space-x-2">
-                                                            <span className="text-red-300 font-medium">Validation Error:</span>
+                                                            <span
+                                                                className="text-red-300 font-medium">Validation Error:</span>
                                                         </div>
                                                         <div className="mt-1 text-sm text-red-200">
                                                             {workflowValidation.error}
                                                         </div>
                                                     </div>
                                                 ) : workflowValidation.missingVolumes.length > 0 ? (
-                                                    <div className="p-3 bg-yellow-800 bg-opacity-50 border border-yellow-600 rounded">
+                                                    <div
+                                                        className="p-3 bg-yellow-800 bg-opacity-50 border border-yellow-600 rounded">
                                                         <div className="flex items-center space-x-2">
                                                             <span className="text-yellow-300 font-medium">Missing Dependencies:</span>
                                                         </div>
@@ -436,11 +451,13 @@ const Workflows: React.FC = () => {
                                                             ))}
                                                         </ul>
                                                         <div className="mt-2 text-xs text-yellow-300">
-                                                            You can create these volumes automatically when executing the workflow.
+                                                            You can create these volumes automatically when executing
+                                                            the workflow.
                                                         </div>
                                                     </div>
                                                 ) : workflowValidation.requiredVolumes.length > 0 ? (
-                                                    <div className="p-3 bg-green-800 bg-opacity-50 border border-green-600 rounded">
+                                                    <div
+                                                        className="p-3 bg-green-800 bg-opacity-50 border border-green-600 rounded">
                                                         <div className="flex items-center space-x-2">
                                                             <span className="text-green-300 font-medium">Dependencies Satisfied:</span>
                                                         </div>
@@ -457,7 +474,7 @@ const Workflows: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            
+
                             {/* Footer */}
                             <div className="flex space-x-3 justify-end p-6 border-t border-gray-600">
                                 <button
@@ -476,7 +493,8 @@ const Workflows: React.FC = () => {
                                         >
                                             {createWorkflowModal.creating ? (
                                                 <>
-                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                    <div
+                                                        className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                                     Executing...
                                                 </>
                                             ) : (
@@ -493,7 +511,8 @@ const Workflows: React.FC = () => {
                                         >
                                             {createWorkflowModal.creating ? (
                                                 <>
-                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                    <div
+                                                        className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                                     Creating & Executing...
                                                 </>
                                             ) : (
@@ -512,7 +531,8 @@ const Workflows: React.FC = () => {
                                     >
                                         {createWorkflowModal.creating ? (
                                             <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                <div
+                                                    className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                                 Executing...
                                             </>
                                         ) : (

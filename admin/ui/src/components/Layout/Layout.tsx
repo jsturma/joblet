@@ -3,7 +3,7 @@ import {Link, useLocation} from 'react-router-dom';
 import {Activity, HardDrive, HelpCircle, Home, List, Settings, Workflow} from 'lucide-react';
 import clsx from 'clsx';
 import NodeSelector from '../NodeSelector/NodeSelector';
-import { useNode } from '../../contexts/NodeContext';
+import {useNode} from '../../contexts/NodeContext';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -11,7 +11,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({children}) => {
     const location = useLocation();
-    const { selectedNode, setSelectedNode } = useNode();
+    const {selectedNode, setSelectedNode} = useNode();
 
     const navigation = [
         {name: 'Dashboard', href: '/', icon: Home},
@@ -70,12 +70,12 @@ const Layout: React.FC<LayoutProps> = ({children}) => {
 
                 {/* Node Selector */}
                 <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                    <NodeSelector 
-                        selectedNode={selectedNode} 
-                        onNodeChange={setSelectedNode} 
+                    <NodeSelector
+                        selectedNode={selectedNode}
+                        onNodeChange={setSelectedNode}
                     />
                 </div>
-                
+
                 {/* Status */}
                 <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">

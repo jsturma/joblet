@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { apiService } from '../services/apiService';
+import {useCallback, useEffect, useState} from 'react';
+import {apiService} from '../services/apiService';
 
 type WorkflowStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
 
@@ -35,7 +35,7 @@ export const useWorkflows = (): UseWorkflowsReturn => {
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(10);

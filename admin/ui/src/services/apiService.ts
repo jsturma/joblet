@@ -1,4 +1,4 @@
-import {Job, JobExecuteRequest, SystemMetrics, DetailedSystemInfo, WorkflowTemplate} from '../types';
+import {DetailedSystemInfo, Job, JobExecuteRequest, SystemMetrics, WorkflowTemplate} from '../types';
 
 interface Volume {
     id?: string;
@@ -40,11 +40,11 @@ class APIService {
     constructor() {
         this.baseURL = `${API_BASE_URL}/api`;
     }
-    
+
     setNode(node: string) {
         this.currentNode = node;
     }
-    
+
     // Node operations
     async getNodes(): Promise<Node[]> {
         return this.request<Node[]>('/nodes', {}, false); // Don't add node param for this call
@@ -94,14 +94,18 @@ class APIService {
             message: string;
         }>('/workflows/validate', {
             method: 'POST',
-            body: JSON.stringify({ filePath }),
+            body: JSON.stringify({filePath}),
         });
     }
 
-    async executeWorkflow(filePath: string, createMissingVolumes = false): Promise<{ workflowId: string; status: string; message: string }> {
+    async executeWorkflow(filePath: string, createMissingVolumes = false): Promise<{
+        workflowId: string;
+        status: string;
+        message: string
+    }> {
         return this.request<{ workflowId: string; status: string; message: string }>('/workflows/execute', {
             method: 'POST',
-            body: JSON.stringify({ filePath, createMissingVolumes }),
+            body: JSON.stringify({filePath, createMissingVolumes}),
         });
     }
 
@@ -112,14 +116,14 @@ class APIService {
     async executeJob(request: JobExecuteRequest): Promise<{ jobId: string }> {
         return this.request<{ jobId: string }>('/jobs/execute', {
             method: 'POST',
-            body: JSON.stringify({ ...request, node: this.currentNode }),
+            body: JSON.stringify({...request, node: this.currentNode}),
         });
     }
 
     async stopJob(jobId: string): Promise<void> {
         await this.request(`/jobs/${jobId}/stop`, {
             method: 'POST',
-            body: JSON.stringify({ node: this.currentNode }),
+            body: JSON.stringify({node: this.currentNode}),
         });
     }
 
@@ -147,10 +151,13 @@ class APIService {
         });
     }
 
-    async createVolume(name: string, size: string, type: string = 'filesystem'): Promise<{ success: boolean; message: string }> {
+    async createVolume(name: string, size: string, type: string = 'filesystem'): Promise<{
+        success: boolean;
+        message: string
+    }> {
         return this.request<{ success: boolean; message: string }>('/volumes', {
             method: 'POST',
-            body: JSON.stringify({ name, size, type }),
+            body: JSON.stringify({name, size, type}),
         });
     }
 
@@ -162,7 +169,7 @@ class APIService {
     async createNetwork(name: string, cidr: string): Promise<{ success: boolean; message: string }> {
         return this.request<{ success: boolean; message: string }>('/networks', {
             method: 'POST',
-            body: JSON.stringify({ name, cidr }),
+            body: JSON.stringify({name, cidr}),
         });
     }
 
@@ -203,7 +210,7 @@ class APIService {
             const separator = url.includes('?') ? '&' : '?';
             url = `${url}${separator}node=${encodeURIComponent(this.currentNode)}`;
         }
-        
+
         const response = await fetch(url, {
             headers: {
                 'Content-Type': 'application/json',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, Network, Play, Square, ChevronLeft, ChevronRight } from 'lucide-react';
+import {Calendar, ChevronLeft, ChevronRight, Clock, Network, Play, Square} from 'lucide-react';
 
 interface WorkflowListProps {
     workflows: Array<{
@@ -26,16 +26,16 @@ interface WorkflowListProps {
 }
 
 const WorkflowList: React.FC<WorkflowListProps> = ({
-    workflows,
-    onWorkflowClick,
-    loading = false,
-    currentPage = 1,
-    pageSize = 10,
-    totalWorkflows,
-    totalPages = 1,
-    setCurrentPage,
-    setPageSize
-}) => {
+                                                       workflows,
+                                                       onWorkflowClick,
+                                                       loading = false,
+                                                       currentPage = 1,
+                                                       pageSize = 10,
+                                                       totalWorkflows,
+                                                       totalPages = 1,
+                                                       setCurrentPage,
+                                                       setPageSize
+                                                   }) => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'RUNNING':
@@ -97,7 +97,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
 
             {workflows.length === 0 ? (
                 <div className="p-6 text-center">
-                    <Network className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <Network className="h-12 w-12 text-gray-400 mx-auto mb-4"/>
                     <p className="text-gray-500">No workflows found</p>
                     <p className="text-sm text-gray-400 mt-1">
                         Workflows with job dependencies will appear here
@@ -123,25 +123,25 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                             {workflow.status}
                                         </span>
                                     </div>
-                                    
+
                                     <p className="text-sm text-gray-300 mt-1">
                                         {workflow.workflow}
                                     </p>
 
                                     <div className="flex items-center space-x-6 mt-3">
                                         <div className="flex items-center text-sm text-gray-400">
-                                            <Network className="h-4 w-4 mr-1" />
+                                            <Network className="h-4 w-4 mr-1"/>
                                             <span>{workflow.total_jobs} jobs ({workflow.completed_jobs} completed, {workflow.failed_jobs} failed)</span>
                                         </div>
-                                        
+
                                         <div className="flex items-center text-sm text-gray-400">
-                                            <Calendar className="h-4 w-4 mr-1" />
+                                            <Calendar className="h-4 w-4 mr-1"/>
                                             <span>Created: {new Date(workflow.created_at).toLocaleString()}</span>
                                         </div>
-                                        
+
                                         {workflow.started_at && (
                                             <div className="flex items-center text-sm text-gray-400">
-                                                <Clock className="h-4 w-4 mr-1" />
+                                                <Clock className="h-4 w-4 mr-1"/>
                                                 <span>Started: {new Date(workflow.started_at).toLocaleString()}</span>
                                             </div>
                                         )}
@@ -158,7 +158,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                             className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-600 rounded"
                                             title="Stop Workflow"
                                         >
-                                            <Square className="h-4 w-4" />
+                                            <Square className="h-4 w-4"/>
                                         </button>
                                     ) : (
                                         <button
@@ -169,7 +169,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                             className="p-2 text-green-400 hover:text-green-300 hover:bg-gray-600 rounded"
                                             title="Start Workflow"
                                         >
-                                            <Play className="h-4 w-4" />
+                                            <Play className="h-4 w-4"/>
                                         </button>
                                     )}
                                 </div>
@@ -178,7 +178,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                     ))}
                 </div>
             )}
-            
+
             {/* Pagination Controls */}
             {setCurrentPage && totalPages && totalPages > 1 && (
                 <div className="px-6 py-4 border-t border-gray-700">
@@ -195,7 +195,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                 <ChevronLeft className="h-4 w-4 mr-1"/>
                                 Previous
                             </button>
-                            
+
                             {/* Page Numbers */}
                             <div className="flex items-center space-x-1">
                                 {Array.from({length: Math.min(totalPages, 5)}, (_, i) => {
@@ -209,7 +209,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                     } else {
                                         pageNum = currentPage - 2 + i;
                                     }
-                                    
+
                                     return (
                                         <button
                                             key={pageNum}
@@ -225,7 +225,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                     );
                                 })}
                             </div>
-                            
+
                             <button
                                 onClick={() => setCurrentPage?.(currentPage + 1)}
                                 disabled={currentPage === totalPages}

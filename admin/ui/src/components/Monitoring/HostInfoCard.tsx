@@ -1,5 +1,5 @@
 import React from 'react';
-import { Server } from 'lucide-react';
+import {Server} from 'lucide-react';
 
 interface HostInfoCardProps {
     hostInfo: {
@@ -15,12 +15,12 @@ interface HostInfoCardProps {
     };
 }
 
-const HostInfoCard: React.FC<HostInfoCardProps> = ({ hostInfo }) => {
+const HostInfoCard: React.FC<HostInfoCardProps> = ({hostInfo}) => {
     const formatUptime = (seconds: number) => {
         const days = Math.floor(seconds / 86400);
         const hours = Math.floor((seconds % 86400) / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
-        
+
         if (days > 0) {
             return `${days}d ${hours}h ${minutes}m`;
         } else if (hours > 0) {
@@ -36,7 +36,7 @@ const HostInfoCard: React.FC<HostInfoCardProps> = ({ hostInfo }) => {
                 <Server className="h-6 w-6 text-blue-600 mr-3"/>
                 <h3 className="text-lg font-semibold text-white">Host Information</h3>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                     <div>
@@ -56,7 +56,7 @@ const HostInfoCard: React.FC<HostInfoCardProps> = ({ hostInfo }) => {
                         <div className="font-medium text-white">{hostInfo.kernel || 'Unknown'}</div>
                     </div>
                 </div>
-                
+
                 <div className="space-y-3">
                     <div>
                         <span className="text-sm text-gray-400">Uptime</span>

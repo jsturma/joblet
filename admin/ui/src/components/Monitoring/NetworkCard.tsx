@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, Wifi, Activity } from 'lucide-react';
+import {Activity, Network, Wifi} from 'lucide-react';
 
 interface NetworkCardProps {
     networkInfo: {
@@ -23,7 +23,7 @@ interface NetworkCardProps {
     };
 }
 
-const NetworkCard: React.FC<NetworkCardProps> = ({ networkInfo }) => {
+const NetworkCard: React.FC<NetworkCardProps> = ({networkInfo}) => {
     const formatBytes = (bytes: number) => {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -36,9 +36,9 @@ const NetworkCard: React.FC<NetworkCardProps> = ({ networkInfo }) => {
         switch (type.toLowerCase()) {
             case 'wireless':
             case 'wifi':
-                return <Wifi className="h-4 w-4" />;
+                return <Wifi className="h-4 w-4"/>;
             default:
-                return <Network className="h-4 w-4" />;
+                return <Network className="h-4 w-4"/>;
         }
     };
 
@@ -61,7 +61,7 @@ const NetworkCard: React.FC<NetworkCardProps> = ({ networkInfo }) => {
                 <Network className="h-6 w-6 text-indigo-600 mr-3"/>
                 <h3 className="text-lg font-semibold text-white">Network Interfaces</h3>
             </div>
-            
+
             <div className="space-y-4">
                 {networkInfo.interfaces && networkInfo.interfaces.length > 0 ? (
                     networkInfo.interfaces.map((iface, index) => (
@@ -75,7 +75,7 @@ const NetworkCard: React.FC<NetworkCardProps> = ({ networkInfo }) => {
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <Activity className={`h-4 w-4 ${getStatusColor(iface.status)}`} />
+                                    <Activity className={`h-4 w-4 ${getStatusColor(iface.status)}`}/>
                                     <span className={`text-sm font-medium ${getStatusColor(iface.status)}`}>
                                         {iface.status}
                                     </span>
@@ -86,8 +86,8 @@ const NetworkCard: React.FC<NetworkCardProps> = ({ networkInfo }) => {
                                 <div>
                                     <span className="text-gray-400">IP Addresses</span>
                                     <div className="font-medium text-white">
-                                        {iface.ipAddresses && iface.ipAddresses.length > 0 
-                                            ? iface.ipAddresses.join(', ') 
+                                        {iface.ipAddresses && iface.ipAddresses.length > 0
+                                            ? iface.ipAddresses.join(', ')
                                             : 'None'}
                                     </div>
                                 </div>
@@ -102,7 +102,7 @@ const NetworkCard: React.FC<NetworkCardProps> = ({ networkInfo }) => {
                                         <div>
                                             <span className="text-gray-400">Speed</span>
                                             <div className="font-medium text-white">
-                                                {iface.speed >= 1000 
+                                                {iface.speed >= 1000
                                                     ? `${(iface.speed / 1000).toFixed(1)} Gbps`
                                                     : `${iface.speed} Mbps`}
                                             </div>

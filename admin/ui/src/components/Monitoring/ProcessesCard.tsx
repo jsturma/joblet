@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { List, Search } from 'lucide-react';
+import React, {useState} from 'react';
+import {List, Search} from 'lucide-react';
 
 interface ProcessesCardProps {
     processesInfo: {
@@ -19,7 +19,7 @@ interface ProcessesCardProps {
     };
 }
 
-const ProcessesCard: React.FC<ProcessesCardProps> = ({ processesInfo }) => {
+const ProcessesCard: React.FC<ProcessesCardProps> = ({processesInfo}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'cpu' | 'memory' | 'name'>('cpu');
     const [showCount, setShowCount] = useState(10);
@@ -49,7 +49,7 @@ const ProcessesCard: React.FC<ProcessesCardProps> = ({ processesInfo }) => {
 
     const filteredAndSortedProcesses = processesInfo.processes
         ? processesInfo.processes
-            .filter(process => 
+            .filter(process =>
                 process.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 process.command.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 process.user.toLowerCase().includes(searchTerm.toLowerCase())
@@ -117,11 +117,12 @@ const ProcessesCard: React.FC<ProcessesCardProps> = ({ processesInfo }) => {
                     />
                 </div>
             </div>
-            
+
             <div className="space-y-2">
                 {filteredAndSortedProcesses.length > 0 ? (
                     <>
-                        <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 font-medium border-b border-gray-700 pb-2">
+                        <div
+                            className="grid grid-cols-12 gap-2 text-xs text-gray-400 font-medium border-b border-gray-700 pb-2">
                             <div className="col-span-1">PID</div>
                             <div className="col-span-3">Name</div>
                             <div className="col-span-2">User</div>
@@ -131,7 +132,8 @@ const ProcessesCard: React.FC<ProcessesCardProps> = ({ processesInfo }) => {
                             <div className="col-span-1">Threads</div>
                         </div>
                         {filteredAndSortedProcesses.map((process, index) => (
-                            <div key={index} className="grid grid-cols-12 gap-2 text-sm py-2 hover:bg-gray-700 rounded px-2">
+                            <div key={index}
+                                 className="grid grid-cols-12 gap-2 text-sm py-2 hover:bg-gray-700 rounded px-2">
                                 <div className="col-span-1 text-gray-300">{process.pid}</div>
                                 <div className="col-span-3">
                                     <div className="text-white font-medium truncate" title={process.name}>

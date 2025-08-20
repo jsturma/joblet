@@ -1,5 +1,5 @@
 import React from 'react';
-import { HardDrive } from 'lucide-react';
+import {HardDrive} from 'lucide-react';
 
 interface DisksCardProps {
     disksInfo: {
@@ -20,7 +20,7 @@ interface DisksCardProps {
     };
 }
 
-const DisksCard: React.FC<DisksCardProps> = ({ disksInfo }) => {
+const DisksCard: React.FC<DisksCardProps> = ({disksInfo}) => {
     const formatBytes = (bytes: number) => {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -39,7 +39,7 @@ const DisksCard: React.FC<DisksCardProps> = ({ disksInfo }) => {
                 <HardDrive className="h-6 w-6 text-purple-600 mr-3"/>
                 <h3 className="text-lg font-semibold text-white">Disk Information</h3>
             </div>
-            
+
             <div className="space-y-4">
                 {disksInfo.disks && disksInfo.disks.length > 0 ? (
                     disksInfo.disks.map((disk, index) => (
@@ -59,12 +59,12 @@ const DisksCard: React.FC<DisksCardProps> = ({ disksInfo }) => {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
                                 <div
                                     className={`h-2 rounded-full transition-all duration-300 ${
                                         disk.percent > 90 ? 'bg-red-600' :
-                                        disk.percent > 75 ? 'bg-yellow-600' : 'bg-purple-600'
+                                            disk.percent > 75 ? 'bg-yellow-600' : 'bg-purple-600'
                                     }`}
                                     style={{width: `${Math.min(disk.percent, 100)}%`}}
                                 ></div>

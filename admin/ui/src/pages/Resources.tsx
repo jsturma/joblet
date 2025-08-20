@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Cpu, HardDrive, Network, RefreshCw, Plus, Info, Trash2, X } from 'lucide-react';
-import { apiService } from '../services/apiService';
+import React, {useEffect, useState} from 'react';
+import {Cpu, HardDrive, Info, Network, Plus, RefreshCw, Trash2, X} from 'lucide-react';
+import {apiService} from '../services/apiService';
 
 interface Volume {
     id?: string;
@@ -73,40 +73,40 @@ const Resources: React.FC = () => {
 
     const fetchVolumes = async () => {
         try {
-            setLoading(prev => ({ ...prev, volumes: true }));
-            setError(prev => ({ ...prev, volumes: '' }));
+            setLoading(prev => ({...prev, volumes: true}));
+            setError(prev => ({...prev, volumes: ''}));
             const response = await apiService.getVolumes();
             setVolumes(response.volumes || []);
         } catch (err) {
-            setError(prev => ({ ...prev, volumes: err instanceof Error ? err.message : 'Failed to fetch volumes' }));
+            setError(prev => ({...prev, volumes: err instanceof Error ? err.message : 'Failed to fetch volumes'}));
         } finally {
-            setLoading(prev => ({ ...prev, volumes: false }));
+            setLoading(prev => ({...prev, volumes: false}));
         }
     };
 
     const fetchNetworks = async () => {
         try {
-            setLoading(prev => ({ ...prev, networks: true }));
-            setError(prev => ({ ...prev, networks: '' }));
+            setLoading(prev => ({...prev, networks: true}));
+            setError(prev => ({...prev, networks: ''}));
             const response = await apiService.getNetworks();
             setNetworks(response.networks || []);
         } catch (err) {
-            setError(prev => ({ ...prev, networks: err instanceof Error ? err.message : 'Failed to fetch networks' }));
+            setError(prev => ({...prev, networks: err instanceof Error ? err.message : 'Failed to fetch networks'}));
         } finally {
-            setLoading(prev => ({ ...prev, networks: false }));
+            setLoading(prev => ({...prev, networks: false}));
         }
     };
 
     const fetchRuntimes = async () => {
         try {
-            setLoading(prev => ({ ...prev, runtimes: true }));
-            setError(prev => ({ ...prev, runtimes: '' }));
+            setLoading(prev => ({...prev, runtimes: true}));
+            setError(prev => ({...prev, runtimes: ''}));
             const response = await apiService.getRuntimes();
             setRuntimes(response.runtimes || []);
         } catch (err) {
-            setError(prev => ({ ...prev, runtimes: err instanceof Error ? err.message : 'Failed to fetch runtimes' }));
+            setError(prev => ({...prev, runtimes: err instanceof Error ? err.message : 'Failed to fetch runtimes'}));
         } finally {
-            setLoading(prev => ({ ...prev, runtimes: false }));
+            setLoading(prev => ({...prev, runtimes: false}));
         }
     };
 
@@ -117,7 +117,7 @@ const Resources: React.FC = () => {
     };
 
     const handleDeleteVolume = async (volumeName: string) => {
-        setDeleteConfirm({ show: true, volumeName, deleting: false });
+        setDeleteConfirm({show: true, volumeName, deleting: false});
     };
 
     const handleDeleteNetwork = async (networkName: string) => {
@@ -125,71 +125,71 @@ const Resources: React.FC = () => {
             await apiService.deleteNetwork(networkName);
             await fetchNetworks(); // Refresh the network list
         } catch (error) {
-            setError(prev => ({ 
-                ...prev, 
-                networks: error instanceof Error ? error.message : 'Failed to delete network' 
+            setError(prev => ({
+                ...prev,
+                networks: error instanceof Error ? error.message : 'Failed to delete network'
             }));
         }
     };
 
     const confirmDeleteVolume = async () => {
         if (!deleteConfirm.volumeName) return;
-        
-        setDeleteConfirm(prev => ({ ...prev, deleting: true }));
-        
+
+        setDeleteConfirm(prev => ({...prev, deleting: true}));
+
         try {
             await apiService.deleteVolume(deleteConfirm.volumeName);
-            setDeleteConfirm({ show: false, volumeName: '', deleting: false });
+            setDeleteConfirm({show: false, volumeName: '', deleting: false});
             await fetchVolumes(); // Refresh the volume list
         } catch (error) {
             console.error('Failed to delete volume:', error);
-            setError(prev => ({ 
-                ...prev, 
-                volumes: error instanceof Error ? error.message : 'Failed to delete volume' 
+            setError(prev => ({
+                ...prev,
+                volumes: error instanceof Error ? error.message : 'Failed to delete volume'
             }));
-            setDeleteConfirm(prev => ({ ...prev, deleting: false }));
+            setDeleteConfirm(prev => ({...prev, deleting: false}));
         }
     };
 
     const cancelDeleteVolume = () => {
-        setDeleteConfirm({ show: false, volumeName: '', deleting: false });
+        setDeleteConfirm({show: false, volumeName: '', deleting: false});
     };
 
     const handleCreateVolume = async () => {
         if (!volumeForm.name || !volumeForm.size) return;
-        
-        setCreateVolumeModal(prev => ({ ...prev, creating: true }));
-        
+
+        setCreateVolumeModal(prev => ({...prev, creating: true}));
+
         try {
             await apiService.createVolume(volumeForm.name, volumeForm.size, volumeForm.type);
-            setCreateVolumeModal({ show: false, creating: false });
-            setVolumeForm({ name: '', size: '', type: 'filesystem' });
+            setCreateVolumeModal({show: false, creating: false});
+            setVolumeForm({name: '', size: '', type: 'filesystem'});
             await fetchVolumes(); // Refresh the volume list
         } catch (error) {
-            setError(prev => ({ 
-                ...prev, 
-                volumes: error instanceof Error ? error.message : 'Failed to create volume' 
+            setError(prev => ({
+                ...prev,
+                volumes: error instanceof Error ? error.message : 'Failed to create volume'
             }));
-            setCreateVolumeModal(prev => ({ ...prev, creating: false }));
+            setCreateVolumeModal(prev => ({...prev, creating: false}));
         }
     };
 
     const handleCreateNetwork = async () => {
         if (!networkForm.name || !networkForm.cidr) return;
-        
-        setCreateNetworkModal(prev => ({ ...prev, creating: true }));
-        
+
+        setCreateNetworkModal(prev => ({...prev, creating: true}));
+
         try {
             await apiService.createNetwork(networkForm.name, networkForm.cidr);
-            setCreateNetworkModal({ show: false, creating: false });
-            setNetworkForm({ name: '', cidr: '' });
+            setCreateNetworkModal({show: false, creating: false});
+            setNetworkForm({name: '', cidr: ''});
             await fetchNetworks(); // Refresh the network list
         } catch (error) {
-            setError(prev => ({ 
-                ...prev, 
-                networks: error instanceof Error ? error.message : 'Failed to create network' 
+            setError(prev => ({
+                ...prev,
+                networks: error instanceof Error ? error.message : 'Failed to create network'
             }));
-            setCreateNetworkModal(prev => ({ ...prev, creating: false }));
+            setCreateNetworkModal(prev => ({...prev, creating: false}));
         }
     };
 
@@ -254,7 +254,7 @@ const Resources: React.FC = () => {
                             <div className="text-center py-8">
                                 <p className="text-gray-500 mb-4">No volumes configured</p>
                                 <button
-                                    onClick={() => setCreateVolumeModal({ show: true, creating: false })}
+                                    onClick={() => setCreateVolumeModal({show: true, creating: false})}
                                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
                                     <Plus className="h-4 w-4 mr-2"/>
                                     Create Volume
@@ -289,7 +289,7 @@ const Resources: React.FC = () => {
                                     </div>
                                 ))}
                                 <button
-                                    onClick={() => setCreateVolumeModal({ show: true, creating: false })}
+                                    onClick={() => setCreateVolumeModal({show: true, creating: false})}
                                     className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
                                     <Plus className="h-4 w-4 mr-2"/>
                                     Create Volume
@@ -328,7 +328,7 @@ const Resources: React.FC = () => {
                             <div className="text-center py-8">
                                 <p className="text-gray-500 mb-4">No networks configured</p>
                                 <button
-                                    onClick={() => setCreateNetworkModal({ show: true, creating: false })}
+                                    onClick={() => setCreateNetworkModal({show: true, creating: false})}
                                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                                     <Plus className="h-4 w-4 mr-2"/>
                                     Create Network
@@ -361,7 +361,7 @@ const Resources: React.FC = () => {
                                     </div>
                                 ))}
                                 <button
-                                    onClick={() => setCreateNetworkModal({ show: true, creating: false })}
+                                    onClick={() => setCreateNetworkModal({show: true, creating: false})}
                                     className="w-full mt-4 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                                     <Plus className="h-4 w-4 mr-2"/>
                                     Create Network
@@ -432,7 +432,8 @@ const Resources: React.FC = () => {
 
             {/* Delete Confirmation Dialog */}
             {deleteConfirm.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
@@ -447,7 +448,7 @@ const Resources: React.FC = () => {
                                     <X className="h-5 w-5"/>
                                 </button>
                             </div>
-                            
+
                             <div className="mb-6">
                                 <p className="text-gray-300 mb-2">
                                     Are you sure you want to delete the volume "{deleteConfirm.volumeName}"?
@@ -456,7 +457,7 @@ const Resources: React.FC = () => {
                                     This action cannot be undone. All data in this volume will be permanently lost.
                                 </p>
                             </div>
-                            
+
                             <div className="flex space-x-3 justify-end">
                                 <button
                                     onClick={cancelDeleteVolume}
@@ -472,7 +473,8 @@ const Resources: React.FC = () => {
                                 >
                                     {deleteConfirm.deleting ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                             Deleting...
                                         </>
                                     ) : (
@@ -490,20 +492,21 @@ const Resources: React.FC = () => {
 
             {/* Create Volume Modal */}
             {createVolumeModal.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-200">Create Volume</h3>
                                 <button
-                                    onClick={() => setCreateVolumeModal({ show: false, creating: false })}
+                                    onClick={() => setCreateVolumeModal({show: false, creating: false})}
                                     className="text-gray-400 hover:text-gray-300"
                                     disabled={createVolumeModal.creating}
                                 >
                                     <X className="h-5 w-5"/>
                                 </button>
                             </div>
-                            
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -512,13 +515,13 @@ const Resources: React.FC = () => {
                                     <input
                                         type="text"
                                         value={volumeForm.name}
-                                        onChange={(e) => setVolumeForm(prev => ({ ...prev, name: e.target.value }))}
+                                        onChange={(e) => setVolumeForm(prev => ({...prev, name: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         placeholder="Enter volume name"
                                         disabled={createVolumeModal.creating}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Size
@@ -526,20 +529,20 @@ const Resources: React.FC = () => {
                                     <input
                                         type="text"
                                         value={volumeForm.size}
-                                        onChange={(e) => setVolumeForm(prev => ({ ...prev, size: e.target.value }))}
+                                        onChange={(e) => setVolumeForm(prev => ({...prev, size: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         placeholder="e.g., 1GB, 500MB"
                                         disabled={createVolumeModal.creating}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Type
                                     </label>
                                     <select
                                         value={volumeForm.type}
-                                        onChange={(e) => setVolumeForm(prev => ({ ...prev, type: e.target.value }))}
+                                        onChange={(e) => setVolumeForm(prev => ({...prev, type: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         disabled={createVolumeModal.creating}
                                     >
@@ -548,10 +551,10 @@ const Resources: React.FC = () => {
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <div className="flex space-x-3 justify-end mt-6">
                                 <button
-                                    onClick={() => setCreateVolumeModal({ show: false, creating: false })}
+                                    onClick={() => setCreateVolumeModal({show: false, creating: false})}
                                     disabled={createVolumeModal.creating}
                                     className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -564,7 +567,8 @@ const Resources: React.FC = () => {
                                 >
                                     {createVolumeModal.creating ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                             Creating...
                                         </>
                                     ) : (
@@ -582,20 +586,21 @@ const Resources: React.FC = () => {
 
             {/* Create Network Modal */}
             {createNetworkModal.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-200">Create Network</h3>
                                 <button
-                                    onClick={() => setCreateNetworkModal({ show: false, creating: false })}
+                                    onClick={() => setCreateNetworkModal({show: false, creating: false})}
                                     className="text-gray-400 hover:text-gray-300"
                                     disabled={createNetworkModal.creating}
                                 >
                                     <X className="h-5 w-5"/>
                                 </button>
                             </div>
-                            
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -604,13 +609,13 @@ const Resources: React.FC = () => {
                                     <input
                                         type="text"
                                         value={networkForm.name}
-                                        onChange={(e) => setNetworkForm(prev => ({ ...prev, name: e.target.value }))}
+                                        onChange={(e) => setNetworkForm(prev => ({...prev, name: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
                                         placeholder="Enter network name"
                                         disabled={createNetworkModal.creating}
                                     />
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         CIDR Range
@@ -618,7 +623,7 @@ const Resources: React.FC = () => {
                                     <input
                                         type="text"
                                         value={networkForm.cidr}
-                                        onChange={(e) => setNetworkForm(prev => ({ ...prev, cidr: e.target.value }))}
+                                        onChange={(e) => setNetworkForm(prev => ({...prev, cidr: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
                                         placeholder="e.g., 10.1.0.0/24"
                                         disabled={createNetworkModal.creating}
@@ -628,10 +633,10 @@ const Resources: React.FC = () => {
                                     </p>
                                 </div>
                             </div>
-                            
+
                             <div className="flex space-x-3 justify-end mt-6">
                                 <button
-                                    onClick={() => setCreateNetworkModal({ show: false, creating: false })}
+                                    onClick={() => setCreateNetworkModal({show: false, creating: false})}
                                     disabled={createNetworkModal.creating}
                                     className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -644,7 +649,8 @@ const Resources: React.FC = () => {
                                 >
                                     {createNetworkModal.creating ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                             Creating...
                                         </>
                                     ) : (

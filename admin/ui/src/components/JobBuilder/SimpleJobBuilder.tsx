@@ -693,12 +693,13 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                             </button>
                                         </div>
                                     </div>
-                                
+
                                     {/* Secret Environment Variables */}
                                     <div>
                                         <label className="block text-sm font-medium text-white mb-2 flex items-center">
                                             <span>Secret Environment Variables</span>
-                                            <span className="ml-2 text-xs text-yellow-400 bg-yellow-900 px-2 py-1 rounded">Hidden from logs</span>
+                                            <span
+                                                className="ml-2 text-xs text-yellow-400 bg-yellow-900 px-2 py-1 rounded">Hidden from logs</span>
                                         </label>
                                         {Object.entries(config.secretEnvVars).map(([key, value]) => (
                                             <div key={key} className="flex space-x-2 mb-2">

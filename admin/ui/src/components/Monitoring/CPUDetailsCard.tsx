@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu } from 'lucide-react';
+import {Cpu} from 'lucide-react';
 
 interface CPUDetailsCardProps {
     cpuInfo: {
@@ -14,14 +14,14 @@ interface CPUDetailsCardProps {
     };
 }
 
-const CPUDetailsCard: React.FC<CPUDetailsCardProps> = ({ cpuInfo }) => {
+const CPUDetailsCard: React.FC<CPUDetailsCardProps> = ({cpuInfo}) => {
     return (
         <div className="bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center mb-4">
                 <Cpu className="h-6 w-6 text-blue-600 mr-3"/>
                 <h3 className="text-lg font-semibold text-white">CPU Details</h3>
             </div>
-            
+
             <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>

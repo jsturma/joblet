@@ -6,8 +6,8 @@ import CreateJob from './pages/CreateJob';
 import Workflows from './pages/Workflows';
 import Monitoring from './pages/Monitoring';
 import Resources from './pages/Resources';
-import { NodeProvider } from './contexts/NodeContext';
-import { ApiProvider } from './providers/ApiProvider';
+import {NodeProvider} from './contexts/NodeContext';
+import {ApiProvider} from './providers/ApiProvider';
 
 function App() {
     return (

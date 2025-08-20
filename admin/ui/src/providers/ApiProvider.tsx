@@ -1,17 +1,17 @@
-import React, { useEffect } from 'react';
-import { useNode } from '../contexts/NodeContext';
-import { apiService } from '../services/apiService';
+import React, {useEffect} from 'react';
+import {useNode} from '../contexts/NodeContext';
+import {apiService} from '../services/apiService';
 
 interface ApiProviderProps {
-  children: React.ReactNode;
+    children: React.ReactNode;
 }
 
-export const ApiProvider: React.FC<ApiProviderProps> = ({ children }) => {
-  const { selectedNode } = useNode();
+export const ApiProvider: React.FC<ApiProviderProps> = ({children}) => {
+    const {selectedNode} = useNode();
 
-  useEffect(() => {
-    apiService.setNode(selectedNode);
-  }, [selectedNode]);
+    useEffect(() => {
+        apiService.setNode(selectedNode);
+    }, [selectedNode]);
 
-  return <>{children}</>;
+    return <>{children}</>;
 };

@@ -63,7 +63,7 @@ const Jobs: React.FC = () => {
         setSelectedJobId(jobId);
         setActiveTab('logs');
         setJobLoading(true);
-        
+
         try {
             const jobDetails = await apiService.getJob(jobId);
             setSelectedJob(jobDetails);
@@ -101,8 +101,8 @@ const Jobs: React.FC = () => {
                             onClick={refreshJobs}
                             disabled={loading}
                             className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium ${
-                                loading 
-                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                                loading
+                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                                     : 'text-gray-700 bg-white hover:bg-gray-50'
                             }`}
                         >
@@ -215,8 +215,8 @@ const Jobs: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                                                {((job as any).start_time && (job as any).end_time) ? 
-                                                   formatDuration(new Date((job as any).end_time).getTime() - new Date((job as any).start_time).getTime()) : '-'}
+                                                {((job as any).start_time && (job as any).end_time) ?
+                                                    formatDuration(new Date((job as any).end_time).getTime() - new Date((job as any).start_time).getTime()) : '-'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                                                 {(job as any).start_time ? new Date((job as any).start_time).toLocaleString() : '-'}
@@ -246,7 +246,7 @@ const Jobs: React.FC = () => {
                                     </tbody>
                                 </table>
                             </div>
-                            
+
                             {/* Pagination Controls */}
                             {totalPages > 1 && (
                                 <div className="px-6 py-4 border-t border-gray-700">
@@ -263,7 +263,7 @@ const Jobs: React.FC = () => {
                                                 <ChevronLeft className="h-4 w-4 mr-1"/>
                                                 Previous
                                             </button>
-                                            
+
                                             {/* Page Numbers */}
                                             <div className="flex items-center space-x-1">
                                                 {Array.from({length: Math.min(totalPages, 5)}, (_, i) => {
@@ -277,7 +277,7 @@ const Jobs: React.FC = () => {
                                                     } else {
                                                         pageNum = currentPage - 2 + i;
                                                     }
-                                                    
+
                                                     return (
                                                         <button
                                                             key={pageNum}
@@ -293,7 +293,7 @@ const Jobs: React.FC = () => {
                                                     );
                                                 })}
                                             </div>
-                                            
+
                                             <button
                                                 onClick={() => setCurrentPage(currentPage + 1)}
                                                 disabled={currentPage === totalPages}
@@ -415,23 +415,28 @@ const Jobs: React.FC = () => {
                                 <div className="space-y-6">
                                     {jobLoading ? (
                                         <div className="flex items-center justify-center py-8">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                             <span className="ml-3 text-gray-600 dark:text-gray-400">Loading job details...</span>
                                         </div>
                                     ) : selectedJob ? (
                                         <>
                                             {/* Basic Information */}
                                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Basic Information</h4>
+                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Basic
+                                                    Information</h4>
                                                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Job ID</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Job
+                                                            ID
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white font-mono">{selectedJob.id}</dd>
                                                     </div>
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
                                                         <dd className="mt-1">
-                                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedJob.status)}`}>
+                                                            <span
+                                                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedJob.status)}`}>
                                                                 {selectedJob.status}
                                                             </span>
                                                         </dd>
@@ -451,7 +456,9 @@ const Jobs: React.FC = () => {
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDuration(selectedJob.duration)}</dd>
                                                     </div>
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Exit Code</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Exit
+                                                            Code
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.exitCode ?? 'N/A'}</dd>
                                                     </div>
                                                 </dl>
@@ -459,22 +466,31 @@ const Jobs: React.FC = () => {
 
                                             {/* Resource Limits */}
                                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Resource Limits</h4>
+                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Resource
+                                                    Limits</h4>
                                                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max CPU (%)</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max
+                                                            CPU (%)
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.maxCPU || 'Unlimited'}</dd>
                                                     </div>
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Memory (MB)</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max
+                                                            Memory (MB)
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.maxMemory || 'Unlimited'}</dd>
                                                     </div>
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max IO BPS</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max
+                                                            IO BPS
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.maxIOBPS || 'Unlimited'}</dd>
                                                     </div>
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">CPU Cores</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">CPU
+                                                            Cores
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.cpuCores || 'Default'}</dd>
                                                     </div>
                                                 </dl>
@@ -514,21 +530,26 @@ const Jobs: React.FC = () => {
                                                     <div className="space-y-2">
                                                         {selectedJob.dependsOn.map((dependency, index) => {
                                                             // Parse dependency format: "job-id:COMPLETED" or just "job-id"
-                                                            const [jobId, condition] = dependency.includes(':') 
-                                                                ? dependency.split(':') 
+                                                            const [jobId, condition] = dependency.includes(':')
+                                                                ? dependency.split(':')
                                                                 : [dependency, 'COMPLETED'];
-                                                            
+
                                                             return (
-                                                                <div key={index} className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded border">
+                                                                <div key={index}
+                                                                     className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded border">
                                                                     <div className="flex-1">
-                                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                                                            Depends on: <span className="font-mono">{jobId}</span>
+                                                                        <div
+                                                                            className="text-sm font-medium text-gray-900 dark:text-white">
+                                                                            Depends on: <span
+                                                                            className="font-mono">{jobId}</span>
                                                                         </div>
-                                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                            Required condition: <span className={`font-mono px-2 py-1 rounded text-xs ${
+                                                                        <div
+                                                                            className="text-xs text-gray-500 dark:text-gray-400">
+                                                                            Required condition: <span
+                                                                            className={`font-mono px-2 py-1 rounded text-xs ${
                                                                                 condition === 'COMPLETED' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                                                                                condition === 'FAILED' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
-                                                                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                                                                                    condition === 'FAILED' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                                                                                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                                                                             }`}>{condition}</span>
                                                                         </div>
                                                                     </div>
@@ -542,30 +563,37 @@ const Jobs: React.FC = () => {
                                             {/* Environment Variables */}
                                             {(Object.keys(selectedJob.envVars || {}).length > 0 || Object.keys(selectedJob.secretEnvVars || {}).length > 0) && (
                                                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Environment Variables</h4>
-                                                    
+                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Environment
+                                                        Variables</h4>
+
                                                     {Object.keys(selectedJob.envVars || {}).length > 0 && (
                                                         <div className="mb-4">
-                                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Regular Variables</h5>
+                                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Regular
+                                                                Variables</h5>
                                                             <div className="space-y-1">
                                                                 {Object.entries(selectedJob.envVars || {}).map(([key, value]) => (
                                                                     <div key={key} className="flex text-sm">
-                                                                        <span className="font-mono text-gray-600 dark:text-gray-400 w-32 flex-shrink-0">{key}=</span>
-                                                                        <span className="font-mono text-gray-900 dark:text-white break-all">{value}</span>
+                                                                        <span
+                                                                            className="font-mono text-gray-600 dark:text-gray-400 w-32 flex-shrink-0">{key}=</span>
+                                                                        <span
+                                                                            className="font-mono text-gray-900 dark:text-white break-all">{value}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     )}
-                                                    
+
                                                     {Object.keys(selectedJob.secretEnvVars || {}).length > 0 && (
                                                         <div>
-                                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Secret Variables</h5>
+                                                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Secret
+                                                                Variables</h5>
                                                             <div className="space-y-1">
                                                                 {Object.keys(selectedJob.secretEnvVars || {}).map((key) => (
                                                                     <div key={key} className="flex text-sm">
-                                                                        <span className="font-mono text-gray-600 dark:text-gray-400 w-32 flex-shrink-0">{key}=</span>
-                                                                        <span className="font-mono text-yellow-600 dark:text-yellow-400">*** (secret)</span>
+                                                                        <span
+                                                                            className="font-mono text-gray-600 dark:text-gray-400 w-32 flex-shrink-0">{key}=</span>
+                                                                        <span
+                                                                            className="font-mono text-yellow-600 dark:text-yellow-400">*** (secret)</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -576,7 +604,8 @@ const Jobs: React.FC = () => {
                                         </>
                                     ) : (
                                         <div className="text-center py-8">
-                                            <p className="text-gray-500 dark:text-gray-400">Failed to load job details</p>
+                                            <p className="text-gray-500 dark:text-gray-400">Failed to load job
+                                                details</p>
                                         </div>
                                     )}
                                 </div>

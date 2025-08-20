@@ -96,8 +96,10 @@ const Dashboard: React.FC = () => {
                                 <HardDrive className="h-5 w-5 text-gray-400 mr-3"/>
                                 <div className="flex-1">
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Memory ({(metrics.memory.used / (1024 * 1024 * 1024)).toFixed(1)}GB / {(metrics.memory.total / (1024 * 1024 * 1024)).toFixed(1)}GB)</span>
-                                        <span className="text-sm font-medium">{metrics.memory.percent.toFixed(1)}%</span>
+                                        <span
+                                            className="text-sm text-gray-600">Memory ({(metrics.memory.used / (1024 * 1024 * 1024)).toFixed(1)}GB / {(metrics.memory.total / (1024 * 1024 * 1024)).toFixed(1)}GB)</span>
+                                        <span
+                                            className="text-sm font-medium">{metrics.memory.percent.toFixed(1)}%</span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                                         <div
