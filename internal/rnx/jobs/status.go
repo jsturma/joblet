@@ -22,18 +22,26 @@ func NewStatusCmd() *cobra.Command {
 		Long: `Get the status of a job or workflow by UUID.
 
 Both jobs and workflows use UUIDs (36-character identifiers).
+Short-form UUIDs are supported - you can use just the first 8 characters
+if they uniquely identify a job or workflow.
 Use --workflow flag to explicitly request workflow status.
 
 Examples:
-  # Get job status (using UUID)
+  # Get job status (using full UUID)
   rnx status f47ac10b-58cc-4372-a567-0e02b2c3d479
   
-  # Get workflow status (using UUID)
+  # Get job status (using short-form UUID)
+  rnx status f47ac10b
+  
+  # Get workflow status (using full UUID)
   rnx status --workflow a1b2c3d4-e5f6-7890-1234-567890abcdef
   
+  # Get workflow status (using short-form UUID)
+  rnx status --workflow a1b2c3d4
+  
   # JSON output
-  rnx status --json f47ac10b-58cc-4372-a567-0e02b2c3d479
-  rnx status --workflow --json a1b2c3d4-e5f6-7890-1234-567890abcdef`,
+  rnx status --json f47ac10b
+  rnx status --workflow --json a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: runStatus,
 	}

@@ -163,8 +163,8 @@ func (s *JobServiceServer) GetJobStatus(ctx context.Context, req *pb.GetJobStatu
 		return nil, err
 	}
 
-	// Retrieve job from store
-	job, exists := s.jobStore.GetJob(req.GetUuid())
+	// Retrieve job from store (supports both full UUID and prefix)
+	job, exists := s.jobStore.GetJobByPrefix(req.GetUuid())
 	if !exists {
 		log.Error("job not found", "jobUuid", req.GetUuid())
 		return nil, status.Errorf(codes.NotFound, "job not found: %s", req.GetUuid())

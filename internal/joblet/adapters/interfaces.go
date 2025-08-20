@@ -29,6 +29,7 @@ type JobStoreAdapter interface {
 	CreateNewJob(job *domain.Job)
 	UpdateJob(job *domain.Job)
 	GetJob(id string) (*domain.Job, bool)
+	GetJobByPrefix(prefix string) (*domain.Job, bool)
 	ListJobs() []*domain.Job
 	WriteToBuffer(jobId string, chunk []byte)
 	GetOutput(id string) ([]byte, bool, error)

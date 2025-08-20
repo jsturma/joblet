@@ -883,8 +883,8 @@ func (s *WorkflowServiceServer) GetJobStatus(ctx context.Context, req *pb.GetJob
 		return nil, err
 	}
 
-	// Retrieve job from store
-	job, exists := s.jobStore.GetJob(req.GetUuid())
+	// Retrieve job from store (supports both full UUID and prefix)
+	job, exists := s.jobStore.GetJobByPrefix(req.GetUuid())
 	if !exists {
 		log.Error("job not found", "jobId", req.GetUuid())
 		return nil, status.Errorf(codes.NotFound, "job %s not found", req.GetUuid())

@@ -31,9 +31,12 @@ Quick Examples:
   rnx run python script.py                    # Run a simple job
   rnx run --workflow=pipeline.yaml            # Execute a workflow
   rnx list --workflow                         # List all workflows
-  rnx status <job-uuid>                       # Check job status
-  rnx log <job-uuid>                          # Stream job logs
+  rnx status <job-uuid>                       # Check job status (supports short UUIDs)
+  rnx log <job-uuid>                          # Stream job logs (supports short UUIDs)
   rnx monitor status                          # View system metrics
+
+Note: Job and workflow UUIDs support short-form usage (first 8 characters)
+if they uniquely identify the resource.
 
 Use 'rnx <command> --help' for detailed information about any command.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {

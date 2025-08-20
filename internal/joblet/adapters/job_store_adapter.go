@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -243,6 +244,55 @@ func (a *jobStoreAdapter) GetJob(id string) (*domain.Job, bool) {
 	return nil, false
 }
 
+// GetJobByPrefix retrieves a job by UUID prefix (supports short-form UUID lookup).
+// Returns the job if exactly one match is found, otherwise returns nil and false.
+// If multiple jobs match the prefix, logs a warning and returns nil, false.
+func (a *jobStoreAdapter) GetJobByPrefix(prefix string) (*domain.Job, bool) {
+	// First try exact match
+	if job, exists := a.GetJob(prefix); exists {
+		return job, true
+	}
+
+	// If exact match fails and prefix is shorter than full UUID, try prefix matching
+	if len(prefix) < 36 { // Full UUID is 36 characters
+		a.closeMutex.RLock()
+		if a.closed {
+			a.closeMutex.RUnlock()
+			return nil, false
+		}
+		a.closeMutex.RUnlock()
+
+		ctx := context.Background()
+		jobs, err := a.jobStore.List(ctx)
+		if err != nil {
+			a.logger.Error("failed to list jobs for prefix search", "prefix", prefix, "error", err)
+			return nil, false
+		}
+
+		var matches []*domain.Job
+		for _, job := range jobs {
+			if strings.HasPrefix(job.Uuid, prefix) {
+				matches = append(matches, job)
+			}
+		}
+
+		if len(matches) == 1 {
+			a.logger.Debug("found unique job by prefix", "prefix", prefix, "jobId", matches[0].Uuid)
+			return matches[0].DeepCopy(), true
+		} else if len(matches) > 1 {
+			var matchedUuids []string
+			for _, job := range matches {
+				matchedUuids = append(matchedUuids, job.Uuid)
+			}
+			a.logger.Warn("prefix matches multiple jobs - ambiguous", "prefix", prefix, "matches", matchedUuids)
+			return nil, false
+		}
+	}
+
+	a.logger.Debug("no job found with prefix", "prefix", prefix)
+	return nil, false
+}
+
 // ListJobs returns all jobs currently stored in the system.
 func (a *jobStoreAdapter) ListJobs() []*domain.Job {
 
@@ -275,47 +325,62 @@ func (a *jobStoreAdapter) WriteToBuffer(jobId string, chunk []byte) {
 		return
 	}
 
+	// For WriteToBuffer, jobId should already be the full UUID since it's called internally
+	// from job execution, but we still support prefix resolution for consistency
+	resolvedUuid, err := a.resolveUuidByPrefix(jobId)
+	if err != nil {
+		a.logger.Warn("failed to resolve job UUID for buffer write", "input", jobId, "error", err)
+		return
+	}
+
 	a.tasksMutex.RLock()
-	task, exists := a.tasks[jobId]
+	task, exists := a.tasks[resolvedUuid]
 	a.tasksMutex.RUnlock()
 
 	if !exists {
-		a.logger.Warn("attempted to write to buffer for non-existent job", "jobId", jobId, "chunkSize", len(chunk))
+		a.logger.Warn("attempted to write to buffer for non-existent job", "jobId", resolvedUuid, "chunkSize", len(chunk))
 		return
 	}
 
 	// Write to buffer
 	if task.buffer != nil {
 		if _, err := task.buffer.Write(chunk); err != nil {
-			a.logger.Error("failed to write to job buffer", "jobId", jobId, "error", err)
+			a.logger.Error("failed to write to job buffer", "jobId", resolvedUuid, "error", err)
 			return
 		}
-		a.logger.Debug("successfully wrote to buffer", "jobId", jobId, "chunkSize", len(chunk))
+		a.logger.Debug("successfully wrote to buffer", "jobId", resolvedUuid, "chunkSize", len(chunk))
 	} else {
-		a.logger.Warn("no buffer available for job - logs will not be stored", "jobId", jobId, "chunkSize", len(chunk))
+		a.logger.Warn("no buffer available for job - logs will not be stored", "jobId", resolvedUuid, "chunkSize", len(chunk))
 	}
 
 	// Publish log chunk event
 	if err := a.publishEvent(JobEvent{
 		Type:      "LOG_CHUNK",
-		JobID:     jobId,
+		JobID:     resolvedUuid,
 		LogChunk:  chunk,
 		Timestamp: time.Now().Unix(),
 	}); err != nil {
-		a.logger.Warn("failed to publish log chunk event", "jobId", jobId, "error", err)
+		a.logger.Warn("failed to publish log chunk event", "jobId", resolvedUuid, "error", err)
 	}
 
-	a.logger.Debug("log chunk written", "jobId", jobId, "chunkSize", len(chunk))
+	a.logger.Debug("log chunk written", "jobId", resolvedUuid, "chunkSize", len(chunk))
 }
 
 // GetOutput retrieves the complete output buffer for a job.
 func (a *jobStoreAdapter) GetOutput(id string) ([]byte, bool, error) {
+	// Resolve UUID by prefix first
+	resolvedUuid, err := a.resolveUuidByPrefix(id)
+	if err != nil {
+		a.logger.Debug("failed to resolve job UUID for output", "input", id, "error", err)
+		return nil, false, fmt.Errorf("job not found")
+	}
+
 	a.tasksMutex.RLock()
-	task, exists := a.tasks[id]
+	task, exists := a.tasks[resolvedUuid]
 	a.tasksMutex.RUnlock()
 
 	if !exists {
-		a.logger.Debug("output requested for non-existent job", "jobId", id)
+		a.logger.Debug("output requested for non-existent job", "jobId", resolvedUuid)
 		return nil, false, fmt.Errorf("job not found")
 	}
 
@@ -337,12 +402,19 @@ func (a *jobStoreAdapter) GetOutput(id string) ([]byte, bool, error) {
 
 // SendUpdatesToClient streams job logs and status updates to a client.
 func (a *jobStoreAdapter) SendUpdatesToClient(ctx context.Context, id string, stream DomainStreamer) error {
+	// Resolve UUID by prefix first
+	resolvedUuid, err := a.resolveUuidByPrefix(id)
+	if err != nil {
+		a.logger.Warn("failed to resolve job UUID", "input", id, "error", err)
+		return fmt.Errorf("job not found")
+	}
+
 	a.tasksMutex.RLock()
-	task, exists := a.tasks[id]
+	task, exists := a.tasks[resolvedUuid]
 	a.tasksMutex.RUnlock()
 
 	if !exists {
-		a.logger.Warn("stream requested for non-existent job", "jobId", id)
+		a.logger.Warn("stream requested for non-existent job", "jobId", resolvedUuid)
 		return fmt.Errorf("job not found")
 	}
 
@@ -410,6 +482,34 @@ func (a *jobStoreAdapter) Close() error {
 }
 
 // Helper methods
+
+// resolveUuidByPrefix resolves a UUID prefix to a full UUID
+func (a *jobStoreAdapter) resolveUuidByPrefix(prefix string) (string, error) {
+	// If it's already a full UUID (36 characters), return as-is
+	if len(prefix) == 36 {
+		return prefix, nil
+	}
+
+	// Search for matching UUIDs in tasks map
+	a.tasksMutex.RLock()
+	defer a.tasksMutex.RUnlock()
+
+	var matches []string
+	for uuid := range a.tasks {
+		if strings.HasPrefix(uuid, prefix) {
+			matches = append(matches, uuid)
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no job found with prefix %s", prefix)
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("prefix %s matches multiple jobs: %v", prefix, matches)
+	}
+
+	return matches[0], nil
+}
 
 func (a *jobStoreAdapter) publishEvent(event JobEvent) error {
 	ctx := context.Background()
