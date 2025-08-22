@@ -24,6 +24,7 @@ type DependencyResolver struct {
 type WorkflowState struct {
 	ID            int
 	Workflow      string // Workflow file path/name
+	YamlContent   string // Original YAML content for client access
 	Jobs          map[string]*JobDependency
 	JobOrder      []string
 	Status        WorkflowStatus
@@ -104,6 +105,11 @@ func NewDependencyResolver() *DependencyResolver {
 // 5. Sets up job-to-workflow mappings for efficient lookups
 // Returns the assigned workflow ID for tracking and monitoring purposes.
 func (dr *DependencyResolver) CreateWorkflow(workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
+	return dr.CreateWorkflowWithYaml(workflow, "", jobs, order)
+}
+
+// CreateWorkflowWithYaml creates a new workflow with YAML content support.
+func (dr *DependencyResolver) CreateWorkflowWithYaml(workflow string, yamlContent string, jobs map[string]*JobDependency, order []string) (int, error) {
 	dr.mu.Lock()
 	defer dr.mu.Unlock()
 
@@ -111,13 +117,14 @@ func (dr *DependencyResolver) CreateWorkflow(workflow string, jobs map[string]*J
 	workflowID := dr.workflowCounter
 
 	workflowState := &WorkflowState{
-		ID:        workflowID,
-		Workflow:  workflow,
-		Jobs:      jobs,
-		JobOrder:  order,
-		Status:    WorkflowPending,
-		CreatedAt: time.Now(),
-		TotalJobs: len(jobs),
+		ID:          workflowID,
+		Workflow:    workflow,
+		YamlContent: yamlContent,
+		Jobs:        jobs,
+		JobOrder:    order,
+		Status:      WorkflowPending,
+		CreatedAt:   time.Now(),
+		TotalJobs:   len(jobs),
 	}
 
 	dr.workflows[workflowID] = workflowState
@@ -268,24 +275,20 @@ func (dr *DependencyResolver) GetReadyJobs(workflowID int) []string {
 	for jobID, job := range workflow.Jobs {
 		if job.Status == domain.StatusPending {
 			if job.Impossible {
-				// Debug: log why job is impossible
-				fmt.Printf("DEBUG: Job %s (%s) is marked as impossible\n", jobID, job.InternalName)
+				// Job is marked as impossible, skip it
+				continue
 			} else if !job.CanStart {
-				// Debug: check if job can start now
+				// Check if job can start now
 				canStart := dr.canJobStart(job)
-				fmt.Printf("DEBUG: Job %s (%s) canStart evaluation: CanStart=%t, evaluated=%t\n", jobID, job.InternalName, job.CanStart, canStart)
 				if canStart {
 					job.CanStart = true // Update the flag
 					ready = append(ready, jobID)
-					fmt.Printf("DEBUG: Job %s (%s) is now ready (updated CanStart flag)\n", jobID, job.InternalName)
 				}
 			} else {
 				ready = append(ready, jobID)
-				fmt.Printf("DEBUG: Job %s (%s) is ready\n", jobID, job.InternalName)
 			}
-		} else {
-			fmt.Printf("DEBUG: Job %s (%s) status is %s (not PENDING)\n", jobID, job.InternalName, job.Status)
 		}
+		// Skip jobs that are not pending
 	}
 
 	return ready
@@ -323,10 +326,8 @@ func (dr *DependencyResolver) canJobStart(job *JobDependency) bool {
 		return true
 	}
 
-	for i, req := range job.Requirements {
+	for _, req := range job.Requirements {
 		satisfied := dr.evaluateRequirement(req)
-		fmt.Printf("DEBUG: Job %s requirement %d: type=%d, jobId=%s, status=%s, satisfied=%t\n",
-			job.InternalName, i, req.Type, req.JobId, req.Status, satisfied)
 		if !satisfied {
 			return false
 		}
@@ -342,8 +343,6 @@ func (dr *DependencyResolver) evaluateRequirement(req Requirement) bool {
 	switch req.Type {
 	case RequirementSimple:
 		status, exists := dr.jobStateCache[req.JobId]
-		fmt.Printf("DEBUG: Evaluating requirement: jobId=%s, expected=%s, actual=%v, exists=%t\n",
-			req.JobId, req.Status, status, exists)
 		if !exists {
 			return false
 		}

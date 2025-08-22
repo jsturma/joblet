@@ -95,7 +95,7 @@ func (s *RuntimeServiceServer) GetRuntimeInfo(ctx context.Context, req *pb.Runti
 	}
 
 	// Resolve runtime
-	config, err := s.resolver.ResolveRuntime(req.Runtime)
+	config, err := s.resolver.ResolveRuntime(ctx, req.Runtime)
 	if err != nil {
 		log.Debug("runtime not found", "error", err)
 		return &pb.RuntimeInfoRes{
@@ -143,7 +143,7 @@ func (s *RuntimeServiceServer) TestRuntime(ctx context.Context, req *pb.RuntimeT
 	}
 
 	// Try to resolve runtime
-	_, err := s.resolver.ResolveRuntime(req.Runtime)
+	_, err := s.resolver.ResolveRuntime(ctx, req.Runtime)
 	if err != nil {
 		log.Debug("runtime test failed - resolution error", "error", err)
 		return &pb.RuntimeTestRes{

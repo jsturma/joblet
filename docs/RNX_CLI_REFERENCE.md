@@ -265,6 +265,7 @@ Get detailed status of a specific job or workflow.
 ```bash
 rnx status [flags] <job-uuid>              # Get job status
 rnx status --workflow <workflow-uuid>      # Get workflow status
+rnx status --workflow --detail <workflow-uuid>  # Get workflow status with YAML content
 ```
 
 #### Job Status
@@ -282,15 +283,18 @@ rnx status --workflow <workflow-uuid>      # Get workflow status
 - Shows dependency relationships between workflow jobs
 - Real-time progress tracking with job-level details
 - Color-coded status indicators (RUNNING, COMPLETED, FAILED, etc.)
+- **YAML Content Display**: Use `--detail` flag to view the original workflow YAML content
+- **Multi-workstation Access**: YAML content is stored server-side, accessible from any client
 - **Job ID Display**: Started jobs show actual job UUIDs (e.g., "f47ac10b-58cc-4372-a567-0e02b2c3d479", "
   a1b2c3d4-e5f6-7890-abcd-ef1234567890"), non-started jobs show "0"
 
 #### Flags
 
-| Flag         | Description                    | Default |
-|--------------|--------------------------------|---------|
-| `--workflow` | Explicitly get workflow status | false   |
-| `--json`     | Output in JSON format          | false   |
+| Flag         | Description                          | Default | Notes                           |
+|--------------|--------------------------------------|---------|---------------------------------|
+| `--workflow` | Explicitly get workflow status       | false   | Required for workflow operations|
+| `--detail`   | Show original YAML content           | false   | Only works with `--workflow`    |
+| `--json`     | Output in JSON format                | false   | Available for jobs and workflows|
 
 #### Examples
 
@@ -301,9 +305,13 @@ rnx status f47ac10b-58cc-4372-a567-0e02b2c3d479
 # Get workflow status
 rnx status --workflow a1b2c3d4-e5f6-7890-1234-567890abcdef
 
+# Get workflow status with original YAML content
+rnx status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+
 # Get status in JSON format
 rnx status --json f47ac10b-58cc-4372-a567-0e02b2c3d479    # Job JSON output
 rnx status --workflow --json a1b2c3d4-e5f6-7890-1234-567890abcdef     # Workflow JSON output
+rnx status --workflow --json --detail a1b2c3d4-e5f6-7890-1234-567890abcdef  # Workflow JSON with YAML content
 
 # Check multiple jobs/workflows
 for uuid in f47ac10b-58cc-4372-a567-0e02b2c3d479 a1b2c3d4-e5f6-7890-1234-567890abcdef; do rnx status $uuid; done
@@ -311,6 +319,7 @@ for uuid in f47ac10b-58cc-4372-a567-0e02b2c3d479 a1b2c3d4-e5f6-7890-1234-567890a
 # JSON output for scripting
 rnx status --json f47ac10b-58cc-4372-a567-0e02b2c3d479 | jq .status      # Job status
 rnx status --workflow --json a1b2c3d4-e5f6-7890-1234-567890abcdef | jq .total_jobs   # Workflow progress
+rnx status --workflow --json --detail a1b2c3d4-e5f6-7890-1234-567890abcdef | jq .yaml_content  # Extract YAML content
 
 # Example workflow status output:
 # Workflow UUID: a1b2c3d4-e5f6-7890-1234-567890abcdef
@@ -353,6 +362,44 @@ rnx status --workflow --json a1b2c3d4-e5f6-7890-1234-567890abcdef | jq .total_jo
 - Resource limits
 - Exit code (if completed)
 - Scheduling information
+
+#### Example Workflow JSON Output with YAML Content
+
+```bash
+# rnx status --workflow --json --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+{
+  "uuid": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "workflow": "data-pipeline.yaml",
+  "status": "RUNNING", 
+  "total_jobs": 4,
+  "completed_jobs": 2,
+  "failed_jobs": 0,
+  "created_at": {
+    "seconds": 1691234567,
+    "nanos": 0
+  },
+  "yaml_content": "jobs:\n  setup-data:\n    command: \"python3\"\n    args: [\"extract.py\"]\n    runtime: \"python:3.11-ml\"\n  process-data:\n    command: \"python3\"\n    args: [\"transform.py\"]\n    requires:\n      - setup-data: \"COMPLETED\"\n",
+  "jobs": [
+    {
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "name": "setup-data",
+      "status": "COMPLETED",
+      "exit_code": 0
+    },
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", 
+      "name": "process-data",
+      "status": "RUNNING",
+      "dependencies": ["setup-data"]
+    }
+  ]
+}
+```
+
+**Key Features:**
+- **`yaml_content`** field contains original workflow YAML when `--detail` flag is used
+- **Machine-readable format** for automation and scripting
+- **Complete workflow metadata** including job details and dependencies
 
 ### `rnx log`
 

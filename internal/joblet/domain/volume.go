@@ -196,3 +196,66 @@ func (v *Volume) DeepCopy() *Volume {
 		JobCount:    v.JobCount,
 	}
 }
+
+// VolumeDTO represents volume data for transport
+type VolumeDTO struct {
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Size        string    `json:"size"`
+	SizeBytes   int64     `json:"sizeBytes"`
+	Path        string    `json:"path"`
+	CreatedTime time.Time `json:"createdTime"`
+	JobCount    int32     `json:"jobCount"`
+	MountPath   string    `json:"mountPath"`
+	InUse       bool      `json:"inUse"`
+}
+
+// VolumeListItemDTO represents volume data for list display
+type VolumeListItemDTO struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Size        string `json:"size"`
+	JobCount    int32  `json:"jobCount"`
+	CreatedTime string `json:"createdTime"`
+	InUse       bool   `json:"inUse"`
+}
+
+// ToDTO converts volume to DTO format
+func (v *Volume) ToDTO() *VolumeDTO {
+	if v == nil {
+		return nil
+	}
+
+	return &VolumeDTO{
+		Name:        v.Name,
+		Type:        string(v.Type),
+		Size:        v.Size,
+		SizeBytes:   v.SizeBytes,
+		Path:        v.Path,
+		CreatedTime: v.CreatedTime,
+		JobCount:    v.JobCount,
+		MountPath:   v.GetMountPath(),
+		InUse:       v.IsInUse(),
+	}
+}
+
+// ToListItemDTO converts volume to list item DTO format
+func (v *Volume) ToListItemDTO() *VolumeListItemDTO {
+	if v == nil {
+		return nil
+	}
+
+	return &VolumeListItemDTO{
+		Name:        v.Name,
+		Type:        string(v.Type),
+		Size:        v.Size,
+		JobCount:    v.JobCount,
+		CreatedTime: v.FormattedCreatedTime(),
+		InUse:       v.IsInUse(),
+	}
+}
+
+// FormattedCreatedTime returns formatted creation time for DTO conversion
+func (v *Volume) FormattedCreatedTime() string {
+	return v.CreatedTime.Format("2006-01-02T15:04:05Z07:00")
+}

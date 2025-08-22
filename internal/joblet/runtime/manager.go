@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,7 +29,13 @@ func NewManager(runtimesPath string, platform platform.Platform) *Manager {
 }
 
 // ResolveRuntimeConfig resolves runtime configuration without mounting
-func (m *Manager) ResolveRuntimeConfig(runtimeSpec string) (*RuntimeConfig, error) {
+func (m *Manager) ResolveRuntimeConfig(ctx context.Context, runtimeSpec string) (*RuntimeConfig, error) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	if runtimeSpec == "" {
 		return nil, nil // No runtime requested
 	}
@@ -37,7 +44,7 @@ func (m *Manager) ResolveRuntimeConfig(runtimeSpec string) (*RuntimeConfig, erro
 	log.Debug("resolving runtime configuration")
 
 	// Resolve runtime configuration
-	config, err := m.resolver.ResolveRuntime(runtimeSpec)
+	config, err := m.resolver.ResolveRuntime(ctx, runtimeSpec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve runtime: %w", err)
 	}
@@ -47,7 +54,13 @@ func (m *Manager) ResolveRuntimeConfig(runtimeSpec string) (*RuntimeConfig, erro
 }
 
 // MountRuntimeConfig mounts a previously resolved runtime configuration
-func (m *Manager) MountRuntimeConfig(jobRootDir string, config *RuntimeConfig) error {
+func (m *Manager) MountRuntimeConfig(ctx context.Context, jobRootDir string, config *RuntimeConfig) error {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	if config == nil {
 		return nil // No runtime to mount
 	}
@@ -56,7 +69,7 @@ func (m *Manager) MountRuntimeConfig(jobRootDir string, config *RuntimeConfig) e
 	log.Debug("mounting runtime configuration")
 
 	// Mount runtime directories
-	if err := m.mountRuntime(jobRootDir, config); err != nil {
+	if err := m.mountRuntime(ctx, jobRootDir, config); err != nil {
 		return fmt.Errorf("failed to mount runtime: %w", err)
 	}
 
@@ -65,9 +78,16 @@ func (m *Manager) MountRuntimeConfig(jobRootDir string, config *RuntimeConfig) e
 }
 
 // SetupRuntime sets up the runtime for a job
-func (m *Manager) SetupRuntime(jobRootDir string, runtimeSpec string, volumes []string) (*RuntimeConfig, error) {
+func (m *Manager) SetupRuntime(ctx context.Context, jobRootDir string, runtimeSpec string, volumes []string) (*RuntimeConfig, error) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	// First resolve configuration
-	config, err := m.ResolveRuntimeConfig(runtimeSpec)
+	config, err := m.ResolveRuntimeConfig(ctx, runtimeSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +99,13 @@ func (m *Manager) SetupRuntime(jobRootDir string, runtimeSpec string, volumes []
 	log.Debug("setting up runtime for job")
 
 	// Mount runtime directories
-	if err := m.mountRuntime(jobRootDir, config); err != nil {
+	if err := m.mountRuntime(ctx, jobRootDir, config); err != nil {
 		return nil, fmt.Errorf("failed to mount runtime: %w", err)
 	}
 
 	// Setup package manager volumes if configured
 	if config.PackageManager != nil {
-		if err := m.setupPackageManagerVolumes(jobRootDir, config.PackageManager, volumes); err != nil {
+		if err := m.setupPackageManagerVolumes(ctx, jobRootDir, config.PackageManager, volumes); err != nil {
 			return nil, fmt.Errorf("failed to setup package manager volumes: %w", err)
 		}
 	}
@@ -95,7 +115,13 @@ func (m *Manager) SetupRuntime(jobRootDir string, runtimeSpec string, volumes []
 }
 
 // mountRuntime mounts the runtime directories into the job filesystem
-func (m *Manager) mountRuntime(jobRootDir string, config *RuntimeConfig) error {
+func (m *Manager) mountRuntime(ctx context.Context, jobRootDir string, config *RuntimeConfig) error {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	log := m.logger.WithField("runtime", config.Name)
 
 	for _, mount := range config.Mounts {
@@ -118,13 +144,13 @@ func (m *Manager) mountRuntime(jobRootDir string, config *RuntimeConfig) error {
 				sourcePath := filepath.Join(mount.Source, file)
 				targetFile := filepath.Join(targetPath, file)
 
-				if err := m.mountPath(sourcePath, targetFile, mount.ReadOnly); err != nil {
+				if err := m.mountPath(ctx, sourcePath, targetFile, mount.ReadOnly); err != nil {
 					return fmt.Errorf("failed to mount %s: %w", file, err)
 				}
 			}
 		} else {
 			// Mount entire directory
-			if err := m.mountPath(mount.Source, targetPath, mount.ReadOnly); err != nil {
+			if err := m.mountPath(ctx, mount.Source, targetPath, mount.ReadOnly); err != nil {
 				return fmt.Errorf("failed to mount %s to %s: %w", mount.Source, mount.Target, err)
 			}
 		}
@@ -136,7 +162,13 @@ func (m *Manager) mountRuntime(jobRootDir string, config *RuntimeConfig) error {
 }
 
 // mountPath performs a bind mount of a single path
-func (m *Manager) mountPath(source, target string, readOnly bool) error {
+func (m *Manager) mountPath(ctx context.Context, source, target string, readOnly bool) error {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	// Check if source exists
 	sourceInfo, err := m.platform.Stat(source)
 	if err != nil {
@@ -184,7 +216,13 @@ func (m *Manager) mountPath(source, target string, readOnly bool) error {
 }
 
 // setupPackageManagerVolumes sets up volumes for package manager caches
-func (m *Manager) setupPackageManagerVolumes(jobRootDir string, pmConfig *PackageManagerConfig, volumes []string) error {
+func (m *Manager) setupPackageManagerVolumes(ctx context.Context, jobRootDir string, pmConfig *PackageManagerConfig, volumes []string) error {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	// Check if cache volume is requested and available
 	if pmConfig.CacheVolume != "" {
 		cacheVolumeFound := false

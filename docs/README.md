@@ -99,6 +99,9 @@ jobs:
 rnx run --workflow=ml-pipeline.yaml
 rnx status --workflow a1b2c3d4-e5f6-7890-1234-567890abcdef
 
+# View workflow status with original YAML content (available from any workstation)
+rnx status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+
 # Output shows human-readable job names and dependencies:
 # JOB UUID        JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
 # -----------------------------------------------------------------------------------------

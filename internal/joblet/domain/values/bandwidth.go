@@ -83,16 +83,6 @@ func (b Bandwidth) BytesPerSecond() int64 {
 	return b.bytesPerSecond
 }
 
-// KilobytesPerSecond returns the bandwidth in KB/s
-func (b Bandwidth) KilobytesPerSecond() float64 {
-	return float64(b.bytesPerSecond) / 1024
-}
-
-// MegabytesPerSecond returns the bandwidth in MB/s
-func (b Bandwidth) MegabytesPerSecond() float64 {
-	return float64(b.bytesPerSecond) / (1024 * 1024)
-}
-
 // IsUnlimited returns true if no limit is set
 func (b Bandwidth) IsUnlimited() bool {
 	return b.bytesPerSecond == 0
@@ -127,12 +117,4 @@ func (b Bandwidth) Validate(min, max Bandwidth) error {
 		return fmt.Errorf("bandwidth %s exceeds maximum %s", b, max)
 	}
 	return nil
-}
-
-// CalculateDuration calculates how long it takes to transfer bytes at this bandwidth
-func (b Bandwidth) CalculateDuration(bytes int64) (float64, error) {
-	if b.bytesPerSecond == 0 {
-		return 0, fmt.Errorf("cannot calculate duration with unlimited bandwidth")
-	}
-	return float64(bytes) / float64(b.bytesPerSecond), nil
 }

@@ -9,6 +9,7 @@ type RuntimeConfig struct {
 	Name           string                `yaml:"name" json:"name"`
 	Version        string                `yaml:"version" json:"version"`
 	Description    string                `yaml:"description" json:"description"`
+	Init           string                `yaml:"init,omitempty" json:"init,omitempty"`
 	Mounts         []MountSpec           `yaml:"mounts" json:"mounts"`
 	Environment    map[string]string     `yaml:"environment" json:"environment"`
 	PackageManager *PackageManagerConfig `yaml:"package_manager,omitempty" json:"package_manager,omitempty"`

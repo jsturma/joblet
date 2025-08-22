@@ -23,7 +23,7 @@ func NewJobMapper() *JobMapper {
 func (m *JobMapper) DomainToProtobuf(job *domain.Job) *pb.Job {
 	pbJob := &pb.Job{
 		Uuid:              job.Uuid,
-		Name:              job.Name, // Include job name
+		Name:              job.Name,
 		Command:           job.Command,
 		Args:              job.Args,
 		MaxCPU:            job.Limits.CPU.Value(),
@@ -31,20 +31,15 @@ func (m *JobMapper) DomainToProtobuf(job *domain.Job) *pb.Job {
 		MaxMemory:         job.Limits.Memory.Megabytes(),
 		MaxIOBPS:          int32(job.Limits.IOBandwidth.BytesPerSecond()),
 		Status:            string(job.Status),
-		StartTime:         job.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+		StartTime:         job.FormattedStartTime(), // Use job's formatting method
 		ExitCode:          job.ExitCode,
 		Runtime:           job.Runtime,
 		Environment:       job.Environment,
 		SecretEnvironment: job.SecretEnvironment,
 	}
 
-	if job.EndTime != nil {
-		pbJob.EndTime = job.EndTime.Format("2006-01-02T15:04:05Z07:00")
-	}
-
-	if job.ScheduledTime != nil {
-		pbJob.ScheduledTime = job.ScheduledTime.Format("2006-01-02T15:04:05Z07:00")
-	}
+	pbJob.EndTime = job.FormattedEndTime()             // Use job's formatting method
+	pbJob.ScheduledTime = job.FormattedScheduledTime() // Use job's formatting method
 
 	return pbJob
 }
@@ -110,17 +105,12 @@ func (m *JobMapper) DomainToRunJobResponse(job *domain.Job) *pb.RunJobResponse {
 		MaxMemory: job.Limits.Memory.Megabytes(),
 		MaxIobps:  int32(job.Limits.IOBandwidth.BytesPerSecond()),
 		Status:    string(job.Status),
-		StartTime: job.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+		StartTime: job.FormattedStartTime(), // Use job's formatting method
 		ExitCode:  job.ExitCode,
 	}
 
-	if job.EndTime != nil {
-		response.EndTime = job.EndTime.Format("2006-01-02T15:04:05Z07:00")
-	}
-
-	if job.ScheduledTime != nil {
-		response.ScheduledTime = job.ScheduledTime.Format("2006-01-02T15:04:05Z07:00")
-	}
+	response.EndTime = job.FormattedEndTime()             // Use job's formatting method
+	response.ScheduledTime = job.FormattedScheduledTime() // Use job's formatting method
 
 	return response
 }
@@ -191,12 +181,7 @@ func (m *JobMapper) ValueObjectsToDisplayStrings(limits *domain.ResourceLimits) 
 		return map[string]string{}
 	}
 
-	return map[string]string{
-		"cpu":       limits.CPU.String(),
-		"memory":    limits.Memory.String(),
-		"bandwidth": limits.IOBandwidth.String(),
-		"cores":     limits.CPUCores.String(),
-	}
+	return limits.ToDisplayStrings() // Use resource limits' own conversion method
 }
 
 // ProtobufToStartJobRequest converts protobuf request to domain request object

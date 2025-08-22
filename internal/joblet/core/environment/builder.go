@@ -126,31 +126,6 @@ func (b *Builder) buildUploadEnvironment(job *domain.Job, uploads []domain.FileU
 	return env, nil
 }
 
-// BuildInitModeEnvironment builds environment for init mode execution
-func (b *Builder) BuildInitModeEnvironment(config *JobConfig) []string {
-	env := []string{
-		"JOBLET_MODE=init",
-		fmt.Sprintf("JOB_ID=%s", config.JobID),
-		fmt.Sprintf("JOB_COMMAND=%s", config.Command),
-		fmt.Sprintf("JOB_CGROUP_PATH=%s", config.CgroupPath),
-		fmt.Sprintf("JOB_ARGS_COUNT=%d", len(config.Args)),
-	}
-
-	for i, arg := range config.Args {
-		env = append(env, fmt.Sprintf("JOB_ARG_%d=%s", i, arg))
-	}
-
-	if config.HasUploadSession {
-		env = append(env,
-			fmt.Sprintf("JOB_UPLOAD_SESSION=%t", true),
-			fmt.Sprintf("JOB_UPLOAD_PIPE=%s", config.UploadPipePath),
-			fmt.Sprintf("JOB_UPLOAD_TOTAL_FILES=%d", config.TotalFiles),
-		)
-	}
-
-	return env
-}
-
 // JobConfig represents configuration loaded from environment (used in init mode)
 type JobConfig struct {
 	JobID            string

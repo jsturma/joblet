@@ -303,6 +303,12 @@ rnx list --workflow
 # Check specific workflow status (enhanced with job names and dependencies)
 rnx status --workflow <workflow-uuid>
 
+# View workflow status with original YAML content
+rnx status --workflow --detail <workflow-uuid>
+
+# Get workflow status with YAML content in JSON format (for scripting)
+rnx status --workflow --json --detail <workflow-uuid>
+
 # Monitor job logs
 rnx log <job-uuid>
 ```
@@ -346,6 +352,52 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890 process-data         RUNNING      -        
 - Dependency relationships shown (e.g., process-data depends on setup-data)
 - Real-time status updates with color coding
 - Exit codes for completed jobs
+
+### YAML Content Display
+
+Use the `--detail` flag with workflow status to view the original YAML content:
+
+```bash
+# Display workflow status with original YAML content
+rnx status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+```
+
+**Key Benefits:**
+
+- **Multi-workstation Access**: YAML content is stored server-side, accessible from any client workstation
+- **Original Definition**: View the exact YAML that was used to create the workflow
+- **Debugging Aid**: Compare current state with original definition for troubleshooting
+- **Team Collaboration**: Any team member can inspect workflow definitions regardless of where it was submitted
+
+**Example Output:**
+```
+Workflow UUID: a1b2c3d4-e5f6-7890-1234-567890abcdef
+Workflow: data-pipeline.yaml
+Status: RUNNING
+Progress: 2/4 jobs completed
+
+YAML Content:
+=============
+jobs:
+  setup-data:
+    command: "python3"
+    args: ["extract.py"]
+    runtime: "python:3.11-ml"
+    uploads:
+      files: ["extract.py"]
+  process-data:
+    command: "python3"
+    args: ["transform.py"]
+    runtime: "python:3.11-ml"
+    requires:
+      - setup-data: "COMPLETED"
+    uploads:
+      files: ["transform.py"]
+=============
+
+Jobs in Workflow:
+...
+```
 
 ## Examples
 

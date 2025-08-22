@@ -31,6 +31,12 @@ func NewWorkflowManager() *WorkflowManager {
 // The jobs map contains job IDs mapped to their dependency information.
 // The order slice defines the intended execution order for jobs without dependencies.
 func (wm *WorkflowManager) CreateWorkflow(workflow string, jobs map[string]*JobDependency, order []string) (int, error) {
+	return wm.CreateWorkflowWithYaml(workflow, "", jobs, order)
+}
+
+// CreateWorkflowWithYaml creates a new workflow with YAML content for client access.
+// This is the preferred method for workflows that need to store original YAML content.
+func (wm *WorkflowManager) CreateWorkflowWithYaml(workflow string, yamlContent string, jobs map[string]*JobDependency, order []string) (int, error) {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
@@ -38,13 +44,14 @@ func (wm *WorkflowManager) CreateWorkflow(workflow string, jobs map[string]*JobD
 	workflowID := wm.workflowCounter
 
 	workflowState := &WorkflowState{
-		ID:        workflowID,
-		Workflow:  workflow,
-		Jobs:      jobs,
-		JobOrder:  order,
-		Status:    WorkflowPending,
-		CreatedAt: time.Now(),
-		TotalJobs: len(jobs),
+		ID:          workflowID,
+		Workflow:    workflow,
+		YamlContent: yamlContent,
+		Jobs:        jobs,
+		JobOrder:    order,
+		Status:      WorkflowPending,
+		CreatedAt:   time.Now(),
+		TotalJobs:   len(jobs),
 	}
 
 	wm.workflows[workflowID] = workflowState
@@ -55,7 +62,7 @@ func (wm *WorkflowManager) CreateWorkflow(workflow string, jobs map[string]*JobD
 	}
 
 	// Create in resolver
-	_, err := wm.resolver.CreateWorkflow(workflow, jobs, order)
+	_, err := wm.resolver.CreateWorkflowWithYaml(workflow, yamlContent, jobs, order)
 	return workflowID, err
 }
 
@@ -174,6 +181,11 @@ func (wm *WorkflowManager) GetWorkflowStatus(workflowID int) (*WorkflowState, er
 		return nil, fmt.Errorf("workflow %d not found", workflowID)
 	}
 
+	// Check for nil before dereferencing
+	if workflow == nil {
+		return nil, fmt.Errorf("workflow %d is nil", workflowID)
+	}
+
 	// Create a copy to avoid race conditions
 	copy := *workflow
 	return &copy, nil
@@ -188,6 +200,9 @@ func (wm *WorkflowManager) ListWorkflows() []*WorkflowState {
 
 	var result []*WorkflowState
 	for _, wf := range wm.workflows {
+		if wf == nil {
+			continue
+		}
 		copy := *wf
 		result = append(result, &copy)
 	}
@@ -211,16 +226,4 @@ func (wm *WorkflowManager) GetJobWorkflow(jobID string) (int, bool) {
 func (wm *WorkflowManager) IsJobPartOfWorkflow(jobID string) bool {
 	_, exists := wm.GetJobWorkflow(jobID)
 	return exists
-}
-
-// Deprecated: GetGlobalWorkflowManager - use dependency injection instead
-// This function exists only for backward compatibility and will be removed
-var globalWorkflowManager *WorkflowManager
-var workflowManagerOnce sync.Once
-
-func GetGlobalWorkflowManager() *WorkflowManager {
-	workflowManagerOnce.Do(func() {
-		globalWorkflowManager = NewWorkflowManager()
-	})
-	return globalWorkflowManager
 }

@@ -14,6 +14,7 @@ import (
 )
 
 var workflowFlag bool
+var detailFlag bool
 
 func NewStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -25,6 +26,7 @@ Both jobs and workflows use UUIDs (36-character identifiers).
 Short-form UUIDs are supported - you can use just the first 8 characters
 if they uniquely identify a job or workflow.
 Use --workflow flag to explicitly request workflow status.
+Use --detail flag with workflow status to show the original YAML content.
 
 Examples:
   # Get job status (using full UUID)
@@ -39,20 +41,30 @@ Examples:
   # Get workflow status (using short-form UUID)
   rnx status --workflow a1b2c3d4
   
+  # Get workflow status with YAML content
+  rnx status --workflow --detail a1b2c3d4
+  
   # JSON output
   rnx status --json f47ac10b
-  rnx status --workflow --json a1b2c3d4`,
+  rnx status --workflow --json a1b2c3d4
+  rnx status --workflow --json --detail a1b2c3d4  # JSON with YAML content`,
 		Args: cobra.ExactArgs(1),
 		RunE: runStatus,
 	}
 
 	cmd.Flags().BoolVarP(&workflowFlag, "workflow", "w", false, "Get workflow status instead of job status")
+	cmd.Flags().BoolVarP(&detailFlag, "detail", "d", false, "Show YAML content when displaying workflow status")
 
 	return cmd
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
 	id := args[0]
+
+	// Validate flag combinations
+	if detailFlag && !workflowFlag {
+		return fmt.Errorf("--detail flag can only be used with --workflow flag")
+	}
 
 	// If workflow flag is set, try workflow status directly
 	if workflowFlag {
@@ -347,6 +359,15 @@ func getWorkflowStatus(workflowID string) error {
 	fmt.Printf("Workflow: %s\n", workflow.Workflow)
 	fmt.Printf("\n")
 
+	// Display YAML content if detail flag is set
+	if detailFlag {
+		if workflow.YamlContent != "" {
+			displayWorkflowYAMLContent(workflow.YamlContent)
+		} else {
+			fmt.Printf("Warning: YAML content not available from server\n\n")
+		}
+	}
+
 	// Display status with color coding (if terminal supports it)
 	statusColor, resetColor := getStatusColor(workflow.Status)
 	fmt.Printf("Status: %s%s%s\n", statusColor, workflow.Status, resetColor)
@@ -467,6 +488,11 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 		"jobs":           make([]map[string]interface{}, 0, len(res.Jobs)),
 	}
 
+	// Include YAML content if detail flag is set and content is available
+	if detailFlag && res.Workflow.YamlContent != "" {
+		statusData["yaml_content"] = res.Workflow.YamlContent
+	}
+
 	// Add job details
 	for _, job := range res.Jobs {
 		jobData := map[string]interface{}{
@@ -492,4 +518,11 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(statusData)
+}
+
+// displayWorkflowYAMLContent displays YAML content directly from server
+func displayWorkflowYAMLContent(yamlContent string) {
+	fmt.Printf("YAML Content:\n")
+	fmt.Printf("=============\n")
+	fmt.Printf("%s\n", yamlContent)
 }

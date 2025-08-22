@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
 // NetworkSetup handles network namespace and configuration
 type NetworkSetup struct {
 	platform     platform.Platform
@@ -20,6 +22,8 @@ type NetworkSetup struct {
 // This interface is used to avoid circular dependencies between the network setup
 // and network store packages. It provides access to network configuration data
 // needed for bridge and IP address management.
+//
+//counterfeiter:generate . NetworkStoreInterface
 type NetworkStoreInterface interface {
 	GetNetworkConfig(name string) (*NetworkConfig, error)
 }
@@ -450,7 +454,7 @@ func (ns *NetworkSetup) getGatewayIP(networkName string) string {
 // This method generates a hosts file containing:
 //   - Standard localhost mapping (127.0.0.1 -> localhost)
 //   - Job-specific hostname mapping (job IP -> job hostname)
-//   - Placeholder for future inter-job hostname resolution
+//   - Space for future inter-job hostname resolution
 //
 // The hosts file is bind-mounted into the job's namespace, replacing the default
 // /etc/hosts and enabling hostname-based communication within the network.

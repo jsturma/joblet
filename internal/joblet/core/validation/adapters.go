@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"context"
 	"joblet/internal/joblet/core/volume"
 	"joblet/internal/joblet/runtime"
 	"joblet/pkg/logger"
@@ -45,7 +46,8 @@ func NewRuntimeManagerAdapter(manager *runtime.Manager, resolver *runtime.Resolv
 // RuntimeExists checks if a runtime exists and is available
 func (rma *RuntimeManagerAdapter) RuntimeExists(runtimeName string) bool {
 	// Try to resolve the runtime configuration
-	_, err := rma.manager.ResolveRuntimeConfig(runtimeName)
+	ctx := context.Background()
+	_, err := rma.manager.ResolveRuntimeConfig(ctx, runtimeName)
 	return err == nil
 }
 

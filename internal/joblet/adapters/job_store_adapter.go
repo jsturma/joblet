@@ -65,6 +65,9 @@ type jobStoreAdapter struct {
 	cleanupDone   chan bool
 }
 
+// Ensure jobStoreAdapter implements the interfaces
+var _ JobStoreAdapter = (*jobStoreAdapter)(nil)
+
 // taskWrapper wraps a job with buffer and subscription management
 // to maintain compatibility with the current Task abstraction.
 type taskWrapper struct {
@@ -178,14 +181,21 @@ func (a *jobStoreAdapter) CreateNewJob(job *domain.Job) {
 	}
 
 	// Create buffer for job logs using configuration from factory
+	var jobBuffer buffer.Buffer
 	bufferConfig := a.getBufferConfig()
-
-	jobBuffer, err := a.bufferMgr.CreateBuffer(ctx, job.Uuid, *bufferConfig)
-	if err != nil {
-		a.logger.Error("failed to create buffer for job - log streaming will not work", "jobId", job.Uuid, "error", err, "bufferConfig", *bufferConfig)
+	if bufferConfig == nil {
+		a.logger.Warn("buffer configuration not provided - log streaming will not work", "jobId", job.Uuid)
 		// Continue without buffer - logs won't be stored but job will work
 	} else {
-		a.logger.Debug("buffer created successfully for job", "jobId", job.Uuid, "bufferType", bufferConfig.Type)
+		var err error
+		jobBuffer, err = a.bufferMgr.CreateBuffer(ctx, job.Uuid, *bufferConfig)
+		if err != nil {
+			a.logger.Error("failed to create buffer for job - log streaming will not work", "jobId", job.Uuid, "error", err, "bufferConfig", *bufferConfig)
+			// Continue without buffer - logs won't be stored but job will work
+			jobBuffer = nil
+		} else {
+			a.logger.Debug("buffer created successfully for job", "jobId", job.Uuid, "bufferType", bufferConfig.Type)
+		}
 	}
 
 	// Create task wrapper
@@ -767,12 +777,8 @@ func (a *jobStoreAdapter) publishEvent(event JobEvent) error {
 }
 
 // getBufferConfig returns the buffer configuration for creating job buffers.
-// Panics if configuration is missing to enforce fail-fast behavior.
+// Returns nil if configuration is missing, allowing graceful degradation.
 func (a *jobStoreAdapter) getBufferConfig() *buffer.BufferConfig {
-	if a.bufferConfig == nil {
-		// No fallback values - application should fail fast if config missing
-		panic("buffer configuration is required but not provided")
-	}
 	return a.bufferConfig
 }
 

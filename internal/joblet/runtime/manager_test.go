@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,7 +86,8 @@ func TestSetupRuntime(t *testing.T) {
 	manager := NewManager(runtimesPath, platform)
 
 	// Test runtime setup
-	config, err := manager.SetupRuntime(jobRootDir, "python:3.11", []string{"pip-cache"})
+	ctx := context.Background()
+	config, err := manager.SetupRuntime(ctx, jobRootDir, "python:3.11", []string{"pip-cache"})
 	if err != nil {
 		t.Fatalf("Failed to setup runtime: %v", err)
 	}
@@ -109,7 +111,8 @@ func TestSetupRuntimeNoRuntime(t *testing.T) {
 	manager := NewManager("/opt/joblet/runtimes", platform)
 
 	// Test with empty runtime spec
-	config, err := manager.SetupRuntime("/opt/joblet/jobs/test-job", "", nil)
+	ctx := context.Background()
+	config, err := manager.SetupRuntime(ctx, "/opt/joblet/jobs/test-job", "", nil)
 	if err != nil {
 		t.Errorf("Expected no error for empty runtime spec, got: %v", err)
 	}
@@ -213,7 +216,8 @@ func TestMountPath(t *testing.T) {
 
 		// Note: Actual mount would require root privileges
 		// This test validates the setup logic
-		err := manager.mountPath(sourceDir, targetDir, true)
+		ctx := context.Background()
+		err := manager.mountPath(ctx, sourceDir, targetDir, true)
 		if err != nil {
 			t.Fatalf("mountPath failed: %v", err)
 		}
@@ -248,7 +252,8 @@ func TestMountPath(t *testing.T) {
 		manager := NewManager("/opt/joblet/runtimes", platform)
 
 		// Note: Actual mount would require root privileges
-		err := manager.mountPath(sourceFile, targetFile, false)
+		ctx := context.Background()
+		err := manager.mountPath(ctx, sourceFile, targetFile, false)
 		if err != nil {
 			t.Fatalf("mountPath failed: %v", err)
 		}

@@ -59,7 +59,7 @@ func NewCoordinator(
 ) *Coordinator {
 	var networkSetup *network.NetworkSetup
 	if networkStore != nil {
-		// Create bridge to adapt NetworkStoreAdapter to NetworkStoreInterface
+		// Use the consolidated network setup bridge
 		networkStoreInterface := adapters.NewNetworkSetupBridge(networkStore)
 		networkSetup = network.NewNetworkSetup(platform, networkStoreInterface)
 	}

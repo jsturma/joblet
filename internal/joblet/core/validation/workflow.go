@@ -21,24 +21,6 @@ type WorkflowValidator struct {
 	runtimeManager RuntimeManagerInterface
 }
 
-// VolumeManagerInterface defines the interface for volume operations
-type VolumeManagerInterface interface {
-	VolumeExists(volumeName string) bool
-}
-
-// RuntimeManagerInterface defines the interface for runtime operations
-type RuntimeManagerInterface interface {
-	RuntimeExists(runtimeName string) bool
-	ListRuntimes() []RuntimeInfo
-}
-
-// RuntimeInfo represents runtime information for validation
-type RuntimeInfo struct {
-	Name      string
-	Version   string
-	Available bool
-}
-
 // NewWorkflowValidator creates a new workflow validator with required dependencies
 func NewWorkflowValidator(volumeManager VolumeManagerInterface, runtimeManager RuntimeManagerInterface) *WorkflowValidator {
 	return &WorkflowValidator{

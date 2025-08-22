@@ -37,6 +37,9 @@ type networkStoreAdapter struct {
 	closeMutex sync.RWMutex
 }
 
+// Ensure networkStoreAdapter implements the interfaces
+var _ NetworkStoreAdapter = (*networkStoreAdapter)(nil)
+
 // ipPool manages IP allocation for a specific network
 type ipPool struct {
 	cidr      *net.IPNet

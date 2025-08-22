@@ -96,17 +96,48 @@ type subscriber[T any] struct {
 	statsMutex sync.RWMutex
 }
 
-// NewPubSub creates a new in-memory pub-sub system.
-func NewPubSub[T any](config *PubSubConfig) PubSub[T] {
-	bufferSize := 10 // default
-	if config != nil && config.BufferSize > 0 {
-		bufferSize = config.BufferSize
+// Option represents a functional option for configuring the PubSub system.
+type Option[T any] func(*memoryPubSub[T])
+
+// WithBufferSize sets the buffer size for subscriber channels.
+func WithBufferSize[T any](size int) Option[T] {
+	return func(p *memoryPubSub[T]) {
+		if size > 0 {
+			p.bufferSize = size
+		}
+	}
+}
+
+// WithMaxTopics sets the maximum number of topics allowed.
+func WithMaxTopics[T any](max int) Option[T] {
+	return func(p *memoryPubSub[T]) {
+		// This could be used to limit the number of topics
+		// Implementation would require additional fields
+	}
+}
+
+// NewPubSub creates a new in-memory pub-sub system with functional options.
+func NewPubSub[T any](opts ...Option[T]) PubSub[T] {
+	p := &memoryPubSub[T]{
+		topics:     make(map[string]*topic[T]),
+		bufferSize: 10, // default
 	}
 
-	return &memoryPubSub[T]{
-		topics:     make(map[string]*topic[T]),
-		bufferSize: bufferSize,
+	// Apply options
+	for _, opt := range opts {
+		opt(p)
 	}
+
+	return p
+}
+
+// NewPubSubWithConfig creates a new in-memory pub-sub system with a config.
+// Deprecated: Use NewPubSub with functional options instead.
+func NewPubSubWithConfig[T any](config *PubSubConfig) PubSub[T] {
+	if config != nil && config.BufferSize > 0 {
+		return NewPubSub[T](WithBufferSize[T](config.BufferSize))
+	}
+	return NewPubSub[T]()
 }
 
 // Publish sends a message to the specified topic.
@@ -118,11 +149,10 @@ func (p *memoryPubSub[T]) Publish(ctx context.Context, topicName string, message
 	}
 
 	p.closeMutex.RLock()
+	defer p.closeMutex.RUnlock()
 	if p.closed {
-		p.closeMutex.RUnlock()
 		return ErrPublisherClosed
 	}
-	p.closeMutex.RUnlock()
 
 	// Get or create topic
 	t := p.getOrCreateTopic(topicName)
@@ -145,12 +175,14 @@ func (p *memoryPubSub[T]) Publish(ctx context.Context, topicName string, message
 	t.subMutex.RUnlock()
 
 	// Update topic stats
-	t.statsMutex.Lock()
-	t.stats.MessageCount++
-	t.stats.BytesPublished += int64(len(fmt.Sprintf("%+v", message))) // rough estimate
 	now := time.Now()
-	t.stats.LastMessageTime = &now
-	t.statsMutex.Unlock()
+	func() {
+		t.statsMutex.Lock()
+		defer t.statsMutex.Unlock()
+		t.stats.MessageCount++
+		t.stats.BytesPublished += int64(len(fmt.Sprintf("%+v", message))) // rough estimate
+		t.stats.LastMessageTime = &now
+	}()
 
 	// Deliver to subscribers (non-blocking)
 	for _, sub := range subscribers {
@@ -172,11 +204,10 @@ func (p *memoryPubSub[T]) Publish(ctx context.Context, topicName string, message
 // Subscribe creates a subscription to the specified topic.
 func (p *memoryPubSub[T]) Subscribe(ctx context.Context, topicName string) (<-chan Message[T], func(), error) {
 	p.closeMutex.RLock()
+	defer p.closeMutex.RUnlock()
 	if p.closed {
-		p.closeMutex.RUnlock()
 		return nil, nil, ErrSubscriberClosed
 	}
-	p.closeMutex.RUnlock()
 
 	// Get or create topic
 	t := p.getOrCreateTopic(topicName)

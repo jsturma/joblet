@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -129,7 +130,8 @@ func TestResolveRuntime(t *testing.T) {
 	resolver := NewResolver(runtimesPath, platform)
 
 	// Test resolving runtime
-	config, err := resolver.ResolveRuntime("python:3.11")
+	ctx := context.Background()
+	config, err := resolver.ResolveRuntime(ctx, "python:3.11")
 	if err != nil {
 		t.Fatalf("Failed to resolve runtime: %v", err)
 	}

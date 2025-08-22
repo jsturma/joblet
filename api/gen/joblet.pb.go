@@ -4091,6 +4091,7 @@ type WorkflowInfo struct {
 	CreatedAt     *Timestamp             `protobuf:"bytes,8,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
 	StartedAt     *Timestamp             `protobuf:"bytes,9,opt,name=startedAt,proto3" json:"startedAt,omitempty"`
 	CompletedAt   *Timestamp             `protobuf:"bytes,10,opt,name=completedAt,proto3" json:"completedAt,omitempty"`
+	YamlContent   string                 `protobuf:"bytes,11,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"` // Original YAML content for client access
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4193,6 +4194,13 @@ func (x *WorkflowInfo) GetCompletedAt() *Timestamp {
 		return x.CompletedAt
 	}
 	return nil
+}
+
+func (x *WorkflowInfo) GetYamlContent() string {
+	if x != nil {
+		return x.YamlContent
+	}
+	return ""
 }
 
 type WorkflowJob struct {
@@ -4722,7 +4730,7 @@ const file_joblet_proto_rawDesc = "" +
 	"\x16GetWorkflowJobsRequest\x12\"\n" +
 	"\fworkflowUuid\x18\x01 \x01(\tR\fworkflowUuid\"B\n" +
 	"\x17GetWorkflowJobsResponse\x12'\n" +
-	"\x04jobs\x18\x01 \x03(\v2\x13.joblet.WorkflowJobR\x04jobs\"\xf5\x02\n" +
+	"\x04jobs\x18\x01 \x03(\v2\x13.joblet.WorkflowJobR\x04jobs\"\x97\x03\n" +
 	"\fWorkflowInfo\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1a\n" +
 	"\bworkflow\x18\x02 \x01(\tR\bworkflow\x12\x16\n" +
@@ -4736,7 +4744,8 @@ const file_joblet_proto_rawDesc = "" +
 	"\tcreatedAt\x18\b \x01(\v2\x11.joblet.TimestampR\tcreatedAt\x12/\n" +
 	"\tstartedAt\x18\t \x01(\v2\x11.joblet.TimestampR\tstartedAt\x123\n" +
 	"\vcompletedAt\x18\n" +
-	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\"\xf7\x01\n" +
+	" \x01(\v2\x11.joblet.TimestampR\vcompletedAt\x12 \n" +
+	"\vyamlContent\x18\v \x01(\tR\vyamlContent\"\xf7\x01\n" +
 	"\vWorkflowJob\x12\x18\n" +
 	"\ajobUuid\x18\x01 \x01(\tR\ajobUuid\x12\x18\n" +
 	"\ajobName\x18\x02 \x01(\tR\ajobName\x12\x16\n" +

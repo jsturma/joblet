@@ -32,7 +32,7 @@ import (
 // Joblet orchestrates job execution using specialized components
 type Joblet struct {
 	// Core dependencies
-	store    adapters.JobStoreAdapter
+	store    JobStore
 	config   *config.Config
 	logger   *logger.Logger
 	platform platform.Platform
@@ -41,7 +41,7 @@ type Joblet struct {
 	validator       *validation.Service
 	jobBuilder      *job.Builder
 	resourceManager *ResourceManager
-	executionEngine *ExecutionEngine
+	executionEngine *ExecutionEngineV2
 	scheduler       *scheduler.Scheduler
 	cleanup         *cleanup.Coordinator
 }
@@ -71,11 +71,14 @@ func (r StartJobRequest) GetEnvironment() map[string]string       { return r.Env
 func (r StartJobRequest) GetSecretEnvironment() map[string]string { return r.SecretEnvironment }
 
 // NewPlatformJoblet creates a new Linux platform joblet with specialized components
-func NewPlatformJoblet(store adapters.JobStoreAdapter, cfg *config.Config, networkStore adapters.NetworkStoreAdapter) interfaces.Joblet {
+func NewPlatformJoblet(store JobStore, cfg *config.Config, networkStoreAdapter adapters.NetworkStoreAdapter) interfaces.Joblet {
 	platformInterface := platform.NewPlatform()
 	jobletLogger := logger.New().WithField("component", "linux-joblet")
 
-	// Initialize all specialized c
+	// Create network store adapter
+	networkStore := NewNetworkStoreAdapter(networkStoreAdapter)
+
+	// Initialize all specialized components
 	c := initializeComponents(store, cfg, platformInterface, jobletLogger, networkStore)
 
 	// Create the joblet
@@ -425,7 +428,7 @@ func (j *Joblet) getActiveJobIDs() map[string]bool {
 }
 
 // initializeComponents creates all the specialized components
-func initializeComponents(store adapters.JobStoreAdapter, cfg *config.Config, platform platform.Platform, logger *logger.Logger, networkStore adapters.NetworkStoreAdapter) *components {
+func initializeComponents(store JobStore, cfg *config.Config, platform platform.Platform, logger *logger.Logger, networkStore NetworkStore) *components {
 	// Create core resources
 	cgroupResource := resource.New(cfg.Cgroup)
 	filesystemIsolator := filesystem.NewIsolator(cfg.Filesystem, platform)
@@ -462,8 +465,8 @@ func initializeComponents(store adapters.JobStoreAdapter, cfg *config.Config, pl
 		uploadMgr:  uploadManager,
 	}
 
-	// Create execution engine with network store adapter
-	executionEngine := NewExecutionEngine(
+	// Create execution engine using the coordinator pattern
+	executionEngine := NewExecutionEngineV2(
 		processManager,
 		uploadManager,
 		platform,
@@ -481,7 +484,7 @@ func initializeComponents(store adapters.JobStoreAdapter, cfg *config.Config, pl
 		platform,
 		cfg,
 		logger,
-		networkStore,
+		networkStore.(*NetworkStoreAdapter).GetUnderlyingStore(),
 		runtimeManager,
 	)
 
@@ -501,7 +504,7 @@ type components struct {
 	validator       *validation.Service
 	jobBuilder      *job.Builder
 	resourceManager *ResourceManager
-	executionEngine *ExecutionEngine
+	executionEngine *ExecutionEngineV2
 	cleanup         *cleanup.Coordinator
 }
 

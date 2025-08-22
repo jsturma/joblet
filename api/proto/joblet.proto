@@ -501,6 +501,7 @@ message WorkflowInfo {
   Timestamp createdAt = 8;
   Timestamp startedAt = 9;
   Timestamp completedAt = 10;
+  string yamlContent = 11;                 // Original YAML content for client access
 }
 
 message WorkflowJob {

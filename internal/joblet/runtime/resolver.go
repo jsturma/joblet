@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +31,13 @@ func NewResolver(runtimesPath string, platform platform.Platform) *Resolver {
 }
 
 // ResolveRuntime resolves a runtime specification to a runtime configuration
-func (r *Resolver) ResolveRuntime(spec string) (*RuntimeConfig, error) {
+func (r *Resolver) ResolveRuntime(ctx context.Context, spec string) (*RuntimeConfig, error) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	if spec == "" {
 		return nil, nil // No runtime specified
 	}

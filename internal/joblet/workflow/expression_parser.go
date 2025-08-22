@@ -6,6 +6,8 @@ import (
 	"unicode"
 )
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
 // Token types for expression parsing
 type TokenType int
 
@@ -207,6 +209,8 @@ func (l *Lexer) NextToken() Token {
 }
 
 // ExpressionNode represents a node in the expression AST
+//
+//counterfeiter:generate . ExpressionNode
 type ExpressionNode interface {
 	Evaluate(jobStates map[string]string) (bool, error)
 	CanBeSatisfied(jobStates map[string]string, terminalStates map[string]bool) bool
@@ -555,37 +559,4 @@ func (p *ExpressionParser) parsePrimary() (ExpressionNode, error) {
 func ParseExpression(expr string) (ExpressionNode, error) {
 	parser := NewExpressionParser(expr)
 	return parser.Parse()
-}
-
-// EvaluateExpression parses and evaluates an expression in one step.
-// Takes an expression string and current job states, returns the boolean result.
-// Combines parsing and evaluation for simple one-time expression checks.
-func EvaluateExpression(expr string, jobStates map[string]string) (bool, error) {
-	node, err := ParseExpression(expr)
-	if err != nil {
-		return false, err
-	}
-	return node.Evaluate(jobStates)
-}
-
-// CanExpressionBeSatisfied determines if an expression can potentially become true.
-// Analyzes the expression with current job states and terminal state information
-// to detect impossible dependencies early in workflow execution.
-func CanExpressionBeSatisfied(expr string, jobStates map[string]string, terminalStates map[string]bool) (bool, error) {
-	node, err := ParseExpression(expr)
-	if err != nil {
-		return false, err
-	}
-	return node.CanBeSatisfied(jobStates, terminalStates), nil
-}
-
-// GetExpressionJobNames parses an expression and extracts all referenced job names.
-// Used for dependency analysis, workflow planning, and validation.
-// Helps identify which jobs need to be monitored for dependency resolution.
-func GetExpressionJobNames(expr string) ([]string, error) {
-	node, err := ParseExpression(expr)
-	if err != nil {
-		return nil, err
-	}
-	return node.GetJobNames(), nil
 }

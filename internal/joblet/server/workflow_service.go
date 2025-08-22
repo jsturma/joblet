@@ -344,6 +344,7 @@ func (s *WorkflowServiceServer) convertWorkflowStateToInfo(ws *workflow.Workflow
 		CompletedJobs: int32(ws.CompletedJobs),
 		FailedJobs:    int32(ws.FailedJobs),
 		CreatedAt:     s.convertTimeToTimestamp(ws.CreatedAt),
+		YamlContent:   ws.YamlContent,
 	}
 
 	if ws.StartedAt != nil {
@@ -797,8 +798,9 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 	workflowName := s.generateWorkflowName(workflowYAML)
 
 	// Create workflow
-	workflowID, err := s.workflowManager.CreateWorkflow(
+	workflowID, err := s.workflowManager.CreateWorkflowWithYaml(
 		workflowName,
+		yamlContent,
 		jobs,
 		jobOrder,
 	)

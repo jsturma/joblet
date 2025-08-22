@@ -55,11 +55,10 @@ func (f *AdapterFactory) CreateJobStoreAdapter(config *JobStoreConfig) (JobStore
 	jobStore := &simpleMemoryStore[string, *domain.Job]{
 		data: make(map[string]*domain.Job),
 	}
-	// Create memory pub-sub directly with simplified config
-	pubsubConfig := &pubsub.PubSubConfig{
-		BufferSize: config.PubSub.BufferSize,
-	}
-	pubsubSystem := pubsub.NewPubSub[JobEvent](pubsubConfig)
+	// Create memory pub-sub with functional options
+	pubsubSystem := pubsub.NewPubSub[JobEvent](
+		pubsub.WithBufferSize[JobEvent](config.PubSub.BufferSize),
+	)
 
 	// Create a simple buffer manager with proper tracking
 	bufferMgr := NewSimpleBufferManager()
@@ -224,7 +223,7 @@ func (f *AdapterFactory) validateNetworkStoreConfig(config *NetworkStoreConfig) 
 // Configuration structs
 
 // StoreConfig contains configuration for a store backend.
-// This is a temporary duplicate to avoid import cycles - will be cleaned up later.
+// TODO: These types should be moved to pkg/config when storage config is standardized.
 type StoreConfig struct {
 	Backend string        `yaml:"backend" json:"backend"`
 	Path    string        `yaml:"path" json:"path"`
@@ -232,7 +231,7 @@ type StoreConfig struct {
 }
 
 // MemoryConfig configures the memory store backend.
-// This is a temporary duplicate to avoid import cycles - will be cleaned up later.
+// TODO: Move to pkg/config when storage configuration is standardized.
 type MemoryConfig struct {
 	// Currently empty - no configuration needed for unlimited memory stores
 }
@@ -363,9 +362,9 @@ func (s *SimpleBufferManager) Stats() *buffer.BufferManagerStats {
 	return &buffer.BufferManagerStats{
 		ActiveBuffers:       len(s.buffers),
 		TotalBuffersCreated: int64(len(s.buffers)), // Simplified for development
-		TotalBytesWritten:   0,                     // Not implemented for simplicity
-		TotalBytesRead:      0,                     // Not implemented for simplicity
-		MemoryUsage:         0,                     // Not implemented for simplicity
+		TotalBytesWritten:   0,                     // TODO: Implement byte tracking
+		TotalBytesRead:      0,                     // TODO: Implement byte tracking
+		MemoryUsage:         0,                     // TODO: Implement memory usage tracking
 	}
 }
 

@@ -11,6 +11,8 @@ import (
 	"joblet/pkg/logger"
 )
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
 // Builder creates jobs with validation and defaults
 type Builder struct {
 	config       *config.Config
@@ -30,6 +32,8 @@ func NewBuilder(cfg *config.Config, idGen *IDGenerator, resValidator *validation
 }
 
 // BuildRequest represents a request to build a job
+//
+//counterfeiter:generate . BuildRequest
 type BuildRequest interface {
 	GetCommand() string
 	GetArgs() []string

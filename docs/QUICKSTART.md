@@ -228,6 +228,13 @@ rnx status <job-uuid>       # Check job status
 rnx log <job-uuid>          # View job logs
 rnx stop <job-uuid>         # Stop running job
 
+# Workflow Management
+rnx run --workflow=file.yaml    # Run workflow
+rnx list --workflow             # List workflows
+rnx status --workflow <uuid>    # Check workflow status
+rnx status --workflow --detail <uuid> # View workflow status + YAML
+rnx status --workflow --json --detail <uuid> # JSON output with YAML content
+
 # Volume Management
 rnx volume create <name>    # Create volume
 rnx volume list             # List volumes

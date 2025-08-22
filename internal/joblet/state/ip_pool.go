@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"net"
 	"sync"
 )
@@ -17,19 +18,18 @@ type IPPool struct {
 
 // NewIPPool creates a new IP pool for the given CIDR subnet.
 // Parses the CIDR notation and initializes the allocation tracking map.
-// Panics if the CIDR is invalid (should be validated before calling).
-func NewIPPool(cidr string) *IPPool {
+// Returns an error if the CIDR is invalid.
+func NewIPPool(cidr string) (*IPPool, error) {
 	_, subnet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		// This should never happen as CIDR is validated before
-		panic("invalid CIDR in IPPool: " + cidr)
+		return nil, fmt.Errorf("invalid CIDR in IPPool %s: %w", cidr, err)
 	}
 
 	return &IPPool{
 		subnet:    subnet,
 		allocated: make(map[uint32]bool),
 		next:      1, // Start from .1 (gateway is usually .1, so we'll skip it)
-	}
+	}, nil
 }
 
 // Allocate assigns the next available IP address from the pool.
@@ -89,10 +89,10 @@ func (p *IPPool) Release(ip net.IP) {
 	}
 }
 
-// GetAvailableCount returns the number of available IP addresses in the pool.
+// AvailableCount returns the number of available IP addresses in the pool.
 // Thread-safe operation that calculates available IPs by subtracting allocated,
 // network, broadcast, and gateway addresses from the total subnet size.
-func (p *IPPool) GetAvailableCount() int {
+func (p *IPPool) AvailableCount() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -116,21 +116,21 @@ func (p *IPPool) IsIPInPool(ip net.IP) bool {
 	return p.subnet.Contains(ip)
 }
 
-// GetGatewayIP returns the gateway IP address for this network.
+// GatewayIP returns the gateway IP address for this network.
 // Always returns the first usable address (.1) which is reserved for gateway use.
-func (p *IPPool) GetGatewayIP() net.IP {
+func (p *IPPool) GatewayIP() net.IP {
 	return p.offsetToIP(1)
 }
 
-// GetNetworkAddress returns the network address (first address in CIDR).
+// NetworkAddress returns the network address (first address in CIDR).
 // This is the base address of the subnet and cannot be assigned to hosts.
-func (p *IPPool) GetNetworkAddress() net.IP {
+func (p *IPPool) NetworkAddress() net.IP {
 	return p.subnet.IP
 }
 
-// GetBroadcastAddress returns the broadcast address (last address in CIDR).
+// BroadcastAddress returns the broadcast address (last address in CIDR).
 // This is the highest address in the subnet and cannot be assigned to hosts.
-func (p *IPPool) GetBroadcastAddress() net.IP {
+func (p *IPPool) BroadcastAddress() net.IP {
 	ones, bits := p.subnet.Mask.Size()
 	subnetSize := uint32(1 << (bits - ones))
 	return p.offsetToIP(subnetSize - 1)
@@ -151,7 +151,11 @@ func (p *IPPool) offsetToIP(offset uint32) net.IP {
 
 	// Calculate IP by adding offset
 	ip := make(net.IP, 4)
-	ipInt := ipToUint32(baseIP) + offset
+	ipInt := ipToUint32(baseIP)
+	if ipInt == 0 {
+		return nil
+	}
+	ipInt += offset
 	uint32ToIP(ipInt, ip)
 
 	return ip
@@ -170,7 +174,12 @@ func (p *IPPool) ipToOffset(ip net.IP) uint32 {
 		return 0
 	}
 
-	baseInt := ipToUint32(p.subnet.IP.To4())
+	baseIP := p.subnet.IP.To4()
+	if baseIP == nil {
+		return 0
+	}
+
+	baseInt := ipToUint32(baseIP)
 	ipInt := ipToUint32(ip4)
 
 	return ipInt - baseInt
@@ -194,15 +203,15 @@ func uint32ToIP(n uint32, ip net.IP) {
 	ip[3] = byte(n)
 }
 
-// GetSubnetMask returns the subnet mask for this IP pool.
+// SubnetMask returns the subnet mask for this IP pool.
 // Used for network calculations and routing configuration.
-func (p *IPPool) GetSubnetMask() net.IPMask {
+func (p *IPPool) SubnetMask() net.IPMask {
 	return p.subnet.Mask
 }
 
-// GetCIDR returns the CIDR notation string of the subnet.
+// CIDR returns the CIDR notation string of the subnet.
 // Useful for configuration display and network setup.
-func (p *IPPool) GetCIDR() string {
+func (p *IPPool) CIDR() string {
 	return p.subnet.String()
 }
 

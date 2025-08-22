@@ -77,3 +77,13 @@ func (r *ResourceLimits) HasIOLimit() bool {
 func (r *ResourceLimits) HasCoreRestriction() bool {
 	return !r.CPUCores.IsEmpty()
 }
+
+// ToDisplayStrings converts resource limits to human-readable strings for display
+func (r *ResourceLimits) ToDisplayStrings() map[string]string {
+	return map[string]string{
+		"cpu":       r.CPU.String(),
+		"memory":    r.Memory.String(),
+		"bandwidth": r.IOBandwidth.String(),
+		"cores":     r.CPUCores.String(),
+	}
+}
