@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useJobs} from '../hooks/useJobs';
 import {useLogStream} from '../hooks/useLogStream';
@@ -225,11 +225,11 @@ const Jobs: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                                                {((job as any).start_time && (job as any).end_time) ?
-                                                    formatDuration(new Date((job as any).end_time).getTime() - new Date((job as any).start_time).getTime()) : '-'}
+                                                {(job.startTime && job.endTime) ?
+                                                    formatDuration(new Date(job.endTime).getTime() - new Date(job.startTime).getTime()) : '-'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                                                {(job as any).start_time ? new Date((job as any).start_time).toLocaleString() : '-'}
+                                                {job.startTime ? new Date(job.startTime).toLocaleString() : '-'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 <div className="flex space-x-2">
@@ -278,7 +278,7 @@ const Jobs: React.FC = () => {
                                             {/* Page Numbers */}
                                             <div className="flex items-center space-x-1">
                                                 {Array.from({length: Math.min(totalPages, 5)}, (_, i) => {
-                                                    let pageNum;
+                                                    let pageNum: number;
                                                     if (totalPages <= 5) {
                                                         pageNum = i + 1;
                                                     } else if (currentPage <= 3) {

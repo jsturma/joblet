@@ -793,9 +793,12 @@ func (s *WorkflowServiceServer) StartWorkflowOrchestrationWithContent(ctx contex
 		jobOrder = append(jobOrder, jobName)
 	}
 
+	// Generate meaningful workflow name
+	workflowName := s.generateWorkflowName(workflowYAML)
+
 	// Create workflow
 	workflowID, err := s.workflowManager.CreateWorkflow(
-		"client-uploaded.yaml",
+		workflowName,
 		jobs,
 		jobOrder,
 	)
@@ -1241,6 +1244,33 @@ func (s *WorkflowServiceServer) convertWorkflowUUIDToID(uuid string) int {
 	// In a real system, you would maintain a mapping between UUIDs and internal IDs
 	// For now, return a hash-based ID or maintain the mapping in workflow manager
 	return 1 // Simplified for now
+}
+
+// generateWorkflowName generates a meaningful workflow name with fallback strategy
+func (s *WorkflowServiceServer) generateWorkflowName(workflowYAML *WorkflowYAML) string {
+	// Priority 1: Explicit name from YAML
+	if workflowYAML.Name != "" && strings.TrimSpace(workflowYAML.Name) != "" {
+		return strings.TrimSpace(workflowYAML.Name)
+	}
+
+	// Priority 2: Generate from job names (first few jobs)
+	if len(workflowYAML.Jobs) > 0 {
+		var jobNames []string
+		for jobName := range workflowYAML.Jobs {
+			jobNames = append(jobNames, jobName)
+		}
+
+		if len(jobNames) == 1 {
+			return fmt.Sprintf("workflow-%s", jobNames[0])
+		} else if len(jobNames) <= 3 {
+			return fmt.Sprintf("workflow-%s", strings.Join(jobNames[:len(jobNames)], "-"))
+		} else {
+			return fmt.Sprintf("workflow-%s-and-%d-more", strings.Join(jobNames[:2], "-"), len(jobNames)-2)
+		}
+	}
+
+	// Priority 3: Default fallback
+	return "client-uploaded.yaml"
 }
 
 // getFileKeys returns a list of available file keys for debugging

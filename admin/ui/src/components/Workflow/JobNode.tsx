@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {JobStatus, WorkflowJob} from '../../types/job';
 import {Clock, Cpu, HardDrive} from 'lucide-react';
 import clsx from 'clsx';

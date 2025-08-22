@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {useMonitor} from '../hooks/useMonitor';
 import {useSystemInfo} from '../hooks/useSystemInfo';
 import {Activity, RefreshCw} from 'lucide-react';

@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {Link} from 'react-router-dom';
 import {useJobs} from '../hooks/useJobs';
 import {useMonitor} from '../hooks/useMonitor';

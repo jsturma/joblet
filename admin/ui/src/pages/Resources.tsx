@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {Cpu, HardDrive, Info, Network, Plus, RefreshCw, Trash2, X} from 'lucide-react';
 import {apiService} from '../services/apiService';
 

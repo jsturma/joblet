@@ -1,6 +1,7 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {Job, JobStatus, WorkflowJob} from '@/types';
 import {WorkflowGraph} from './WorkflowGraph';
+import WorkflowTimeline from './WorkflowTimeline';
 import {ArrowLeft, BarChart3, FileText, List, Network, RotateCcw, X} from 'lucide-react';
 import {apiService} from '@/services/apiService';
 import {useLogStream} from '../../hooks/useLogStream';
@@ -46,6 +47,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     const [selectedJobDetails, setSelectedJobDetails] = useState<Job | null>(null);
     const [jobLoading, setJobLoading] = useState<boolean>(false);
     const [autoScroll, setAutoScroll] = useState<boolean>(true);
+    const logsContainerRef = useRef<HTMLDivElement>(null);
     // Use RNX job ID for log streaming if available, otherwise use UI job ID
     const {logs, connected, error: logError, clearLogs} = useLogStream(selectedRnxJobId || selectedJobId);
 
@@ -75,6 +77,14 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             onBack();
         }
     }, [error, onBack]);
+
+    // Auto-scroll to bottom when logs change
+    useEffect(() => {
+        if (autoScroll && logsContainerRef.current) {
+            const container = logsContainerRef.current;
+            container.scrollTop = container.scrollHeight;
+        }
+    }, [logs, autoScroll]);
 
     const handleJobSelect = (job: Job | null) => {
         setSelectedJob(job);
@@ -463,79 +473,10 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
 
                 {/* Timeline View */}
                 {viewMode === 'timeline' && (
-                    <div className="p-6">
-                        <div className="bg-white rounded-lg shadow">
-                            <div className="p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Timeline View</h3>
-                                {workflow.jobs.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <BarChart3 className="w-8 h-8 text-gray-400 mx-auto mb-2"/>
-                                        <p className="text-gray-500">No timeline data available</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {workflow.jobs
-                                            .filter(job => (job as any).start_time)
-                                            .sort((a, b) => {
-                                                const aTime = new Date((a as any).start_time).getTime();
-                                                const bTime = new Date((b as any).start_time).getTime();
-                                                return aTime - bTime;
-                                            })
-                                            .map((job, index) => {
-                                                const startTime = (job as any).start_time;
-                                                const endTime = (job as any).end_time;
-                                                const duration = endTime ?
-                                                    new Date(endTime).getTime() - new Date(startTime).getTime() : 0;
-
-                                                return (
-                                                    <div key={job.id}
-                                                         className="flex items-center space-x-4 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                                                         onClick={() => {
-                                                             void handleViewJob(job.id);
-                                                         }}>
-                                                        <div className="w-8 text-center text-sm text-gray-500">
-                                                            {index + 1}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className="font-medium">{job.id}</span>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        void handleViewJob(job.id);
-                                                                    }}
-                                                                    className="text-green-600 hover:text-green-300"
-                                                                    title="View Job Details & Logs"
-                                                                >
-                                                                    <FileText className="h-4 w-4"/>
-                                                                </button>
-                                                                <span className={clsx(
-                                                                    'px-2 py-1 rounded-full text-xs font-medium',
-                                                                    getStatusColor(job.status)
-                                                                )}>
-                                                                    {job.status}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-sm text-gray-600 mt-1">
-                                                                {job.command} {job.args?.join(' ') || ''}
-                                                            </p>
-                                                        </div>
-                                                        <div className="text-right text-sm text-gray-500">
-                                                            <div>{new Date(startTime).toLocaleTimeString()}</div>
-                                                            {duration > 0 && (
-                                                                <div className="text-xs">
-                                                                    {Math.round(duration / 1000)}s
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    <WorkflowTimeline 
+                        jobs={workflow.jobs} 
+                        onJobClick={handleViewJob}
+                    />
                 )}
             </div>
 
@@ -646,6 +587,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                     )}
 
                                     <div
+                                        ref={logsContainerRef}
                                         className="bg-black text-green-400 p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm"
                                     >
                                         {/* Display real logs for started jobs, appropriate message for other job states */}

@@ -19,6 +19,10 @@ package types
 //	    environment:
 //	      NODE_ENV: "production"  # Inherits global vars + this override
 type WorkflowYAML struct {
+	// Name is an optional workflow name for better identification
+	Name string `yaml:"name,omitempty"`
+	// Description is an optional workflow description
+	Description string `yaml:"description,omitempty"`
 	// Environment defines global environment variables inherited by all jobs (visible in logs)
 	Environment map[string]string `yaml:"environment,omitempty"`
 	// SecretEnvironment defines global secret environment variables inherited by all jobs (hidden from logs)

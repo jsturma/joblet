@@ -1,13 +1,16 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import {useCallback, useMemo, useState} from 'react';
 import {Job, WorkflowJob} from '../../types/job';
 import {JobNode} from './JobNode';
-import {Maximize2, RotateCcw, ZoomIn, ZoomOut} from 'lucide-react';
+import {Maximize2, RotateCcw, ZoomIn, ZoomOut, Wifi, WifiOff} from 'lucide-react';
 import clsx from 'clsx';
+import {useWorkflowStatusStream} from '../../hooks/useWorkflowStatusStream';
 
 interface WorkflowGraphProps {
     jobs: WorkflowJob[];
+    workflowId?: string;
     onJobSelect?: (job: Job | null) => void;
     onJobAction?: (job: Job, action: string) => void;
+    onJobStatusUpdate?: (jobId: string, status: string, updatedJob?: WorkflowJob) => void;
 }
 
 interface Position {
@@ -29,8 +32,10 @@ const VERTICAL_SPACING = 200;
 
 export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                                                                 jobs,
+                                                                workflowId,
                                                                 onJobSelect,
-                                                                onJobAction
+                                                                onJobAction,
+                                                                onJobStatusUpdate
                                                             }) => {
     const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
@@ -39,15 +44,57 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
     const [lastPanPoint, setLastPanPoint] = useState({x: 0, y: 0});
     const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
     const [jobOverrides, setJobOverrides] = useState<Map<string, Position>>(new Map());
+    const [realtimeJobs, setRealtimeJobs] = useState<Map<string, WorkflowJob>>(new Map());
+    // const [statusChangeAnimations, setStatusChangeAnimations] = useState<Map<string, number>>(new Map());
+
+    // Handle real-time job status updates
+    const handleJobStatusUpdate = useCallback((jobId: string, status: string, updatedJob?: WorkflowJob) => {
+        console.log(`Real-time update for job ${jobId}: ${status}`);
+        
+        if (updatedJob) {
+            setRealtimeJobs(prev => new Map(prev.set(jobId, updatedJob)));
+        }
+        
+        // TODO: Trigger visual animation for status change
+        // setStatusChangeAnimations(prev => new Map(prev.set(jobId, Date.now())));
+        
+        // TODO: Clear animation after 2 seconds
+        // setTimeout(() => {
+        //     setStatusChangeAnimations(prev => {
+        //         const newMap = new Map(prev);
+        //         newMap.delete(jobId);
+        //         return newMap;
+        //     });
+        // }, 2000);
+        
+        // Call parent callback if provided
+        if (onJobStatusUpdate) {
+            onJobStatusUpdate(jobId, status, updatedJob);
+        }
+    }, [onJobStatusUpdate]);
+
+    // Connect to real-time workflow status stream
+    const {connected, error} = useWorkflowStatusStream(
+        workflowId || null,
+        handleJobStatusUpdate
+    );
+
+    // Merge real-time updates with initial jobs data
+    const currentJobs = useMemo(() => {
+        return jobs.map(job => {
+            const realtimeJob = realtimeJobs.get(job.id);
+            return realtimeJob || job;
+        });
+    }, [jobs, realtimeJobs]);
 
     // Calculate job positions using a simple layered layout
     const {jobPositions, edges, processedJobs} = useMemo(() => {
-        if (jobs.length === 0) {
+        if (currentJobs.length === 0) {
             return {jobPositions: new Map<string, Position>(), edges: [], processedJobs: []};
         }
 
         // Debug: Log job dependencies and identify potential issues
-        console.log('Workflow jobs with dependencies:', jobs.map(j => ({
+        console.log('Workflow jobs with dependencies:', currentJobs.map(j => ({
             id: j.id,
             name: j.name,
             dependsOn: j.dependsOn,
@@ -58,7 +105,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         const seenIds = new Set<string>();
         const validJobs: WorkflowJob[] = [];
 
-        jobs.forEach((job, index) => {
+        currentJobs.forEach((job, index) => {
             if (job.id && job.id.toString().length > 0) {
                 const jobIdStr = job.id.toString();
                 if (!seenIds.has(jobIdStr)) {
@@ -191,7 +238,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
         console.log('Calculated dependency edges:', calculatedEdges);
 
         return {jobPositions: positions, edges: calculatedEdges, processedJobs: validJobs};
-    }, [jobs, jobOverrides]);
+    }, [currentJobs, jobOverrides]);
 
     const handleJobClick = useCallback((job: Job) => {
         setSelectedJobId(job.id);
@@ -317,6 +364,25 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             <div className="absolute top-4 left-4 z-20 bg-gray-400 rounded-lg shadow-md px-3 py-2 text-sm">
                 {Math.round(zoom * 100)}%
             </div>
+
+            {/* WebSocket Connection Status */}
+            {workflowId && (
+                <div className="absolute top-16 left-4 z-20 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-2 text-sm">
+                    {connected ? (
+                        <>
+                            <Wifi className="w-4 h-4 text-green-500" />
+                            <span className="text-green-600 font-medium">Live Updates</span>
+                        </>
+                    ) : (
+                        <>
+                            <WifiOff className="w-4 h-4 text-red-500" />
+                            <span className="text-red-600 font-medium">
+                                {error ? 'Connection Error' : 'Connecting...'}
+                            </span>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Canvas */}
             <div

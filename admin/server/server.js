@@ -1178,6 +1178,7 @@ app.get('/api/runtimes', async (req, res) => {
 wss.on('connection', (ws, req) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
+    const searchParams = url.searchParams;
 
     console.log(`WebSocket connection established: ${pathname}`);
 
@@ -1185,6 +1186,11 @@ wss.on('connection', (ws, req) => {
         // Job log streaming
         const jobId = pathname.replace('/ws/logs/', '');
         handleLogStream(ws, jobId);
+    } else if (pathname.startsWith('/ws/workflow-status/')) {
+        // Workflow status streaming
+        const workflowId = pathname.replace('/ws/workflow-status/', '');
+        const node = searchParams.get('node');
+        handleWorkflowStatusStream(ws, workflowId, node);
     } else if (pathname === '/ws/monitor') {
         // Monitor streaming
         handleMonitorStream(ws);
@@ -1305,6 +1311,67 @@ function handleMonitorStream(ws, node) {
     }, 5000);
 
     ws.on('close', () => {
+        clearInterval(interval);
+    });
+}
+
+function handleWorkflowStatusStream(ws, workflowId, node) {
+    let isAlive = true;
+    
+    ws.send(JSON.stringify({
+        type: 'connection',
+        message: `Connected to workflow status stream for workflow ${workflowId}`,
+        workflowId: workflowId,
+        time: new Date().toISOString()
+    }));
+
+    // Poll workflow status every 2 seconds
+    const interval = setInterval(async () => {
+        if (!isAlive) return;
+        
+        try {
+            // Get workflow status and jobs
+            const workflowOutput = await execRnx(['status', '--workflow', workflowId, '--json'], {node});
+            const workflowData = JSON.parse(workflowOutput);
+            
+            // Send workflow status update
+            ws.send(JSON.stringify({
+                type: 'workflow_status_change',
+                workflowId: workflowId,
+                status: workflowData.workflow?.status,
+                jobs: workflowData.jobs,
+                time: new Date().toISOString()
+            }));
+            
+            // Send heartbeat to keep connection alive
+            ws.send(JSON.stringify({
+                type: 'heartbeat',
+                time: new Date().toISOString()
+            }));
+            
+        } catch (error) {
+            if (!isAlive) return;
+            
+            ws.send(JSON.stringify({
+                type: 'error',
+                workflowId: workflowId,
+                message: `Workflow status check failed: ${error.message}`,
+                time: new Date().toISOString()
+            }));
+        }
+    }, 2000);
+
+    // Clean up when WebSocket closes
+    ws.on('close', () => {
+        isAlive = false;
+        clearInterval(interval);
+        console.log(`Workflow status stream closed for workflow ${workflowId}`);
+    });
+
+    // Handle WebSocket errors
+    ws.on('error', (error) => {
+        console.error('Workflow status WebSocket error:', error);
+        isAlive = false;
         clearInterval(interval);
     });
 }

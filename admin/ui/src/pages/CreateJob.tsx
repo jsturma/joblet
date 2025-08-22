@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {useNavigate} from 'react-router-dom';
 import {SimpleJobBuilder} from '../components/JobBuilder/SimpleJobBuilder';
 import {ArrowLeft} from 'lucide-react';

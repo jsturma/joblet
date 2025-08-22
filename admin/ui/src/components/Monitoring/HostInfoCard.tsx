@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {Server} from 'lucide-react';
 
 interface HostInfoCardProps {

@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {Calendar, ChevronLeft, ChevronRight, Clock, Network, Play, Square} from 'lucide-react';
 
 interface WorkflowListProps {

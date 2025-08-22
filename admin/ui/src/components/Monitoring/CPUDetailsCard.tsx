@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {Cpu} from 'lucide-react';
 
 interface CPUDetailsCardProps {

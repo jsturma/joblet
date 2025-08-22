@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {JobConfig, JobExecuteRequest} from '../../types/job';
 import {CommandBuilder} from '../../services/commandBuilder';
 import {useJobs} from '../../hooks/useJobs';

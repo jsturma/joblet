@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useWorkflows} from '../hooks/useWorkflows';
 import WorkflowList from '../components/Workflow/WorkflowList';
 import WorkflowDetail from '../components/Workflow/WorkflowDetail';

@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed with modern JSX transform
 import {Link, useLocation} from 'react-router-dom';
 import {Activity, HardDrive, HelpCircle, Home, List, Settings, Workflow} from 'lucide-react';
 import clsx from 'clsx';
