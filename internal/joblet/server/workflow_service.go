@@ -1263,7 +1263,7 @@ func (s *WorkflowServiceServer) generateWorkflowName(workflowYAML *WorkflowYAML)
 		if len(jobNames) == 1 {
 			return fmt.Sprintf("workflow-%s", jobNames[0])
 		} else if len(jobNames) <= 3 {
-			return fmt.Sprintf("workflow-%s", strings.Join(jobNames[:len(jobNames)], "-"))
+			return fmt.Sprintf("workflow-%s", strings.Join(jobNames, "-"))
 		} else {
 			return fmt.Sprintf("workflow-%s-and-%d-more", strings.Join(jobNames[:2], "-"), len(jobNames)-2)
 		}
