@@ -2,7 +2,7 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import {Job, JobStatus, WorkflowJob} from '@/types';
 import {WorkflowGraph} from './WorkflowGraph';
 import WorkflowTimeline from './WorkflowTimeline';
-import {ArrowLeft, BarChart3, FileText, List, Network, RotateCcw, X} from 'lucide-react';
+import {ArrowLeft, BarChart3, Code, FileText, List, Network, X} from 'lucide-react';
 import {apiService} from '@/services/apiService';
 import {useLogStream} from '../../hooks/useLogStream';
 import clsx from 'clsx';
@@ -10,7 +10,7 @@ import clsx from 'clsx';
 interface WorkflowDetailProps {
     workflowId: string;
     onBack: () => void;
-    onRefresh: () => void;
+    onRefresh: () => void; // Keep for compatibility but not used since WebSocket handles updates
 }
 
 interface WorkflowData {
@@ -27,12 +27,11 @@ interface WorkflowData {
     jobs: WorkflowJob[];
 }
 
-type ViewMode = 'graph' | 'tree' | 'timeline';
+type ViewMode = 'graph' | 'tree' | 'timeline' | 'yaml';
 
 const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                            workflowId,
                                                            onBack,
-                                                           onRefresh
                                                        }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('graph');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -48,6 +47,23 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     const [jobLoading, setJobLoading] = useState<boolean>(false);
     const [autoScroll, setAutoScroll] = useState<boolean>(true);
     const logsContainerRef = useRef<HTMLDivElement>(null);
+    
+    // YAML content state
+    const [yamlContent, setYamlContent] = useState<{
+        content: string;
+        filePath: string;
+        lastModified: string;
+        loading: boolean;
+        error: string | null;
+        note?: string;
+    }>({
+        content: '',
+        filePath: '',
+        lastModified: '',
+        loading: false,
+        error: null,
+        note: undefined
+    });
     // Use RNX job ID for log streaming if available, otherwise use UI job ID
     const {logs, connected, error: logError, clearLogs} = useLogStream(selectedRnxJobId || selectedJobId);
 
@@ -292,10 +308,46 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         }
     };
 
+    const fetchYamlContent = useCallback(async () => {
+        try {
+            setYamlContent(prev => ({...prev, loading: true, error: null}));
+            const response = await fetch(`/api/workflows/${workflowId}/yaml`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch YAML content');
+            }
+            
+            const data = await response.json();
+            setYamlContent({
+                content: data.content,
+                filePath: data.filePath,
+                lastModified: data.lastModified,
+                loading: false,
+                error: null,
+                note: data.note
+            });
+        } catch (error) {
+            setYamlContent(prev => ({
+                ...prev,
+                loading: false,
+                error: error instanceof Error ? error.message : 'Failed to fetch YAML content'
+            }));
+        }
+    }, [workflowId]);
+
+    // Fetch YAML content when switching to YAML view
+    useEffect(() => {
+        if (viewMode === 'yaml' && !yamlContent.content && !yamlContent.loading) {
+            fetchYamlContent();
+        }
+    }, [viewMode, yamlContent.content, yamlContent.loading, fetchYamlContent]);
+
     const viewModes = [
         {key: 'graph' as ViewMode, label: 'Graph View', icon: Network},
         {key: 'tree' as ViewMode, label: 'Tree View', icon: List},
         {key: 'timeline' as ViewMode, label: 'Timeline', icon: BarChart3},
+        {key: 'yaml' as ViewMode, label: 'YAML Source', icon: Code},
     ];
 
     if (loading) {
@@ -359,14 +411,9 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                         </div>
                         <p className="mt-2 text-gray-300">Workflow: {workflow.workflow}</p>
                     </div>
-                    <div className="flex space-x-2">
-                        <button
-                            onClick={onRefresh}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            <RotateCcw className="w-4 h-4 mr-2"/>
-                            Refresh
-                        </button>
+                    <div className="flex items-center text-sm">
+                        <div className="w-2 h-2 rounded-full mr-2 bg-green-500 animate-pulse"></div>
+                        <span className="text-gray-400">Live Updates</span>
                     </div>
                 </div>
 
@@ -478,11 +525,48 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                         onJobClick={handleViewJob}
                     />
                 )}
+
+                {/* YAML View */}
+                {viewMode === 'yaml' && (
+                    <div className="p-6">
+                        {yamlContent.loading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="text-gray-600">Loading YAML content...</div>
+                            </div>
+                        ) : yamlContent.error ? (
+                            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                                <div className="flex items-center">
+                                    <FileText className="h-5 w-5 text-red-400 mr-2"/>
+                                    <h3 className="text-red-800 font-medium">Unable to load YAML content</h3>
+                                </div>
+                                <p className="text-red-700 mt-2">{yamlContent.error}</p>
+                                <button
+                                    onClick={fetchYamlContent}
+                                    className="mt-3 inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="mb-4 text-sm text-gray-600">
+                                    <div><strong>Source:</strong> {yamlContent.note || 'Original workflow YAML'}</div>
+                                    <div><strong>Last Modified:</strong> {new Date(yamlContent.lastModified).toLocaleString()}</div>
+                                </div>
+                                <div className="bg-gray-900 rounded-md p-4 overflow-auto max-h-96 border">
+                                    <pre className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap">
+                                        <code>{yamlContent.content}</code>
+                                    </pre>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Status Bar */}
-            <div className="border-t border-gray-200 px-6 py-3 bg-gray-50">
-                <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="border-t border-gray-800 px-6 py-3 bg-blue-950">
+                <div className="flex items-center justify-between text-sm text-gray-300">
                     <div>
                         <span>{workflow.jobs.length} jobs in workflow</span>
                         {workflow.completed_at && (

@@ -1,7 +1,6 @@
 // React import not needed with modern JSX transform
-import {useMonitor} from '../hooks/useMonitor';
+import {useMonitorStream} from '../hooks/useMonitorStream';
 import {useSystemInfo} from '../hooks/useSystemInfo';
-import {Activity, RefreshCw} from 'lucide-react';
 import HostInfoCard from '../components/Monitoring/HostInfoCard';
 import CPUDetailsCard from '../components/Monitoring/CPUDetailsCard';
 import MemoryDetailsCard from '../components/Monitoring/MemoryDetailsCard';
@@ -10,10 +9,10 @@ import NetworkCard from '../components/Monitoring/NetworkCard';
 import ProcessesCard from '../components/Monitoring/ProcessesCard';
 
 const Monitoring: React.FC = () => {
-    const {loading: metricsLoading, error: metricsError, isRealtime, toggleRealtime} = useMonitor();
-    const {systemInfo, loading: systemLoading, error: systemError, refetch} = useSystemInfo();
+    const {metrics, connected, error: metricsError} = useMonitorStream();
+    const {systemInfo, loading: systemLoading, error: systemError} = useSystemInfo();
 
-    const loading = metricsLoading || systemLoading;
+    const loading = systemLoading;
     const error = metricsError || systemError;
 
     return (
@@ -23,26 +22,12 @@ const Monitoring: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-white">System Monitoring</h1>
                         <p className="mt-2 text-gray-300">Real-time system metrics and performance</p>
-                    </div>
-                    <div className="flex space-x-3">
-                        <button
-                            onClick={refetch}
-                            className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
-                        >
-                            <RefreshCw className="h-4 w-4 mr-2"/>
-                            Refresh
-                        </button>
-                        <button
-                            onClick={toggleRealtime}
-                            className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium ${
-                                isRealtime
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                        >
-                            <Activity className="h-4 w-4 mr-2"/>
-                            {isRealtime ? 'Real-time ON' : 'Real-time OFF'}
-                        </button>
+                        <div className="mt-2 flex items-center text-sm">
+                            <div className={`w-2 h-2 rounded-full mr-2 ${connected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+                            <span className="text-gray-400">
+                                {connected ? 'Live Updates' : 'Connecting...'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -64,12 +49,33 @@ const Monitoring: React.FC = () => {
 
                     {/* CPU Details */}
                     {systemInfo?.cpuInfo && (
-                        <CPUDetailsCard cpuInfo={systemInfo.cpuInfo}/>
+                        <CPUDetailsCard 
+                            cpuInfo={{
+                                ...systemInfo.cpuInfo,
+                                ...(metrics?.cpu && {
+                                    usage: metrics.cpu.usagePercent,
+                                    loadAverage: metrics.cpu.loadAverage,
+                                    perCoreUsage: metrics.cpu.perCoreUsage
+                                })
+                            }}
+                        />
                     )}
 
                     {/* Memory Details */}
                     {systemInfo?.memoryInfo && (
-                        <MemoryDetailsCard memoryInfo={systemInfo.memoryInfo}/>
+                        <MemoryDetailsCard 
+                            memoryInfo={{
+                                ...systemInfo.memoryInfo,
+                                ...(metrics?.memory && {
+                                    used: metrics.memory.usedBytes,
+                                    available: metrics.memory.availableBytes,
+                                    total: metrics.memory.totalBytes,
+                                    percent: metrics.memory.usagePercent,
+                                    buffers: metrics.memory.bufferedBytes,
+                                    cached: metrics.memory.cachedBytes
+                                })
+                            }}
+                        />
                     )}
 
                     {/* Disk Information */}

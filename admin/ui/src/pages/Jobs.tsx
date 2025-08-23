@@ -4,13 +4,12 @@ import {useJobs} from '../hooks/useJobs';
 import {useLogStream} from '../hooks/useLogStream';
 import {apiService} from '../services/apiService';
 import {Job} from '../types/job';
-import {ChevronLeft, ChevronRight, FileText, Play, Plus, RotateCcw, Square, X} from 'lucide-react';
+import {ChevronLeft, ChevronRight, FileText, Play, Plus, Square, X} from 'lucide-react';
 
 const Jobs: React.FC = () => {
     const {
         loading,
         error,
-        refreshJobs,
         currentPage,
         pageSize,
         totalJobs,
@@ -105,20 +104,12 @@ const Jobs: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-white">Jobs</h1>
                         <p className="mt-2 text-gray-300">Manage and monitor job execution</p>
+                        <div className="mt-2 flex items-center text-sm">
+                            <div className="w-2 h-2 rounded-full mr-2 bg-green-500 animate-pulse"></div>
+                            <span className="text-gray-400">Auto-refresh enabled (5s)</span>
+                        </div>
                     </div>
-                    <div className="flex space-x-3">
-                        <button
-                            onClick={refreshJobs}
-                            disabled={loading}
-                            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium ${
-                                loading
-                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                                    : 'text-gray-700 bg-white hover:bg-gray-50'
-                            }`}
-                        >
-                            <RotateCcw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}/>
-                            {loading ? 'Refreshing...' : 'Refresh'}
-                        </button>
+                    <div>
                         <Link
                             to="/jobs/create"
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"

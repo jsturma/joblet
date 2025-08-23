@@ -1,12 +1,12 @@
 // React import not needed with modern JSX transform
 import {Link} from 'react-router-dom';
 import {useJobs} from '../hooks/useJobs';
-import {useMonitor} from '../hooks/useMonitor';
+import {useMonitorStream} from '../hooks/useMonitorStream';
 import {Activity, Cpu, HardDrive, Zap} from 'lucide-react';
 
 const Dashboard: React.FC = () => {
     const {jobs, loading: jobsLoading, error: jobsError} = useJobs();
-    const {metrics, loading: metricsLoading, error: metricsError} = useMonitor();
+    const {metrics, connected, error: metricsError} = useMonitorStream();
 
     const runningJobs = jobs.filter(job => job.status === 'RUNNING');
     const completedJobs = jobs.filter(job => job.status === 'COMPLETED');
@@ -70,9 +70,7 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">System Health</h3>
-                    {metricsLoading ? (
-                        <p className="text-gray-500 dark:text-gray-400">Loading metrics...</p>
-                    ) : metricsError ? (
+                    {metricsError ? (
                         <p className="text-red-500">Error: {metricsError}</p>
                     ) : metrics ? (
                         <div className="space-y-4">
@@ -81,12 +79,12 @@ const Dashboard: React.FC = () => {
                                 <div className="flex-1">
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-600">CPU ({metrics.cpu.cores} cores)</span>
-                                        <span className="text-sm font-medium">{metrics.cpu.usage.toFixed(1)}%</span>
+                                        <span className="text-sm font-medium">{metrics.cpu.usagePercent.toFixed(1)}%</span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                                         <div
                                             className="bg-blue-600 h-2 rounded-full"
-                                            style={{width: `${metrics.cpu.usage}%`}}
+                                            style={{width: `${metrics.cpu.usagePercent}%`}}
                                         ></div>
                                     </div>
                                 </div>
@@ -97,21 +95,23 @@ const Dashboard: React.FC = () => {
                                 <div className="flex-1">
                                     <div className="flex justify-between">
                                         <span
-                                            className="text-sm text-gray-600">Memory ({(metrics.memory.used / (1024 * 1024 * 1024)).toFixed(1)}GB / {(metrics.memory.total / (1024 * 1024 * 1024)).toFixed(1)}GB)</span>
+                                            className="text-sm text-gray-600">Memory ({(metrics.memory.usedBytes / (1024 * 1024 * 1024)).toFixed(1)}GB / {(metrics.memory.totalBytes / (1024 * 1024 * 1024)).toFixed(1)}GB)</span>
                                         <span
-                                            className="text-sm font-medium">{metrics.memory.percent.toFixed(1)}%</span>
+                                            className="text-sm font-medium">{metrics.memory.usagePercent.toFixed(1)}%</span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                                         <div
                                             className="bg-green-600 h-2 rounded-full"
-                                            style={{width: `${metrics.memory.percent}%`}}
+                                            style={{width: `${metrics.memory.usagePercent}%`}}
                                         ></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <p className="text-gray-500">No metrics available</p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                            {connected ? 'Waiting for metrics...' : 'Connecting to monitoring service...'}
+                        </p>
                     )}
                 </div>
 

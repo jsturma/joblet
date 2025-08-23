@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react';
 import {useWorkflows} from '../hooks/useWorkflows';
 import WorkflowList from '../components/Workflow/WorkflowList';
 import WorkflowDetail from '../components/Workflow/WorkflowDetail';
-import {ArrowLeft, FileText, Folder, Plus, RotateCcw, X} from 'lucide-react';
+import {ArrowLeft, FileText, Folder, Plus, X} from 'lucide-react';
 import {apiService} from '../services/apiService';
 
 const Workflows: React.FC = () => {
@@ -10,7 +10,6 @@ const Workflows: React.FC = () => {
         paginatedWorkflows,
         loading,
         error,
-        refreshWorkflows,
         currentPage,
         pageSize,
         totalWorkflows,
@@ -144,7 +143,7 @@ const Workflows: React.FC = () => {
                 loading: false,
                 error: ''
             });
-            await refreshWorkflows(); // Refresh the workflow list
+            // Workflow list will auto-refresh via polling
         } catch (error) {
             console.error('Failed to create workflow:', error);
             setCreateWorkflowModal(prev => ({...prev, creating: false}));
@@ -186,7 +185,7 @@ const Workflows: React.FC = () => {
             <WorkflowDetail
                 workflowId={selectedWorkflowId}
                 onBack={handleBack}
-                onRefresh={refreshWorkflows}
+                onRefresh={() => {}} // No-op since auto-refresh is enabled
             />
         );
     }
@@ -199,20 +198,12 @@ const Workflows: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-white">Workflows</h1>
                         <p className="mt-2 text-gray-300">Visual workflow management and orchestration</p>
+                        <div className="mt-2 flex items-center text-sm">
+                            <div className="w-2 h-2 rounded-full mr-2 bg-green-500 animate-pulse"></div>
+                            <span className="text-gray-400">Auto-refresh enabled (10s)</span>
+                        </div>
                     </div>
-                    <div className="flex space-x-3">
-                        <button
-                            onClick={refreshWorkflows}
-                            disabled={loading}
-                            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium ${
-                                loading
-                                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                                    : 'text-gray-700 bg-white hover:bg-gray-50'
-                            }`}
-                        >
-                            <RotateCcw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}/>
-                            {loading ? 'Refreshing...' : 'Refresh'}
-                        </button>
+                    <div>
                         <button
                             onClick={() => setCreateWorkflowModal({show: true, creating: false})}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -255,8 +246,8 @@ const Workflows: React.FC = () => {
                 <div
                     className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
                     <div
-                        className="relative bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                        <div className="flex flex-col h-full">
+                        className="relative bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+                        <div className="flex flex-col h-full min-h-0">
                             {/* Header */}
                             <div className="flex items-center justify-between p-6 border-b border-gray-600">
                                 <h3 className="text-lg font-medium text-gray-200">Select Workflow File</h3>
@@ -270,7 +261,7 @@ const Workflows: React.FC = () => {
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 overflow-y-auto p-6">
+                            <div className="flex-1 overflow-y-auto p-6 min-h-0">
                                 {/* Current Path */}
                                 <div className="mb-4">
                                     <div className="flex items-center space-x-2 text-sm text-gray-400">
@@ -311,91 +302,96 @@ const Workflows: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {/* Directories */}
-                                        {directoryBrowser.directories.length > 0 && (
-                                            <div>
-                                                <h4 className="text-sm font-medium text-gray-300 mb-2">Directories</h4>
-                                                <div className="space-y-1">
-                                                    {directoryBrowser.directories.map((dir) => (
-                                                        <button
-                                                            key={dir.path}
-                                                            onClick={() => browseDirectory(dir.path)}
-                                                            className="flex items-center space-x-3 w-full px-3 py-2 text-left text-gray-300 hover:bg-gray-700 rounded transition-colors"
-                                                        >
-                                                            <Folder className="h-4 w-4 text-blue-400"/>
-                                                            <span>{dir.name}</span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Files Section */}
-                                        {(directoryBrowser.yamlFiles.length > 0 || directoryBrowser.otherFiles.length > 0) ? (
+                                        {/* Two Column Layout: Directories and Files */}
+                                        <div className="grid grid-cols-2 gap-6">
+                                            {/* Left Column: Directories */}
                                             <div>
                                                 <h4 className="text-sm font-medium text-gray-300 mb-2">
-                                                    Files
-                                                    ({directoryBrowser.yamlFiles.length + directoryBrowser.otherFiles.length})
+                                                    Directories ({directoryBrowser.directories.length})
                                                 </h4>
-                                                <div className="space-y-1">
-                                                    {/* YAML Files (selectable) */}
-                                                    {directoryBrowser.yamlFiles.map((file) => (
-                                                        <button
-                                                            key={file.path}
-                                                            onClick={() => handleFileSelection(file.path)}
-                                                            className={`flex items-center space-x-3 w-full px-3 py-2 text-left rounded transition-colors ${
-                                                                selectedFile === file.path
-                                                                    ? 'bg-blue-600 text-white'
-                                                                    : 'text-gray-300 hover:bg-gray-700'
-                                                            }`}
-                                                        >
-                                                            <FileText className="h-4 w-4 text-green-400"/>
-                                                            <span>{file.name}</span>
-                                                            <span
-                                                                className="ml-auto text-xs text-green-400 bg-green-900 px-2 py-1 rounded">
-                                                                YAML
-                                                            </span>
-                                                        </button>
-                                                    ))}
-
-                                                    {/* Other Files (non-selectable) */}
-                                                    {directoryBrowser.otherFiles.map((file) => (
-                                                        <div
-                                                            key={file.path}
-                                                            className="flex items-center space-x-3 w-full px-3 py-2 text-gray-500 cursor-not-allowed opacity-60"
-                                                        >
-                                                            <FileText className="h-4 w-4 text-gray-500"/>
-                                                            <span>{file.name}</span>
-                                                            <span
-                                                                className="ml-auto text-xs text-gray-500 bg-gray-700 px-2 py-1 rounded">
-                                                                Not selectable
-                                                            </span>
+                                                <div className="border border-gray-600 rounded-lg">
+                                                    {directoryBrowser.directories.length > 0 ? (
+                                                        <div className="space-y-1 max-h-80 overflow-y-auto p-2">
+                                                            {directoryBrowser.directories.map((dir) => (
+                                                                <button
+                                                                    key={dir.path}
+                                                                    onClick={() => browseDirectory(dir.path)}
+                                                                    className="flex items-center space-x-3 w-full px-3 py-2 text-left text-gray-300 hover:bg-gray-700 rounded transition-colors"
+                                                                >
+                                                                    <Folder className="h-4 w-4 text-blue-400"/>
+                                                                    <span className="truncate">{dir.name}</span>
+                                                                </button>
+                                                            ))}
                                                         </div>
-                                                    ))}
+                                                    ) : (
+                                                        <div className="text-center py-8 text-gray-500">
+                                                            <Folder className="h-6 w-6 mx-auto mb-2 opacity-50"/>
+                                                            <p className="text-sm">No directories</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Right Column: Files */}
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-300 mb-2">
+                                                    Files ({directoryBrowser.yamlFiles.length + directoryBrowser.otherFiles.length})
+                                                </h4>
+                                                <div className="border border-gray-600 rounded-lg">
+                                                    {(directoryBrowser.yamlFiles.length > 0 || directoryBrowser.otherFiles.length > 0) ? (
+                                                        <div className="space-y-1 max-h-80 overflow-y-auto p-2">
+                                                            {/* YAML Files (selectable) */}
+                                                            {directoryBrowser.yamlFiles.map((file) => (
+                                                                <button
+                                                                    key={file.path}
+                                                                    onClick={() => handleFileSelection(file.path)}
+                                                                    className={`flex items-center space-x-3 w-full px-3 py-2 text-left rounded transition-colors ${
+                                                                        selectedFile === file.path
+                                                                            ? 'bg-blue-600 text-white'
+                                                                            : 'text-gray-300 hover:bg-gray-700'
+                                                                    }`}
+                                                                >
+                                                                    <FileText className="h-4 w-4 text-green-400"/>
+                                                                    <span className="truncate flex-1">{file.name}</span>
+                                                                    <span className="text-xs text-green-400 bg-green-900 px-2 py-1 rounded flex-shrink-0">
+                                                                        YAML
+                                                                    </span>
+                                                                </button>
+                                                            ))}
+
+                                                            {/* Other Files (non-selectable) */}
+                                                            {directoryBrowser.otherFiles.map((file) => (
+                                                                <div
+                                                                    key={file.path}
+                                                                    className="flex items-center space-x-3 w-full px-3 py-2 text-gray-500 cursor-not-allowed opacity-60"
+                                                                >
+                                                                    <FileText className="h-4 w-4 text-gray-500"/>
+                                                                    <span className="truncate flex-1">{file.name}</span>
+                                                                    <span className="text-xs text-gray-500 bg-gray-700 px-2 py-1 rounded flex-shrink-0">
+                                                                        Not selectable
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : !directoryBrowser.loading && (
+                                                        <div className="text-center py-8 text-gray-500">
+                                                            <FileText className="h-6 w-6 mx-auto mb-2 opacity-50"/>
+                                                            <p className="text-sm">No files</p>
+                                                            <p className="text-xs mt-1">
+                                                                YAML files (.yaml/.yml) are selectable
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* Help text for YAML selection */}
+                                                {/* Help text for YAML selection - moved outside the bordered area */}
                                                 {directoryBrowser.yamlFiles.length === 0 && directoryBrowser.otherFiles.length > 0 && (
-                                                    <div
-                                                        className="mt-3 p-3 bg-yellow-800 bg-opacity-30 border border-yellow-600 rounded">
-                                                        <p className="text-yellow-300 text-sm">
-                                                            Only YAML files (.yaml/.yml) can be selected for workflow
-                                                            execution.
-                                                        </p>
+                                                    <div className="mt-3 p-3 bg-yellow-800 bg-opacity-30 border border-yellow-600 rounded text-yellow-300 text-sm">
+                                                        Only YAML files (.yaml/.yml) can be selected for workflow execution.
                                                     </div>
                                                 )}
                                             </div>
-                                        ) : !directoryBrowser.loading && (
-                                            <div className="text-center py-8">
-                                                <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2"/>
-                                                <p className="text-gray-400">
-                                                    No files found in this directory
-                                                </p>
-                                                <p className="text-gray-500 text-sm mt-1">
-                                                    Navigate to a directory containing workflow files (.yaml/.yml)
-                                                </p>
-                                            </div>
-                                        )}
+                                        </div>
 
                                         {/* Selected File Info */}
                                         {selectedFile && (

@@ -1293,7 +1293,7 @@ function handleLogStream(ws, jobId) {
 function handleMonitorStream(ws, node) {
     const interval = setInterval(async () => {
         try {
-            const output = await execRnx(['monitor'], {node});
+            const output = await execRnx(['monitor', 'status', '--json'], {node});
             const metrics = JSON.parse(output);
 
             ws.send(JSON.stringify({

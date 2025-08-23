@@ -1,26 +1,32 @@
 export interface SystemMetrics {
     timestamp: string;
+    available: boolean;
     cpu: {
         cores: number;
-        usage: number;
+        usagePercent: number;
         loadAverage: number[];
+        perCoreUsage: number[];
     };
     memory: {
-        total: number;
-        used: number;
-        available: number;
-        percent: number;
+        totalBytes: number;
+        usedBytes: number;
+        availableBytes: number;
+        usagePercent: number;
+        cachedBytes: number;
+        bufferedBytes: number;
     };
-    disk: {
-        readBps: number;
-        writeBps: number;
-        iops: number;
-    };
-    jobs: {
-        total: number;
-        running: number;
-        completed: number;
-        failed: number;
+    disks: Array<{
+        device: string;
+        mountPoint: string;
+        filesystem: string;
+        totalBytes: number;
+        usedBytes: number;
+        freeBytes: number;
+        usagePercent: number;
+    }>;
+    processes: {
+        totalProcesses: number;
+        totalThreads: number;
     };
 }
 
