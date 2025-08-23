@@ -1,7 +1,7 @@
 # Runtime System Guide
 
-The Joblet Runtime System provides **pre-built, isolated runtime environments** that eliminate package installation
-delays and provide instant access to language runtimes and their ecosystems.
+The Joblet Runtime System provides **pre-built, isolated runtime environments** that eliminate installation
+delays and provide instant access to programming languages, databases, web servers, and other services.
 
 ## 🚀 Why Runtime System?
 
@@ -16,7 +16,7 @@ rnx run 'apt-get update && apt-get install python3-pip && pip install pandas num
 
 ```bash
 # Runtime approach: 2-3 seconds total
-rnx run --runtime=python:3.11-ml python analysis.py
+rnx run --runtime=python-3.11-ml python analysis.py
 ```
 
 ## 📋 Table of Contents
@@ -37,96 +37,80 @@ rnx run --runtime=python:3.11-ml python analysis.py
 
 **Complete isolated Python environment with machine learning packages**
 
-- **Python**: 3.11.9 (compiled from source for optimal performance)
-- **Pre-installed Packages**:
-    - NumPy 1.24.x (pinned to 1.x for compatibility)
-    - Pandas 2.0.x (data analysis)
-    - Scikit-learn 1.3.x (complete ML toolkit)
-    - Matplotlib 3.7.x (visualization)
-    - Seaborn 0.12.x (statistical plotting)
-    - SciPy 1.11.x (scientific computing)
-    - Requests 2.31.0 (HTTP library)
-    - OpenPyXL 3.1.2 (Excel file support)
-- **Package Size**: ~226MB compressed
+> **Note**: This runtime has setup scripts available but is not currently installed. Use `rnx runtime install python-3.11-ml` to install it.
+
+- **Python**: 3.11.9 (system package installation)
+- **Pre-installed Packages**: System-based ML packages for reliability
+    - NumPy (scientific computing core)
+    - Pandas (data analysis and manipulation)
+    - Scikit-learn (machine learning toolkit)
+    - Matplotlib (plotting and visualization)
+    - Seaborn (statistical data visualization)
+    - SciPy (scientific computing)
+    - Requests (HTTP library)
+    - OpenPyXL (Excel file support)
+- **Package Size**: ~475MB with 142 packages
+- **Installation**: System package manager for maximum reliability
 - **Setup Time**: ~2-3 seconds vs 5-45 minutes traditional
 - **Use Cases**: Data analysis, machine learning, AI development, research
 
 ```bash
 # Usage examples
-rnx run --runtime=python:3.11-ml python -c "import pandas; print('Ready!')"
-rnx run --runtime=python:3.11-ml --upload=analysis.py python analysis.py
+rnx run --runtime=python-3.11-ml python3 -c "import pandas; print('Ready!')"
+rnx run --runtime=python-3.11-ml --upload=analysis.py python3 analysis.py
 rnx runtime info python-3.11-ml  # See all packages and details
 ```
 
-### Java 17 LTS (`java:17`)
+### OpenJDK 21 (`openjdk-21`)
 
-**Enterprise-ready OpenJDK 17 with Maven**
+**Modern Java with Long Term Support**
 
-- **Java**: OpenJDK 17.0.11 (Long Term Support)
-- **Build Tools**: Apache Maven 3.9.6
-- **Features**: Enterprise stability, production-ready
-- **Tools**: javac, jar, javap, jshell (interactive shell)
-- **Package Size**: ~193MB compressed
-- **Use Cases**: Enterprise applications, Spring Boot, microservices
-
-### Java 21 LTS (`java:21`)
-
-**Modern Java with cutting-edge features**
-
-- **Java**: OpenJDK 21.0.4 (Long Term Support)
-- **Build Tools**: Apache Maven 3.9.6
+- **Java**: OpenJDK 21.0.8 (Long Term Support)
+- **Build Tools**: javac, jar, javap, jshell (built-in)
 - **Modern Features**:
     - Virtual Threads (Project Loom)
     - Pattern Matching for switch
     - String Templates (Preview)
     - Record Patterns
     - Foreign Function & Memory API
-- **Package Size**: ~208MB compressed
-- **Use Cases**: Modern Java development, high-concurrency applications
+- **Package Size**: ~371MB with 1,872 files
+- **System Libraries**: Includes all necessary shared libraries (libjli.so, libstdc++.so.6, dynamic linker)
+- **Environment**: Properly configured JAVA_HOME and library paths
+- **Use Cases**: Modern Java development, microservices, enterprise applications
 
 ```bash
 # Usage examples
-rnx run --runtime=java:17 java -version
-rnx run --runtime=java:17 --upload=HelloWorld.java javac HelloWorld.java && java HelloWorld
-rnx run --runtime=java:17 --upload=pom.xml --upload=src/ mvn compile exec:java
-```
-
-
-### Java 21 Modern (`java-21`)
-
-**Modern Java with cutting-edge features**
-
-- **Java**: OpenJDK 21.0.4 (Latest LTS)
-- **Modern Features**:
-    - Virtual Threads (Project Loom) for massive concurrency
-    - Pattern Matching for switch expressions
-    - String Templates (Preview)
-    - Record Patterns
-    - Foreign Function & Memory API (Preview)
-    - Vector API (Incubator)
-- **Build Tools**: Apache Maven 3.9.6
-- **Tools**: javac, jar, javap, jshell, jcmd, jstat
-- **Use Cases**: Modern applications, high-performance computing, research
-
-```bash
-# Usage examples
-rnx run --runtime=java:21 --upload=VirtualThreadsApp.java javac VirtualThreadsApp.java && java VirtualThreadsApp
-rnx run --runtime=java:21 jshell  # Interactive modern Java shell
-```
+rnx run --runtime=openjdk-21 java -version
+rnx run --runtime=openjdk-21 --upload=HelloWorld.java javac HelloWorld.java
+rnx run --runtime=openjdk-21 java HelloWorld
 
 ## 🚀 Getting Started
 
 ### 1. Install Runtime Environments
 
-Runtimes are installed on the Joblet server (not the client):
+Runtimes are installed using the RNX CLI, which automatically uses the RuntimeService for safe installation:
 
 ```bash
-# On the Joblet server (requires root)
-sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
-sudo /opt/joblet/runtimes/java-17/setup_java_17.sh
-sudo /opt/joblet/runtimes/java-21/setup_java_21.sh
-sudo /opt/joblet/runtimes/nodejs-18/setup_nodejs_18.sh
+# From any RNX client (automatically routes to RuntimeService)
+rnx runtime install python-3.11-ml
+rnx runtime install openjdk-21
+
+# Force reinstall if runtime already exists
+rnx runtime install python-3.11-ml --force
+rnx runtime install openjdk-21 -f
 ```
+
+**Installation Options:**
+- `--force` or `-f`: Force reinstall by deleting existing runtime before installation
+  - Removes `/opt/joblet/runtimes/<runtime-name>` if it exists
+  - Useful for updating runtimes or fixing corrupted installations
+  - Installation continues even if deletion fails (with warning)
+
+**Architecture Benefits:**
+- **Service-Based**: Runtime installations automatically use builder chroot via RuntimeService
+- **Zero Host Contamination**: Build tools and packages installed only in isolated environment
+- **Automatic Routing**: No manual specification of build mode required
+- **Remote Installation**: Can install runtimes on remote Joblet servers safely
 
 ### 2. List Available Runtimes
 
@@ -140,7 +124,7 @@ rnx runtime list
 ```
 RUNTIME         VERSION  TYPE    SIZE     DESCRIPTION
 -------         -------  ----    ----     -----------
-python:3.11-ml  3.11     system  724.8MB  Completely isolated Python 3.11 with ML packages
+python-3.11-ml  3.11     system  724.8MB  Completely isolated Python 3.11 with ML packages
 java:17         17.0.12  system  445.2MB  OpenJDK 17 LTS with Maven - completely isolated runtime
 java:21         21.0.4   system  467.1MB  OpenJDK 21 with modern features - completely isolated runtime
 
@@ -176,7 +160,7 @@ Pre-installed Packages:
   - scipy>=1.11.0,<1.12
 
 Usage:
-  rnx run --runtime=python:3.11-ml <command>
+  rnx run --runtime=python-3.11-ml <command>
 ```
 
 ### 4. Test Runtime Functionality
@@ -194,7 +178,7 @@ Testing runtime: python-3.11-ml
 Output: Runtime resolution successful
 
 To test the runtime in a job:
-  rnx run --runtime=python:3.11-ml python --version
+  rnx run --runtime=python-3.11-ml python --version
 ```
 
 ## 📦 Runtime Deployment
@@ -257,8 +241,42 @@ rnx runtime list
 # Get detailed information about a runtime
 rnx runtime info <runtime-name>
 
-# Test runtime functionality
+# Test runtime functionality  
 rnx runtime test <runtime-name>
+
+# Install a runtime from local codebase
+rnx runtime install <runtime-name>
+
+# Remove an installed runtime
+rnx runtime remove <runtime-name>
+
+# Build a runtime from custom source
+rnx runtime build <runtime-name> [--repository=...] [--branch=...]
+
+# Validate runtime specification
+rnx runtime validate <runtime-name>
+```
+
+### Runtime Installation and Management
+
+```bash
+# Install Python runtime
+rnx runtime install python-3.11-ml
+
+# Install Java runtime
+rnx runtime install openjdk-21
+
+# Check installation status
+rnx runtime info python-3.11-ml
+
+# Remove runtime when no longer needed
+rnx runtime remove python-3.11-ml
+
+# List build jobs (for runtime building operations)
+rnx runtime builds
+
+# Check specific build status
+rnx runtime status <build-job-uuid>
 ```
 
 ### Using Runtimes in Jobs
@@ -268,13 +286,13 @@ rnx runtime test <runtime-name>
 rnx run --runtime=<runtime-name> <command>
 
 # With file uploads
-rnx run --runtime=python:3.11-ml --upload=script.py python script.py
+rnx run --runtime=python-3.11-ml --upload=script.py python script.py
 
 # With resource limits
 rnx run --runtime=java:17 --max-memory=2048 --max-cpu=50 java BigApplication
 
 # With networks and volumes
-rnx run --runtime=python:3.11-ml --volume=datasets --network=isolated python analysis.py
+rnx run --runtime=python-3.11-ml --volume=datasets --network=isolated python analysis.py
 
 # Scheduled execution
 rnx run --runtime=java:21 --schedule="1hour" java MaintenanceJob
@@ -286,12 +304,12 @@ Runtime names support multiple formats:
 
 ```bash
 # Hyphen-separated format (recommended)
---runtime=python:3.11-ml
+--runtime=python-3.11-ml
 --runtime=java:17
 --runtime=java:21
 
 # Colon-separated format (legacy)
---runtime=python:3.11+ml
+--runtime=python-3.11-ml
 --runtime=java:17
 --runtime=java:21
 ```
@@ -322,7 +340,7 @@ rnx run 'apt-get update && apt-get install -y python3-pip && pip install pandas 
 
 ```bash
 # 2-3 seconds total
-rnx run --runtime=python:3.11-ml python analysis.py
+rnx run --runtime=python-3.11-ml python analysis.py
 ```
 
 #### Java Development
@@ -361,80 +379,101 @@ rnx run --runtime=java:17 java Application
 
 ### Runtime Structure
 
-Each runtime is completely isolated with:
+Each runtime is **completely self-contained**, including both runtime-specific files AND all necessary system binaries in its `isolated/` directory. This eliminates dependency on host system files during job execution.
 
 ```
 /opt/joblet/runtimes/
-├── python/
-│   └── python-3.11-ml/
-│       ├── runtime.yml          # Runtime configuration
-│       ├── bin/                 # Executable wrapper scripts
-│       ├── python-install/      # Compiled Python from source
-│       │   ├── bin/             # Python binaries
-│       │   └── lib/             # Shared libraries
-│       └── ml-venv/             # Virtual environment with ML packages
-│           ├── bin/             # Venv Python binaries
-│           └── lib/python3.11/site-packages/  # ML packages
-├── java/
-│   ├── java-17/
-│   │   ├── runtime.yml          # Runtime configuration
-│   │   ├── bin/                 # Java executables
-│   │   ├── jdk/                 # OpenJDK installation
-│   │   └── maven/               # Maven installation
-│   └── java-21/
-│       └── ...
-└── nodejs/
-    └── nodejs-18/
-        ├── runtime.yml          # Runtime configuration
-        ├── bin/                 # Node.js wrapper scripts
-        ├── nodejs-install/      # Compiled Node.js from source
-        │   ├── bin/             # Node.js binaries
-        │   └── lib/             # Node.js shared libraries
-        └── lib/node_modules/    # Global npm packages
+├── python-3.11-ml/              # Flat structure (no nested language dirs)
+│   ├── runtime.yml              # Runtime configuration
+│   └── isolated/                # Complete filesystem for job
+│       ├── bin/                 # System binaries (bash, sh, ls, etc.)
+│       ├── lib/                 # System libraries
+│       ├── lib64/              # 64-bit libraries
+│       ├── usr/
+│       │   ├── bin/            # User binaries (python3, pip, etc.)
+│       │   ├── lib/            # User libraries
+│       │   ├── lib/python3/    # Python packages
+│       │   └── local/          # Python runtime installation
+│       ├── etc/                # Configuration files (ssl, ca-certificates)
+│       └── lib/x86_64-linux-gnu/  # Architecture-specific libraries (AMD64)
+│           or
+│       └── lib/aarch64-linux-gnu/ # Architecture-specific libraries (ARM64)
+├── openjdk-21/
+│   ├── runtime.yml
+│   └── isolated/
+│       ├── bin/                 # System binaries
+│       ├── lib/                 # System libraries
+│       ├── usr/
+│       │   ├── lib/jvm/        # Complete JVM installation
+│       │   └── share/java/     # Java libraries
+│       └── etc/                # Java configuration
+└── nodejs-20/                   # Future runtime example
+    ├── runtime.yml
+    └── isolated/
+        └── ...                  # Complete Node.js environment
 ```
 
 ### Runtime Configuration (`runtime.yml`)
 
 ```yaml
 name: "python-3.11-ml"
-type: "system"
 version: "3.11"
-description: "Completely isolated Python 3.11 with ML packages"
+description: "Python with ML packages - self-contained (7785 files)"
 
+# All mounts from isolated/ - no host dependencies
 mounts:
-  - source: "bin"
-    target: "/usr/local/bin"
+  # System directories
+  - source: "isolated/bin"
+    target: "/bin"
     readonly: true
-    selective: [ "python", "python3", "python3.11", "pip", "pip3" ]
-  - source: "ml-venv/lib/python3.11/site-packages"
+  - source: "isolated/lib"
+    target: "/lib"
+    readonly: true
+  - source: "isolated/lib64"
+    target: "/lib64"
+    readonly: true
+  - source: "isolated/usr/bin"
+    target: "/usr/bin"
+    readonly: true
+  - source: "isolated/usr/lib"
+    target: "/usr/lib"
+    readonly: true
+  - source: "isolated/usr/lib64"
+    target: "/usr/lib64"
+    readonly: true
+  
+  # Architecture-specific libraries (AMD64 example)
+  - source: "isolated/lib/x86_64-linux-gnu"
+    target: "/lib/x86_64-linux-gnu"
+    readonly: true
+  - source: "isolated/usr/lib/x86_64-linux-gnu"
+    target: "/usr/lib/x86_64-linux-gnu"
+    readonly: true
+  
+  # System configuration
+  - source: "isolated/etc/ssl"
+    target: "/etc/ssl"
+    readonly: true
+  - source: "isolated/etc/ca-certificates"
+    target: "/etc/ca-certificates"
+    readonly: true
+  - source: "isolated/usr/share/ca-certificates"
+    target: "/usr/share/ca-certificates"
+    readonly: true
+  
+  # Python-specific mounts
+  - source: "isolated/usr/lib/python3/dist-packages"
     target: "/usr/local/lib/python3.11/site-packages"
     readonly: true
-  - source: "python-install/lib"
-    target: "/usr/local/lib"
+  - source: "isolated/usr/local/bin"
+    target: "/usr/local/bin"
     readonly: true
 
 environment:
   PYTHON_HOME: "/usr/local"
   PYTHONPATH: "/usr/local/lib/python3.11/site-packages"
-  PATH_PREPEND: "/usr/local/bin"
-  LD_LIBRARY_PATH: "/usr/local/lib:/usr/local/lib64"
-
-package_manager:
-  type: "pip"
-  cache_volume: "pip-cache"
-
-requirements:
-  min_memory: "512MB"
-  recommended_memory: "2GB"
-  architectures: [ "x86_64", "amd64" ]
-
-packages:
-  - "numpy>=1.24.3,<2.0"
-  - "pandas>=2.0.3,<2.1"
-  - "scikit-learn>=1.3.0,<1.4"
-  - "matplotlib>=3.7.0,<3.8"
-  - "seaborn>=0.12.0,<0.13"
-  - "scipy>=1.11.0,<1.12"
+  PATH: "/usr/local/bin:/usr/bin:/bin"
+  LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/lib64:/usr/lib:/lib"
 ```
 
 ### Isolation Mechanism
@@ -445,41 +484,82 @@ packages:
 4. **Process Isolation**: Same process/network/cgroup isolation as regular jobs
 5. **Security**: No write access to runtime files, complete separation from host
 
+### Platform & Architecture Support
+
+Each runtime includes platform-specific setup scripts that handle:
+
+1. **Multi-Platform Support**:
+   - Ubuntu/Debian (APT-based)
+   - Amazon Linux (YUM-based)
+   - RHEL/CentOS (DNF/YUM-based)
+
+2. **Architecture Awareness**:
+   - **AMD64/x86_64**: Uses `/lib/x86_64-linux-gnu/` paths
+   - **ARM64/aarch64**: Uses `/lib/aarch64-linux-gnu/` paths
+   - Proper dynamic linker configuration per architecture
+   - Architecture-specific `LD_LIBRARY_PATH` settings
+
+3. **Self-Contained Design**:
+   - Each runtime includes ALL necessary system binaries
+   - No dependency on host system files
+   - Complete isolation from host filesystem
+   - Portable across different Linux distributions
+
 ## 🛠️ Custom Runtimes
 
 ### Creating Custom Runtimes
 
-You can create your own runtime environments:
+You can create your own runtime environments using platform-specific setup scripts:
 
 1. **Choose Runtime Directory Structure**:
 
 ```bash
-/opt/joblet/runtimes/<language>/<runtime-name>/
-├── runtime.yml          # Configuration
-├── bin/                 # Executables
-├── lib/                 # Libraries
-└── <custom-dirs>/       # Language-specific directories
+/opt/joblet/runtimes/<runtime-name>/  # Flat structure
+├── runtime.yml                       # Configuration
+└── isolated/                         # Complete filesystem
+    ├── bin/                          # System binaries
+    ├── lib/                          # System libraries
+    ├── usr/                          # User space
+    └── etc/                          # Configuration
 ```
 
-2. **Create Runtime Configuration (`runtime.yml`)**:
+2. **Create Platform-Specific Setup Scripts**:
+
+```bash
+runtimes/<runtime-name>/
+├── setup-ubuntu-amd64.sh    # Ubuntu AMD64 setup
+├── setup-ubuntu-arm64.sh    # Ubuntu ARM64 setup
+├── setup-amzn-amd64.sh      # Amazon Linux AMD64
+├── setup-amzn-arm64.sh      # Amazon Linux ARM64
+├── setup-rhel-amd64.sh      # RHEL/CentOS AMD64
+└── setup-rhel-arm64.sh      # RHEL/CentOS ARM64
+```
+
+3. **Create Runtime Configuration (`runtime.yml`)**:
 
 ```yaml
 name: "my-custom-runtime"
-type: "system"
 version: "1.0"
-description: "Custom runtime description"
+description: "Custom runtime - self-contained"
 
 mounts:
-  - source: "bin"
-    target: "/usr/local/bin"
+  # All paths relative to isolated/
+  - source: "isolated/bin"
+    target: "/bin"
     readonly: true
-  - source: "lib"
-    target: "/usr/local/lib"
+  - source: "isolated/usr/bin"
+    target: "/usr/bin"
+    readonly: true
+  - source: "isolated/lib"
+    target: "/lib"
+    readonly: true
+  - source: "isolated/usr/lib"
+    target: "/usr/lib"
     readonly: true
 
 environment:
-  PATH_PREPEND: "/usr/local/bin"
-  LD_LIBRARY_PATH: "/usr/local/lib"
+  PATH: "/usr/bin:/bin"
+  LD_LIBRARY_PATH: "/usr/lib:/lib"
 
 requirements:
   min_memory: "256MB"
@@ -542,19 +622,19 @@ EOF
 1. **Memory Allocation**: Allocate sufficient memory for runtime environments
    ```bash
    # Python ML jobs typically need 1-4GB
-   rnx run --runtime=python:3.11-ml --max-memory=2048 python analysis.py
+   rnx run --runtime=python-3.11-ml --max-memory=2048 python analysis.py
    ```
 
 2. **CPU Allocation**: Use appropriate CPU limits
    ```bash
    # CPU-intensive ML workloads
-   rnx run --runtime=python:3.11-ml --max-cpu=75 --cpu-cores="0-3" python training.py
+   rnx run --runtime=python-3.11-ml --max-cpu=75 --cpu-cores="0-3" python training.py
    ```
 
 3. **Storage**: Use volumes for large datasets
    ```bash
    rnx volume create datasets --size=10GB
-   rnx run --runtime=python:3.11-ml --volume=datasets python process_data.py
+   rnx run --runtime=python-3.11-ml --volume=datasets python process_data.py
    ```
 
 ### Security Considerations
@@ -568,17 +648,17 @@ EOF
 
 1. **Development Phase**: Use runtimes for fast iteration
    ```bash
-   rnx run --runtime=python:3.11-ml --upload=experiment.py python experiment.py
+   rnx run --runtime=python-3.11-ml --upload=experiment.py python experiment.py
    ```
 
 2. **Testing Phase**: Test with resource limits
    ```bash
-   rnx run --runtime=python:3.11-ml --max-memory=512 --upload=test.py python test.py
+   rnx run --runtime=python-3.11-ml --max-memory=512 --upload=test.py python test.py
    ```
 
 3. **Production Phase**: Use volumes and networks
    ```bash
-   rnx run --runtime=python:3.11-ml --volume=data --network=prod python production.py
+   rnx run --runtime=python-3.11-ml --volume=data --network=prod python production.py
    ```
 
 ## 🔧 Troubleshooting
@@ -618,7 +698,7 @@ sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
 
 ```bash
 # ML jobs typically need 1-4GB
-rnx run --runtime=python:3.11-ml --max-memory=2048 python analysis.py
+rnx run --runtime=python-3.11-ml --max-memory=2048 python analysis.py
 ```
 
 #### 4. Package Compatibility
@@ -629,7 +709,7 @@ rnx run --runtime=python:3.11-ml --max-memory=2048 python analysis.py
 
 ```bash
 # Don't install additional packages - use what's pre-installed
-rnx run --runtime=python:3.11-ml python -c "import numpy; print(numpy.__version__)"
+rnx run --runtime=python-3.11-ml python -c "import numpy; print(numpy.__version__)"
 ```
 
 ### Diagnostic Commands
@@ -645,7 +725,7 @@ rnx runtime test python-3.11-ml
 rnx runtime info python-3.11-ml
 
 # Verify job execution
-rnx run --runtime=python:3.11-ml python -c "import sys; print(sys.executable)"
+rnx run --runtime=python-3.11-ml python -c "import sys; print(sys.executable)"
 
 # Check server logs (on server)
 sudo journalctl -u joblet.service -f

@@ -31,6 +31,8 @@ export const useSystemInfo = (): UseSystemInfoReturn => {
         fetchSystemInfo();
     }, [fetchSystemInfo]);
 
+    // System info is static data, no auto-refresh needed
+
     useEffect(() => {
         fetchSystemInfo();
     }, [fetchSystemInfo]);

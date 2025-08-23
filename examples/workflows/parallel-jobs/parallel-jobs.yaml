@@ -5,7 +5,7 @@ jobs:
   batch1:
     command: "python3"
     args: [ "process_batch1.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "process_batch1.py" ]
     volumes: [ "parallel-processing" ]
@@ -13,7 +13,7 @@ jobs:
   batch2:
     command: "python3"
     args: [ "process_batch2.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "process_batch2.py" ]
     volumes: [ "parallel-processing" ]
@@ -21,7 +21,7 @@ jobs:
   batch3:
     command: "python3"
     args: [ "process_batch3.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "process_batch3.py" ]
     volumes: [ "parallel-processing" ]

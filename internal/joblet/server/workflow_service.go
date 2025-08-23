@@ -43,7 +43,7 @@ const (
 
 type WorkflowServiceServer struct {
 	pb.UnimplementedJobServiceServer
-	auth              auth2.GrpcAuthorization
+	auth              auth2.GRPCAuthorization
 	jobStore          adapters.JobStoreAdapter
 	joblet            interfaces.Joblet
 	workflowManager   *workflow.WorkflowManager
@@ -59,10 +59,10 @@ type WorkflowServiceServer struct {
 // This server handles workflow creation, status monitoring, and job orchestration.
 // It requires authentication, job store access, joblet interface for job execution,
 // a workflow manager for dependency tracking and job coordination, and managers for validation.
-func NewWorkflowServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet, workflowManager *workflow.WorkflowManager, volumeManager *volume.Manager, runtimeManager *runtime.Manager, runtimeResolver *runtime.Resolver) *WorkflowServiceServer {
+func NewWorkflowServiceServer(auth auth2.GRPCAuthorization, jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet, workflowManager *workflow.WorkflowManager, volumeManager *volume.Manager, runtimeResolver *runtime.Resolver) *WorkflowServiceServer {
 	// Create workflow validator with adapters
 	volumeAdapter := validation.NewVolumeManagerAdapter(volumeManager)
-	runtimeAdapter := validation.NewRuntimeManagerAdapter(runtimeManager, runtimeResolver)
+	runtimeAdapter := validation.NewRuntimeManagerAdapter(runtimeResolver)
 	workflowValidator := validation.NewWorkflowValidator(volumeAdapter, runtimeAdapter)
 
 	return &WorkflowServiceServer{
@@ -313,6 +313,15 @@ func (s *WorkflowServiceServer) convertToWorkflowJobRequest(req *pb.RunJobReques
 		})
 	}
 
+	// Determine job type from environment variables (same logic as job service)
+	jobType := domain.JobTypeStandard
+	if req.Environment != nil {
+		if envJobType, exists := req.Environment["JOB_TYPE"]; exists && envJobType == "runtime-build" {
+			jobType = domain.JobTypeRuntimeBuild
+			s.logger.Info("detected runtime build job type from workflow environment", "jobType", jobType)
+		}
+	}
+
 	jobRequest := &interfaces.StartJobRequest{
 		Name:    req.Name, // Pass through job name from request
 		Command: req.Command,
@@ -330,6 +339,7 @@ func (s *WorkflowServiceServer) convertToWorkflowJobRequest(req *pb.RunJobReques
 		Runtime:           req.Runtime,
 		Environment:       req.Environment,       // Regular environment variables
 		SecretEnvironment: req.SecretEnvironment, // Secret environment variables
+		JobType:           jobType,               // Pass job type to the core
 	}
 
 	return jobRequest, nil

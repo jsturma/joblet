@@ -2,15 +2,15 @@
 
 This example demonstrates **two different runtime approaches** for the same ML code:
 
-1. **`python:3.11-ml` runtime** - Heavy runtime with ML libraries pre-installed on host
-2. **`python:3.11` runtime** - Lightweight runtime with dependencies packaged locally
+1. **`python-3.11-ml` runtime** - Heavy runtime with ML libraries pre-installed on host
+2. **`python-3.11` runtime** - Lightweight runtime with dependencies packaged locally
 
 ## 🎯 Runtime Comparison
 
 | Runtime Approach         | Runtime Size | Dependencies     | Upload Size | Total  | Use Case                   |
 |--------------------------|--------------|------------------|-------------|--------|----------------------------| 
-| **`python:3.11-ml`**     | 500MB+       | Pre-installed    | ~5KB        | 500MB+ | Quick ML jobs, no setup    |
-| **`python:3.11` + deps** | 50MB         | Packaged locally | ~150MB      | 200MB  | Custom versions, isolation |
+| **`python-3.11-ml`**     | 500MB+       | Pre-installed    | ~5KB        | 500MB+ | Quick ML jobs, no setup    |
+| **`python-3.11` + deps** | 50MB         | Packaged locally | ~150MB      | 200MB  | Custom versions, isolation |
 
 ## 🚀 Quick Start
 
@@ -26,16 +26,16 @@ rnx run --workflow=jobs.yaml:visualization         # Data visualization generati
 rnx run --workflow=jobs.yaml:ml-pipeline           # Complete ML pipeline
 ```
 
-### Option 1: Heavy Runtime (`python:3.11-ml`)
+### Option 1: Heavy Runtime (`python-3.11-ml`)
 
 ```bash
 cd examples/python-3.11-ml
 
 # No setup needed - ML libs pre-installed on host
-rnx run --runtime=python:3.11-ml python example_data_analysis.py
+rnx run --runtime=python-3.11-ml python example_data_analysis.py
 ```
 
-### Option 2: Packaged Dependencies (`python:3.11`)
+### Option 2: Packaged Dependencies (`python-3.11`)
 
 ```bash
 cd examples/python-3.11-ml
@@ -44,7 +44,7 @@ cd examples/python-3.11-ml
 ./setup.sh              # Installs all ML dependencies
 
 # Upload entire project including dependencies
-rnx run --runtime=python:3.11 --upload-dir=. python example_data_analysis.py
+rnx run --runtime=python-3.11 --upload-dir=. python example_data_analysis.py
 ```
 
 ## 📦 Example Included
@@ -64,7 +64,7 @@ Works with **both runtime approaches**:
 
 ## 🔄 Runtime Benefits Comparison
 
-### `python:3.11-ml` Runtime
+### `python-3.11-ml` Runtime
 
 ✅ **No setup** - ML libraries pre-installed on host  
 ✅ **Instant deployment** - Just upload your script  
@@ -72,7 +72,7 @@ Works with **both runtime approaches**:
 ❌ **Fixed versions** - Can't customize library versions  
 ❌ **Larger host** - 500MB+ runtime footprint
 
-### `python:3.11` + Packaged Dependencies
+### `python-3.11` + Packaged Dependencies
 
 ✅ **Exact versions** - Use precisely the packages you need  
 ✅ **Perfect reproducibility** - Dependencies travel with code  
@@ -83,16 +83,16 @@ Works with **both runtime approaches**:
 
 ## 📋 Usage Instructions
 
-### For `python:3.11-ml` Runtime (Pre-installed ML)
+### For `python-3.11-ml` Runtime (Pre-installed ML)
 
 ```bash
 cd examples/python-3.11-ml
 
 # No setup needed - run directly
-rnx run --runtime=python:3.11-ml python example_data_analysis.py
+rnx run --runtime=python-3.11-ml python example_data_analysis.py
 ```
 
-### For `python:3.11` Runtime (Packaged Dependencies)
+### For `python-3.11` Runtime (Packaged Dependencies)
 
 ```bash
 cd examples/python-3.11-ml
@@ -157,7 +157,7 @@ python-3.11-ml/
 
 ## 🎯 When to Use Each Runtime
 
-### Use `python:3.11-ml` when:
+### Use `python-3.11-ml` when:
 
 - Quick prototyping and testing
 - Standard ML workflows with common packages

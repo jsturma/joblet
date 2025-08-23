@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"os"
 
 	"joblet/internal/joblet/domain"
 	"joblet/pkg/platform"
@@ -32,6 +33,7 @@ type EnvironmentManager interface {
 //counterfeiter:generate . NetworkManager
 type NetworkManager interface {
 	SetupNetworking(ctx context.Context, jobID, networkName string) (*NetworkAllocation, error)
+	ConfigureNetworkNamespace(ctx context.Context, jobID string, pid int) error
 	CleanupNetworking(ctx context.Context, jobID string) error
 }
 
@@ -48,6 +50,7 @@ type ProcessManager interface {
 //counterfeiter:generate . IsolationManager
 type IsolationManager interface {
 	CreateIsolatedEnvironment(jobID string) (*IsolationContext, error)
+	CreateBuilderEnvironment(jobID string) (*IsolationContext, error)
 	DestroyIsolatedEnvironment(jobID string) error
 }
 
@@ -68,9 +71,10 @@ type LaunchConfig struct {
 	Stdout      interface{}
 	Stderr      interface{}
 	JobID       string
+	JobType     domain.JobType // Job type for isolation configuration
 	Command     string
 	Args        []string
-	ExtraFiles  []*interface{}
+	ExtraFiles  []*os.File
 }
 
 // ProcessResult contains process launch results
@@ -93,4 +97,5 @@ type IsolationContext struct {
 	Namespace    string
 	CgroupPath   string
 	WorkspaceDir string
+	IsBuilder    bool // True for runtime build environments
 }

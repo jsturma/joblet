@@ -7,6 +7,19 @@ import (
 )
 
 type FakeIsolationManager struct {
+	CreateBuilderEnvironmentStub        func(string) (*execution.IsolationContext, error)
+	createBuilderEnvironmentMutex       sync.RWMutex
+	createBuilderEnvironmentArgsForCall []struct {
+		arg1 string
+	}
+	createBuilderEnvironmentReturns struct {
+		result1 *execution.IsolationContext
+		result2 error
+	}
+	createBuilderEnvironmentReturnsOnCall map[int]struct {
+		result1 *execution.IsolationContext
+		result2 error
+	}
 	CreateIsolatedEnvironmentStub        func(string) (*execution.IsolationContext, error)
 	createIsolatedEnvironmentMutex       sync.RWMutex
 	createIsolatedEnvironmentArgsForCall []struct {
@@ -33,6 +46,70 @@ type FakeIsolationManager struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeIsolationManager) CreateBuilderEnvironment(arg1 string) (*execution.IsolationContext, error) {
+	fake.createBuilderEnvironmentMutex.Lock()
+	ret, specificReturn := fake.createBuilderEnvironmentReturnsOnCall[len(fake.createBuilderEnvironmentArgsForCall)]
+	fake.createBuilderEnvironmentArgsForCall = append(fake.createBuilderEnvironmentArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.CreateBuilderEnvironmentStub
+	fakeReturns := fake.createBuilderEnvironmentReturns
+	fake.recordInvocation("CreateBuilderEnvironment", []interface{}{arg1})
+	fake.createBuilderEnvironmentMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeIsolationManager) CreateBuilderEnvironmentCallCount() int {
+	fake.createBuilderEnvironmentMutex.RLock()
+	defer fake.createBuilderEnvironmentMutex.RUnlock()
+	return len(fake.createBuilderEnvironmentArgsForCall)
+}
+
+func (fake *FakeIsolationManager) CreateBuilderEnvironmentCalls(stub func(string) (*execution.IsolationContext, error)) {
+	fake.createBuilderEnvironmentMutex.Lock()
+	defer fake.createBuilderEnvironmentMutex.Unlock()
+	fake.CreateBuilderEnvironmentStub = stub
+}
+
+func (fake *FakeIsolationManager) CreateBuilderEnvironmentArgsForCall(i int) string {
+	fake.createBuilderEnvironmentMutex.RLock()
+	defer fake.createBuilderEnvironmentMutex.RUnlock()
+	argsForCall := fake.createBuilderEnvironmentArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeIsolationManager) CreateBuilderEnvironmentReturns(result1 *execution.IsolationContext, result2 error) {
+	fake.createBuilderEnvironmentMutex.Lock()
+	defer fake.createBuilderEnvironmentMutex.Unlock()
+	fake.CreateBuilderEnvironmentStub = nil
+	fake.createBuilderEnvironmentReturns = struct {
+		result1 *execution.IsolationContext
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeIsolationManager) CreateBuilderEnvironmentReturnsOnCall(i int, result1 *execution.IsolationContext, result2 error) {
+	fake.createBuilderEnvironmentMutex.Lock()
+	defer fake.createBuilderEnvironmentMutex.Unlock()
+	fake.CreateBuilderEnvironmentStub = nil
+	if fake.createBuilderEnvironmentReturnsOnCall == nil {
+		fake.createBuilderEnvironmentReturnsOnCall = make(map[int]struct {
+			result1 *execution.IsolationContext
+			result2 error
+		})
+	}
+	fake.createBuilderEnvironmentReturnsOnCall[i] = struct {
+		result1 *execution.IsolationContext
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeIsolationManager) CreateIsolatedEnvironment(arg1 string) (*execution.IsolationContext, error) {

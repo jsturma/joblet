@@ -3,7 +3,7 @@ jobs:
   hello:
     command: "echo"
     args: [ "Hello, World!" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     resources:
       max_memory: 64
 
@@ -11,7 +11,7 @@ jobs:
   analytics:
     command: "python3"
     args: [ "analyze.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "analyze.py", "data.csv" ]
     volumes: [ "analytics-data" ]
@@ -23,7 +23,7 @@ jobs:
   webserver:
     command: "nginx"
     args: [ "-g", "daemon off;" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     volumes: [ "web-content" ]
     resources:
       max_memory: 128
@@ -33,7 +33,7 @@ jobs:
   backup:
     command: "bash"
     args: [ "-c", "tar -czf /volumes/backups/backup-$(date +%Y%m%d).tar.gz /data" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     volumes: [ "backups", "data" ]
     resources:
       max_memory: 512

@@ -279,8 +279,8 @@ func (s *MonitoringServiceServer) processMetricsToProto(p domain.ProcessMetrics)
 	return &pb.ProcessMetrics{
 		TotalProcesses:    int32(p.TotalProcesses),
 		RunningProcesses:  int32(p.RunningProcesses),
-		SleepingProcesses: 0, // Not available in domain model
-		StoppedProcesses:  0, // Not available in domain model
+		SleepingProcesses: int32(p.SleepingProcesses),
+		StoppedProcesses:  int32(p.StoppedProcesses),
 		ZombieProcesses:   int32(p.ZombieProcesses),
 		TotalThreads:      int32(p.TotalThreads),
 		TopByCPU:          topCPU,

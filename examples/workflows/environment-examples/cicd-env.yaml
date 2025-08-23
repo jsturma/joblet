@@ -120,17 +120,16 @@ jobs:
       max_memory: 2048
       max_cpu: 75
 
-  # Create Docker Image
-  create-docker-image:
+  # Create Application Package
+  create-application-package:
     command: "bash"
-    args: [ "-c", "source /volumes/cicd/pipeline.env; echo 'Creating Docker image'; echo 'Registry: $DOCKER_REGISTRY'; echo 'Image name: $IMAGE_NAME'; echo 'Tag: $IMAGE_TAG'; echo 'Base image: $BASE_IMAGE'; echo 'Multi-stage build: $MULTI_STAGE'; echo 'Image created: $DOCKER_REGISTRY/$IMAGE_NAME:$IMAGE_TAG'; echo 'docker_image_tag=$IMAGE_TAG' >> /volumes/cicd/pipeline.env; echo 'Docker image created successfully'" ]
+    args: [ "-c", "source /volumes/cicd/pipeline.env; echo 'Creating application package'; echo 'Package type: $PACKAGE_TYPE'; echo 'Package name: $PACKAGE_NAME'; echo 'Version: $PACKAGE_VERSION'; echo 'Target platform: $TARGET_PLATFORM'; echo 'Package created: $PACKAGE_NAME-$PACKAGE_VERSION.$PACKAGE_TYPE'; echo 'package_version=$PACKAGE_VERSION' >> /volumes/cicd/pipeline.env; echo 'Application package created successfully'" ]
     environment:
-      DOCKER_REGISTRY: "registry.company.com"
-      IMAGE_NAME: "my-web-app"
-      IMAGE_TAG: "v1.2.3-build.142"
-      BASE_IMAGE: "node:18-alpine"
-      MULTI_STAGE: "true"
-      DOCKER_BUILDKIT: "1"
+      PACKAGE_TYPE: "tar.gz"
+      PACKAGE_NAME: "my-web-app"
+      PACKAGE_VERSION: "v1.2.3-build.142"
+      TARGET_PLATFORM: "linux-amd64"
+      COMPRESSION_LEVEL: "9"
     volumes: [ "cicd" ]
     requires:
       - build-application: "COMPLETED"
@@ -152,7 +151,7 @@ jobs:
       DEPLOYMENT_TIMEOUT: "600"
     volumes: [ "cicd" ]
     requires:
-      - create-docker-image: "COMPLETED"
+      - create-application-package: "COMPLETED"
     resources:
       max_memory: 512
 

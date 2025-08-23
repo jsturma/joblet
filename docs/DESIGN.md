@@ -10,7 +10,9 @@ v2.
 ### 1.1 Key Features
 
 - **Single Binary Architecture**: Same executable operates in server or init mode
+- **Service-Based Isolation**: Automatic job routing based on API service (production vs runtime builds)
 - **Complete Process Isolation**: Linux namespaces (PID, mount, IPC, UTS, cgroup)
+- **Dual Chroot System**: Production isolation (minimal) vs builder isolation (full host OS)
 - **Host Networking**: Shared network namespace for maximum compatibility
 - **Resource Management**: CPU, memory, and I/O bandwidth limiting via cgroups v2
 - **Real-time Streaming**: Live output streaming with pub/sub architecture

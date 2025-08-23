@@ -16,6 +16,7 @@ export interface Job {
     status: JobStatus;
     startTime: string;
     endTime?: string;
+    scheduledTime?: string;
     duration: number;
     exitCode?: number;
     maxCPU: number;

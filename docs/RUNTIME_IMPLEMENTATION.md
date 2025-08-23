@@ -20,22 +20,22 @@ This document describes the implementation of the Simplified Runtime Architectur
 ### Core Components
 
 1. **Runtime Resolver** (`internal/joblet/runtime/resolver.go`)
-    - Parses runtime specifications (e.g., `python:3.11+ml`)
+    - Parses runtime specifications (e.g., `openjdk-21`, `python-3.11-ml`)
     - Locates runtime directories and configurations
     - Validates system compatibility
 
-2. **Runtime Manager** (`internal/joblet/runtime/manager.go`)
-    - Handles mounting of runtime directories into job filesystems
-    - Manages environment variable injection
-    - Coordinates with volume system for package manager caches
+2. **Filesystem Isolator** (`internal/joblet/core/filesystem/isolator.go`)
+    - Handles mounting of runtime `isolated/` directories into job filesystems
+    - Manages environment variable injection from runtime.yml
+    - Provides complete filesystem isolation using self-contained runtime structures
 
 3. **Runtime Types** (`internal/joblet/runtime/types.go`)
-    - Defines data structures for runtime configurations
-    - Supports three runtime types: static, managed, system
+    - Defines data structures for runtime configurations  
+    - Simplified structure supporting self-contained runtimes
 
-4. **CLI Integration** (`internal/rnx/runtime.go`)
-    - Runtime management commands
-    - Runtime listing and information display
+4. **CLI Integration** (`internal/rnx/resources/runtime.go`)
+    - Runtime management commands (`rnx runtime install/list/info`)
+    - Runtime installation using platform-specific setup scripts
 
 ### Configuration Structure
 
@@ -43,41 +43,102 @@ Runtime configurations are stored as YAML files in `/opt/joblet/runtimes/`:
 
 ```
 /opt/joblet/runtimes/
-├── python/
-│   ├── python-3.11/
-│   │   ├── venv/           # Virtual environment
-│   │   └── runtime.yml     # Configuration
-│   └── python-3.11-ml/
-├── java/
-│   └── openjdk-17/
-└── node/
-    └── node-18/
+├── openjdk-21/
+│   ├── isolated/          # Self-contained runtime files
+│   │   ├── usr/bin/       # System binaries
+│   │   ├── usr/lib/       # System libraries
+│   │   ├── usr/lib/jvm/   # Java installation
+│   │   ├── etc/           # Configuration files
+│   │   └── ...            # Complete runtime environment
+│   └── runtime.yml        # Runtime configuration
+└── python-3.11-ml/       # (Available but not installed)
+    ├── isolated/          # Self-contained Python+ML environment
+    └── runtime.yml        # Runtime configuration
 ```
 
 ### Runtime Configuration Format
 
 ```yaml
-name: "python-3.11"
-type: "managed"
-version: "3.11"
-description: "Python 3.11 base runtime"
+name: openjdk-21
+version: "21.0.8"
+description: "OpenJDK 21 - self-contained (1872 files)"
+
+# All mounts from isolated/ - no host dependencies per design
 mounts:
-  - source: "venv/bin"
-    target: "/usr/local/bin"
+  # Essential system binaries
+  - source: "isolated/usr/bin"
+    target: "/usr/bin"
     readonly: true
-  - source: "venv/lib"
-    target: "/usr/local/lib"
+  # Essential libraries
+  - source: "isolated/lib"
+    target: "/lib"
     readonly: true
+  # Java-specific mounts
+  - source: "isolated/usr/lib/jvm"
+    target: "/usr/lib/jvm"
+    readonly: true
+
 environment:
-  PYTHON_HOME: "/usr/local"
-  PATH_PREPEND: "/usr/local/bin"
-package_manager:
-  type: "pip"
-  cache_volume: "pip-cache"
-requirements:
-  min_memory: "256MB"
-  architectures: [ "x86_64", "amd64" ]
+  JAVA_HOME: "/usr/lib/jvm"
+  PATH: "/usr/lib/jvm/bin:/usr/bin:/bin"
+  JAVA_VERSION: "21.0.8"
+  LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/usr/lib/jvm/lib"
 ```
+
+## Runtime Installation Architecture
+
+### Template-Based Installation System
+
+Runtime installation uses a modular, template-based architecture for maintainable and extensible runtime management:
+
+#### Strategy Pattern Components
+
+1. **Runtime Installer Interface** (`internal/joblet/runtime/installers/interfaces.go`)
+   - Unified interface for all runtime installation types
+   - Standardized InstallSpec and InstallResult structures
+   - Support for GitHub, local, and script-based sources
+
+2. **Installer Manager** (`internal/joblet/runtime/installers/manager.go`)
+   - Central coordinator that delegates to appropriate installers
+   - Source type detection and routing
+   - Error handling and validation
+
+3. **Template Engine** (`internal/joblet/runtime/installers/base.go`)
+   - Go template rendering with embedded template files
+   - Parameterized shell script generation
+   - Runtime-specific variable substitution
+
+#### Installation Templates
+
+Installation scripts are stored as parameterized templates:
+
+```bash
+# templates/github_install.sh.tmpl
+#!/bin/bash
+set -euo pipefail
+
+RUNTIME_SPEC="{{.RuntimeSpec}}"
+REPOSITORY="{{.Repository}}"
+BRANCH="{{.Branch}}"
+TARGET_PATH="{{.TargetPath}}"
+
+echo "Installing runtime: $RUNTIME_SPEC"
+echo "From repository: $REPOSITORY"
+echo "Branch: $BRANCH"
+
+# Clone repository and install runtime
+git clone --branch "$BRANCH" "$REPOSITORY" "$TARGET_PATH"
+cd "$TARGET_PATH" && ./setup.sh
+```
+
+#### GitHub Runtime Installer
+
+The GitHub installer (`internal/joblet/runtime/installers/github.go`) provides:
+
+- Repository URL validation and normalization
+- Branch specification with defaults
+- Template-based script generation
+- Comprehensive error handling
 
 ## Usage Examples
 
@@ -88,21 +149,20 @@ requirements:
 rnx runtime list
 
 # Get runtime information
-rnx runtime info python:3.11
+rnx runtime info openjdk-21
 
 # Run job with runtime
-rnx run --runtime=python:3.11 python --version
+rnx run --runtime=openjdk-21 java -version
 
 # Upload and run script with runtime
-rnx run --runtime=python:3.11+ml --upload=train.py python train.py
+rnx run --runtime=openjdk-21 --upload=App.java bash -c "javac App.java && java App"
 ```
 
-### ML/Data Science Example
+### ML/Data Science Example (When Available)
 
 ```bash
-# Use Python ML runtime with volumes for caching
-rnx run --runtime=python:3.11+ml \
-        --volume=pip-cache \
+# Use Python ML runtime with volumes for data persistence  
+rnx run --runtime=python-3.11-ml \
         --volume=datasets \
         --upload=analysis.py \
         python analysis.py
@@ -111,22 +171,27 @@ rnx run --runtime=python:3.11+ml \
 ### Java Development Example
 
 ```bash
-# Run Java application with Maven cache
-rnx run --runtime=java:17 \
-        --volume=maven-cache \
-        --upload=app.jar \
-        java -jar app.jar
+# Compile and run Java application
+rnx run --runtime=openjdk-21 \
+        --upload=HelloWorld.java \
+        bash -c "javac HelloWorld.java && java HelloWorld"
 ```
 
 ## Runtime Installation
 
-Use the provided setup script to install example runtimes:
+Use the RNX CLI to install runtimes:
 
 ```bash
-sudo ./scripts/setup_runtimes.sh
+# Install available runtimes
+rnx runtime install openjdk-21
+rnx runtime install python-3.11-ml
+
+# Verify installation
+rnx runtime list
+rnx runtime info openjdk-21
 ```
 
-This installs basic runtimes for Python, Java, Node.js, and Go.
+This installs self-contained runtimes with all dependencies included.
 
 ## Configuration
 
@@ -209,6 +274,11 @@ Potential future improvements:
 - `internal/joblet/runtime/manager.go` - Runtime mounting and management
 - `internal/joblet/runtime/resolver_test.go` - Resolver tests
 - `internal/joblet/runtime/manager_test.go` - Manager tests
+- `internal/joblet/runtime/installers/interfaces.go` - Installer interfaces and types
+- `internal/joblet/runtime/installers/base.go` - Base template rendering functionality
+- `internal/joblet/runtime/installers/manager.go` - Installer manager and coordinator
+- `internal/joblet/runtime/installers/github.go` - GitHub runtime installer
+- `internal/joblet/runtime/installers/templates/github_install.sh.tmpl` - GitHub installation template
 - `internal/rnx/runtime.go` - CLI runtime commands
 - `scripts/setup_runtimes.sh` - Runtime installation script
 
@@ -217,9 +287,10 @@ Potential future improvements:
 - `internal/joblet/domain/job.go` - Added Runtime field
 - `internal/joblet/core/execution_engine.go` - Runtime integration
 - `internal/joblet/core/filesystem/isolator.go` - Extended JobFilesystem
+- `internal/joblet/server/runtime_service.go` - Refactored to use template-based installer system (reduced from 1290 to 996 lines)
 - `internal/rnx/run.go` - Added --runtime flag
 - `internal/rnx/root.go` - Added runtime command
-- `api/proto/joblet.proto` - Added runtime field to RunJobReq
+- `api/proto/joblet.proto` - Updated protocol buffer definitions
 - `api/gen/joblet.pb.go` - Regenerated protobuf
 - `pkg/config/config.go` - Added RuntimeConfig
 - `pkg/platform/interfaces.go` - Extended platform interface

@@ -1,20 +1,61 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import { useTranslation } from 'react-i18next';
 import {JobConfig, JobExecuteRequest} from '../../types/job';
 import {CommandBuilder} from '../../services/commandBuilder';
 import {useJobs} from '../../hooks/useJobs';
-import {File, FolderPlus, Play, RotateCcw, Save, Trash2, Upload} from 'lucide-react';
+import {File, FolderPlus, Play, RotateCcw, Trash2, Upload} from 'lucide-react';
 import clsx from 'clsx';
 import {UploadedFile, UploadService} from '../../services/uploadService';
+import {apiService} from '../../services/apiService';
+
+interface Runtime {
+    id: string;
+    name: string;
+    version: string;
+    size: string;
+    description: string;
+}
+
+// RNX schedule format validation function
+const isValidScheduleFormat = (schedule: string): boolean => {
+    if (!schedule.trim()) return true; // Empty is valid (immediate execution)
+    
+    const trimmed = schedule.trim();
+    
+    // Check for duration format (e.g., "30s", "5min", "2h", "1d", "2h30m")
+    const durationRegex = /^\d+[smhd]$|^\d+min$|^\d+h\d+m$/;
+    if (durationRegex.test(trimmed)) {
+        return true;
+    }
+    
+    // Check for RFC3339 timestamp format
+    const rfc3339Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)?$/;
+    if (rfc3339Regex.test(trimmed)) {
+        // Try to parse as valid date
+        try {
+            const date = new Date(trimmed);
+            return !isNaN(date.getTime());
+        } catch {
+            return false;
+        }
+    }
+    
+    return false;
+};
+
 
 interface SimpleJobBuilderProps {
     onJobCreated?: (jobId: string) => void;
     onClose?: () => void;
+    showHeader?: boolean;
 }
 
 export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                                                       onJobCreated,
-                                                                      onClose
+                                                                      onClose,
+                                                                      showHeader = true
                                                                   }) => {
+    const { t } = useTranslation();
     const {executeJob, loading} = useJobs();
     const [config, setConfig] = useState<JobConfig>({
         command: '',
@@ -37,6 +78,8 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
     const [uploadError, setUploadError] = useState<string>('');
     const [isDragOver, setIsDragOver] = useState<boolean>(false);
+    const [runtimes, setRuntimes] = useState<Runtime[]>([]);
+    const [loadingRuntimes, setLoadingRuntimes] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dirInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -220,11 +263,27 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
         updatePreview();
     }, [updatePreview]);
 
+    useEffect(() => {
+        const fetchRuntimes = async () => {
+            try {
+                setLoadingRuntimes(true);
+                const response = await apiService.getRuntimes();
+                setRuntimes(response.runtimes || []);
+            } catch (error) {
+                console.error('Failed to fetch runtimes:', error);
+            } finally {
+                setLoadingRuntimes(false);
+            }
+        };
+        
+        fetchRuntimes();
+    }, []);
+
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!config.command.trim()) {
-            alert('Command is required');
+            alert(t('jobBuilder.commandRequired'));
             return;
         }
 
@@ -267,7 +326,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
             setUploadedFiles([]);
             setUploadError('');
         } catch (error) {
-            alert(`Failed to create job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            alert(`${t('jobBuilder.failedToCreate')}: ${error instanceof Error ? error.message : t('jobBuilder.unknownError')}`);
         }
     }, [config, executeJob, onJobCreated]);
 
@@ -292,37 +351,39 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
     return (
         <div className="max-w-4xl mx-auto p-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create New Job</h2>
-                        {onClose && (
-                            <button
-                                onClick={onClose}
-                                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                            >
-                                ✕
-                            </button>
-                        )}
+                {showHeader && (
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('jobBuilder.createTitle')}</h2>
+                            {onClose && (
+                                <button
+                                    onClick={onClose}
+                                    className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="p-6">
                     <div className="space-y-6">
                         {/* Basic Configuration */}
                         <div>
                             <label className="block text-sm font-medium text-white mb-2">
-                                Command *
+                                {t('jobBuilder.command')} *
                             </label>
                             <input
                                 type="text"
                                 value={config.command}
                                 onChange={(e) => updateConfig({command: e.target.value})}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="python3 script.py --epochs=100"
+                                placeholder={t('jobBuilder.commandPlaceholder')}
                                 required
                             />
                             <p className="mt-1 text-xs text-gray-500">
-                                The command to execute in the job container
+                                {t('jobBuilder.commandHelp')}
                             </p>
                         </div>
 
@@ -330,7 +391,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                         {/* File Uploads */}
                         <div>
                             <label className="block text-sm font-medium text-white mb-2">
-                                Files & Directories
+                                {t('jobBuilder.filesAndDirs')}
                             </label>
                             <div
                                 ref={dropZoneRef}
@@ -433,7 +494,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Resource Limits */}
                         <div>
-                            <h3 className="text-lg font-medium text-gray-500 mb-4">Resource Limits</h3>
+                            <h3 className="text-lg font-medium text-gray-500 mb-4">{t('jobBuilder.resourceLimits')}</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-white mb-2">
@@ -506,7 +567,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                         {/* Environment */}
                         <div>
-                            <h3 className="text-lg font-medium text-gray-500 mb-4">Environment</h3>
+                            <h3 className="text-lg font-medium text-gray-500 mb-4">{t('jobBuilder.environment')}</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-white mb-2">
@@ -516,10 +577,18 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                         value={config.runtime}
                                         onChange={(e) => updateConfig({runtime: e.target.value})}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        disabled={loadingRuntimes}
                                     >
                                         <option value="">Default</option>
-                                        <option value="python:3.11-ml">Python 3.11 ML</option>
+                                        {runtimes.map((runtime) => (
+                                            <option key={runtime.id} value={runtime.name}>
+                                                {runtime.name} {runtime.version && `(${runtime.version})`}
+                                            </option>
+                                        ))}
                                     </select>
+                                    {loadingRuntimes && (
+                                        <p className="mt-1 text-xs text-gray-500">Loading available runtimes...</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -603,18 +672,43 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
                                     <div>
                                         <label className="block text-sm font-medium text-white mb-2">
-                                            Schedule (cron format)
+                                            Schedule (Duration or RFC3339 time)
                                         </label>
                                         <input
                                             type="text"
                                             value={config.schedule}
                                             onChange={(e) => updateConfig({schedule: e.target.value})}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="0 2 * * *"
+                                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                                                config.schedule && !isValidScheduleFormat(config.schedule)
+                                                    ? 'border-red-300 focus:ring-red-500 bg-red-50 text-red-900'
+                                                    : 'border-gray-300 focus:ring-blue-500 bg-white text-gray-900'
+                                            }`}
+                                            placeholder="30min (run in 30 minutes)"
                                         />
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Leave empty to run immediately
-                                        </p>
+                                        <div className="mt-1 space-y-1">
+                                            <p className="text-xs text-gray-500">
+                                                Leave empty to run immediately. Use duration or RFC3339 timestamp format.
+                                            </p>
+                                            {config.schedule && !isValidScheduleFormat(config.schedule) && (
+                                                <p className="text-xs text-red-500">
+                                                    Invalid format. Use duration (e.g., 30min, 2h, 2h30m) or RFC3339 timestamp (e.g., 2025-08-03T15:00:00Z)
+                                                </p>
+                                            )}
+                                            <div className="text-xs text-gray-400 space-y-1">
+                                                <div>
+                                                    Duration examples: 
+                                                    <span className="font-mono ml-1">30s</span>, 
+                                                    <span className="font-mono ml-1">5min</span>,
+                                                    <span className="font-mono ml-1">2h</span>,
+                                                    <span className="font-mono ml-1">2h30m</span>
+                                                </div>
+                                                <div>
+                                                    Timestamp examples: 
+                                                    <span className="font-mono ml-1">2025-08-03T15:00:00Z</span>,
+                                                    <span className="font-mono ml-1">2025-08-03T15:00:00-07:00</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div>
@@ -800,18 +894,11 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                                 >
                                     <RotateCcw className="w-4 h-4 mr-2"/>
-                                    Reset
+                                    {t('jobBuilder.reset')}
                                 </button>
                             </div>
 
                             <div className="space-x-2">
-                                <button
-                                    type="button"
-                                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                                >
-                                    <Save className="w-4 h-4 mr-2"/>
-                                    Save Template
-                                </button>
                                 <button
                                     type="submit"
                                     disabled={loading || !config.command.trim()}
@@ -823,7 +910,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                     )}
                                 >
                                     <Play className="w-4 h-4 mr-2"/>
-                                    {loading ? 'Creating...' : 'Execute Job'}
+                                    {loading ? t('jobBuilder.creating') : t('jobBuilder.executeJob')}
                                 </button>
                             </div>
                         </div>

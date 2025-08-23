@@ -18,6 +18,8 @@ Comprehensive guide to executing jobs with Joblet, including resource management
 
 ### Simple Commands
 
+All `rnx run` commands execute with **production isolation** (minimal chroot):
+
 ```bash
 # Run a single command
 rnx run echo "Hello, Joblet!"
@@ -31,6 +33,12 @@ rnx run sh -c "echo 'Current time:' && date"
 # Run Python script
 rnx run python3 -c "print('Hello from Python')"
 ```
+
+**Execution Environment:**
+- **Service**: JobService (production operations)
+- **Job Type**: `standard` (automatic)  
+- **Isolation**: Minimal chroot with secure boundaries
+- **Purpose**: Safe execution of user workloads
 
 ### Command Chaining
 
@@ -59,6 +67,9 @@ rnx run bash -c '
 ```bash
 # Limit to 50% of one CPU core
 rnx run --max-cpu=50 stress-ng --cpu 1 --timeout 60s
+
+# Simple CPU test: 50% usage on core 0 for 2 minutes
+rnx run --max-cpu=50 --cpu-cores=0 bash -c 'timeout 120s bash -c "while true; do :; done"; exit 0'
 
 # Limit to 2 full CPU cores (200%)
 rnx run --max-cpu=200 python3 parallel_processing.py
@@ -183,14 +194,14 @@ with open('/volumes/output/result.txt', 'w') as f:
 
 ```bash
 # Single variable
-rnx run --env=DEBUG=true --runtime=java:17 java App
+rnx run --env=DEBUG=true --runtime=openjdk:21 java App
 
 # Multiple variables
 rnx run \
   --env=DATABASE_URL=postgres://localhost/db \
   --env=API_KEY=secret123 \
   --env=JAVA_ENV=production \
-  --runtime=java:17 java Application
+  --runtime=openjdk:21 java Application
 
 # Variables with spaces
 rnx run --env="MESSAGE=Hello World" echo '$MESSAGE'

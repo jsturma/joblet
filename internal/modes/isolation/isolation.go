@@ -19,6 +19,7 @@ type Isolator struct {
 	platform   platform.Platform
 	filesystem *filesystem.Isolator
 	logger     *logger.Logger
+	config     *config.Config
 }
 
 // NewIsolator creates a new isolator with the given platform
@@ -27,8 +28,9 @@ func NewIsolator(p platform.Platform, logger *logger.Logger) *Isolator {
 
 	return &Isolator{
 		platform:   p,
-		filesystem: filesystem.NewIsolator(cfg.Filesystem, p),
+		filesystem: filesystem.NewIsolator(cfg, p),
 		logger:     logger.WithField("component", "isolator"),
+		config:     cfg,
 	}
 }
 
@@ -115,12 +117,25 @@ func (i *Isolator) setupFilesystemIsolation() error {
 	i.logger.Debug("job filesystem created successfully", "jobID", jobID)
 
 	// Set up the filesystem isolation (chroot, mounts, etc.)
-	// Note: jobFS.Setup() handles runtime mounting internally before chroot
-	i.logger.Debug("calling jobFS.Setup()", "jobID", jobID)
-	if err := jobFS.Setup(); err != nil {
-		return fmt.Errorf("failed to setup filesystem isolation: %w", err)
+	// Check if this is a builder job by looking at job type from service layer
+	jobType := i.platform.Getenv("JOB_TYPE")
+	isBuilderJob := jobType == "runtime-build"
+
+	if isBuilderJob {
+		i.logger.Info("setting up builder filesystem for runtime build job", "jobID", jobID)
+		if err := jobFS.SetupBuilder(); err != nil {
+			return fmt.Errorf("failed to setup builder filesystem isolation: %w", err)
+		}
+		i.logger.Debug("jobFS.SetupBuilder() completed successfully", "jobID", jobID)
+	} else {
+		// Standard job setup
+		// Note: jobFS.Setup() handles runtime mounting internally before chroot
+		i.logger.Debug("calling jobFS.Setup()", "jobID", jobID)
+		if err := jobFS.Setup(); err != nil {
+			return fmt.Errorf("failed to setup filesystem isolation: %w", err)
+		}
+		i.logger.Debug("jobFS.Setup() completed successfully", "jobID", jobID)
 	}
-	i.logger.Debug("jobFS.Setup() completed successfully", "jobID", jobID)
 
 	i.logger.Debug("filesystem isolation setup completed successfully", "jobID", jobID)
 	return nil
@@ -251,11 +266,8 @@ func (i *Isolator) mountRuntimeForJob(jobID string, jobFS interface{}) error {
 
 	i.logger.Info("mounting runtime for job", "runtime", runtime, "jobID", jobID)
 
-	// Get runtime manager path from environment
-	runtimeBasePath := i.platform.Getenv("RUNTIME_MANAGER_PATH")
-	if runtimeBasePath == "" {
-		runtimeBasePath = "/opt/joblet/runtimes"
-	}
+	// Get runtime base path from configuration
+	runtimeBasePath := i.config.Runtime.BasePath
 
 	// Parse runtime spec and find runtime directory
 	parts := strings.Split(runtime, ":")

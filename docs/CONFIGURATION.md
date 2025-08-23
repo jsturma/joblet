@@ -62,6 +62,29 @@ joblet:
 
   # Cleanup settings
   cleanupTimeout: "30s"          # Timeout for cleanup operations
+
+  # Isolation configuration
+  isolation:
+    service_based_routing: true   # Enable automatic service-based job routing
+    
+    # Production jobs (JobService API)
+    production:
+      type: "minimal_chroot"      # Minimal chroot isolation
+      allowed_mounts:             # Read-only host directories
+        - "/bin"
+        - "/usr/bin"
+        - "/lib"
+        - "/usr/lib"
+        - "/lib64"
+        - "/usr/lib64"
+      runtime_isolation: true     # Use isolated runtime copies
+      
+    # Runtime build jobs (RuntimeService API) 
+    builder:
+      type: "builder_chroot"      # Builder chroot with controlled host access
+      host_access: "readonly"     # Host filesystem access level
+      runtime_cleanup: true       # Automatic runtime cleanup after build
+      cleanup_on_completion: true # Clean up builder environment
 ```
 
 ### Network Configuration
@@ -135,6 +158,32 @@ volume:
   auto_cleanup: false            # Auto-remove unused volumes
   cleanup_interval: "24h"        # Cleanup check interval
 ```
+
+### Runtime Configuration
+
+```yaml
+runtime:
+  enabled: true                   # Enable runtime system
+  base_path: "/opt/joblet/runtimes" # Runtime storage path
+  
+  # Runtime isolation settings
+  isolation:
+    cleanup_enabled: true         # Enable automatic runtime cleanup
+    create_isolated_copies: true  # Create isolated runtime structures
+    verify_isolation: true        # Verify runtime isolation after cleanup
+    
+  # Runtime building
+  builder:
+    timeout: "3600s"             # Maximum runtime build time (1 hour)
+    max_concurrent_builds: 3     # Maximum concurrent runtime builds
+    cleanup_temp_files: true     # Clean up temporary build files
+    verify_after_build: true     # Verify runtime after building
+    
+  # Runtime security
+  security:
+    scan_for_host_dependencies: true  # Scan for insecure host dependencies
+    enforce_isolated_paths: true      # Enforce that runtimes use isolated paths
+    backup_original_configs: true     # Backup original runtime configs
 
 ### Security Settings
 

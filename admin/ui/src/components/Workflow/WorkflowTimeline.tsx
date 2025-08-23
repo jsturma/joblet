@@ -41,57 +41,30 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
             };
         });
 
-        // Find the earliest start time and latest end time
+        // Find valid jobs with start times
         const validJobs = timelineJobs.filter(j => j.startTime);
         if (validJobs.length === 0) return [];
 
-        const minTime = Math.min(...validJobs.map(j => j.startTime!.getTime()));
-        const maxTime = Math.max(...validJobs.map(j => j.endTime?.getTime() || j.startTime!.getTime()));
-
-        // Apply time range filter
-        let filteredMinTime = minTime;
-        let filteredMaxTime = maxTime;
-        
-        if (selectedTimeRange !== 'all') {
-            const rangeMinutes = selectedTimeRange === '1min' ? 1 : selectedTimeRange === '5min' ? 5 : 30;
-            const rangeMs = rangeMinutes * 60 * 1000;
-            filteredMaxTime = Math.min(maxTime, minTime + rangeMs);
-        }
-
-        const filteredDuration = filteredMaxTime - filteredMinTime;
-
-        // Calculate relative positions and assign levels for overlapping jobs
+        // Calculate relative positions and assign levels for sequential visualization
+        // For workflow execution, prefer sequential layout over parallel to show logical flow
         const sortedJobs = [...validJobs].sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime());
-        const levels: number[] = [];
-
-        return sortedJobs.map(job => {
-            const relativeStart = ((job.startTime!.getTime() - filteredMinTime) / filteredDuration) * 100;
-            const jobEnd = job.endTime?.getTime() || job.startTime!.getTime();
-            const relativeEnd = ((Math.min(jobEnd, filteredMaxTime) - filteredMinTime) / filteredDuration) * 100;
+        
+        return sortedJobs.map((job, index) => {
+            // Create artificial sequential spacing for better visualization
+            // Distribute jobs evenly across the timeline regardless of actual timing
+            const totalJobs = sortedJobs.length;
+            const jobWidth = Math.max(15, 80 / totalJobs); // Each job gets at least 15% width
+            const relativeStart = index * (100 / totalJobs);
+            const relativeEnd = Math.min(100, relativeStart + jobWidth);
             
-            // Find the first available level for this job
-            let level = 0;
-            for (let i = 0; i < levels.length; i++) {
-                if (levels[i] <= job.startTime!.getTime()) {
-                    level = i;
-                    break;
-                }
-            }
-            if (level === 0 && levels.length > 0 && levels[0] > job.startTime!.getTime()) {
-                level = levels.length;
-            }
-            
-            // Update or add the level with this job's end time
-            if (level < levels.length) {
-                levels[level] = jobEnd;
-            } else {
-                levels.push(jobEnd);
-            }
+            // For workflow visualization, assign each job to its own level
+            // This provides clear sequential view like a thread profiler
+            const level = index;
 
             return {
                 ...job,
-                relativeStart: Math.max(0, relativeStart),
-                relativeEnd: Math.min(100, relativeEnd),
+                relativeStart,
+                relativeEnd,
                 level
             };
         });
@@ -205,14 +178,20 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
 
     // Calculate the maximum level for height calculation
     const maxLevel = Math.max(0, ...processedJobs.map(j => j.level || 0));
-    const timelineHeight = 100 + (maxLevel + 1) * 50;
+    const timelineHeight = 150 + (maxLevel + 1) * 60;
 
     if (jobs.length === 0) {
         return (
-            <div className="p-6">
-                <div className="bg-gray-800 rounded-lg shadow">
-                    <div className="p-6">
-                        <div className="text-center py-8">
+            <div className="p-4 h-full">
+                <div className="bg-gray-800 rounded-lg shadow h-full flex flex-col">
+                    <div className="p-4 border-b border-gray-700">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-medium text-white">Workflow Timeline</h3>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 p-4 flex items-center justify-center">
+                        <div className="text-center">
                             <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                             <p className="text-gray-400">No timeline data available</p>
                             <p className="text-sm text-gray-500 mt-1">Jobs will appear here once the workflow starts executing</p>
@@ -226,10 +205,10 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
     const hasStartedJobs = processedJobs.length > 0;
 
     return (
-        <div className="p-6">
-            <div className="bg-gray-800 rounded-lg shadow">
-                <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
+        <div className="p-4 h-full">
+            <div className="bg-gray-800 rounded-lg shadow h-full flex flex-col">
+                <div className="p-4 border-b border-gray-700">
+                    <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium text-white">Workflow Timeline</h3>
                         {hasStartedJobs && (
                             <div className="flex items-center space-x-2">
@@ -247,6 +226,9 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
                             </div>
                         )}
                     </div>
+                </div>
+                
+                <div className="flex-1 p-4 overflow-hidden">{/* Changed from p-6 to p-4 and added overflow-hidden */}
 
                     {!hasStartedJobs ? (
                         <div className="text-center py-8">
@@ -255,11 +237,11 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
                             <p className="text-sm text-gray-500 mt-1">Timeline will be generated once jobs begin</p>
                         </div>
                     ) : (
-                        <div className="relative">
+                        <div className="relative h-full flex flex-col">
                             {/* Timeline Container */}
                             <div 
-                                className="relative bg-gray-900 rounded-lg p-4 overflow-x-auto"
-                                style={{ minHeight: `${timelineHeight}px` }}
+                                className="relative bg-gray-900 rounded-lg p-4 overflow-auto flex-1"
+                                style={{ minHeight: `${Math.max(timelineHeight, 400)}px`, maxHeight: 'calc(100vh - 500px)' }}
                             >
                                 {/* Time markers */}
                                 <div className="absolute inset-x-4 top-0 h-full">
@@ -277,10 +259,11 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
                                 </div>
 
                                 {/* Job bars */}
-                                <div className="relative mt-8" style={{ height: `${timelineHeight - 50}px` }}>
+                                <div className="relative mt-8" style={{ height: `${timelineHeight - 70}px` }}>
                                     {processedJobs.map((job) => {
-                                        const width = Math.max(2, (job.relativeEnd || 0) - (job.relativeStart || 0));
+                                        const width = Math.max(5, (job.relativeEnd || 0) - (job.relativeStart || 0));
                                         const isHovered = hoveredJob === job.id;
+                                        const topPosition = (job.level || 0) * 60;
                                         
                                         return (
                                             <div
@@ -289,7 +272,7 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
                                                 style={{
                                                     left: `${job.relativeStart}%`,
                                                     width: `${width}%`,
-                                                    top: `${(job.level || 0) * 50}px`,
+                                                    top: `${topPosition}px`,
                                                     zIndex: isHovered ? 10 : 1
                                                 }}
                                                 onMouseEnter={() => setHoveredJob(job.id)}
@@ -313,7 +296,9 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
 
                                                 {/* Tooltip */}
                                                 {isHovered && (
-                                                    <div className="absolute bottom-full mb-2 left-0 z-20 bg-gray-700 text-white p-3 rounded shadow-lg text-xs whitespace-nowrap">
+                                                    <div className={`absolute left-0 z-20 bg-gray-700 text-white p-3 rounded shadow-lg text-xs whitespace-nowrap ${
+                                                        (job.level || 0) <= 1 ? 'top-full mt-2' : 'bottom-full mb-2'
+                                                    }`}>
                                                         <div className="font-semibold">{job.name || job.id}</div>
                                                         <div className="mt-1">Status: {job.status}</div>
                                                         {job.startTime && (
@@ -391,9 +376,15 @@ const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({ jobs, onJobClick })
                                             {(() => {
                                                 const validJobs = processedJobs.filter(j => j.startTime);
                                                 if (validJobs.length === 0) return '-';
-                                                const minTime = Math.min(...validJobs.map(j => j.startTime!.getTime()));
-                                                const maxTime = Math.max(...validJobs.map(j => j.endTime?.getTime() || j.startTime!.getTime()));
-                                                return formatDuration(maxTime - minTime);
+                                                
+                                                // Calculate workflow execution time: first job start to last job end
+                                                const startTimes = validJobs.map(j => new Date(j.startTime!).getTime());
+                                                const endTimes = validJobs.map(j => j.endTime ? new Date(j.endTime).getTime() : new Date(j.startTime!).getTime());
+                                                
+                                                const workflowStart = Math.min(...startTimes);
+                                                const workflowEnd = Math.max(...endTimes);
+                                                
+                                                return formatDuration(workflowEnd - workflowStart);
                                             })()}
                                         </div>
                                     </div>

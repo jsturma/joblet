@@ -44,15 +44,15 @@ const (
 	RemoveVolumeOp Operation = "remove_volume"
 )
 
-//counterfeiter:generate . GrpcAuthorization
-type GrpcAuthorization interface {
+//counterfeiter:generate . GRPCAuthorization
+type GRPCAuthorization interface {
 	Authorized(ctx context.Context, operation Operation) error
 }
 
 type grpcAuthorization struct {
 }
 
-func NewGrpcAuthorization() GrpcAuthorization {
+func NewGRPCAuthorization() GRPCAuthorization {
 	return &grpcAuthorization{}
 }
 
@@ -73,7 +73,7 @@ func (s *grpcAuthorization) extractClientRole(ctx context.Context) (ClientRole, 
 
 	clientCert := tlsInfo.State.PeerCertificates[0]
 
-	// extract role from Organizational Unit (OU)
+	// extractClientRole extracts role from Organizational Unit (OU)
 	for _, ou := range clientCert.Subject.OrganizationalUnit {
 		switch strings.ToLower(ou) {
 		case "admin":

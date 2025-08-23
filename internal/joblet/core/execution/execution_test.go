@@ -13,7 +13,7 @@ import (
 	"joblet/pkg/platform/platformfakes"
 )
 
-// Test ExecutionCoordinator with runtime init path resolution
+// Test ExecutionCoordinator with unified logging - runtime jobs use joblet binary
 func TestExecutionCoordinator_RuntimeInitPathResolution(t *testing.T) {
 	// Setup
 	fakeEnvManager := &executionfakes.FakeEnvironmentManager{}
@@ -38,7 +38,7 @@ func TestExecutionCoordinator_RuntimeInitPathResolution(t *testing.T) {
 	}, nil)
 	fakeEnvManager.PrepareWorkspaceReturns("/tmp/test-workspace", nil)
 	fakeEnvManager.BuildEnvironmentReturns([]string{"TEST=value"})
-	fakeEnvManager.GetRuntimeInitPathReturns("/opt/runtime/python3", nil)
+	// Note: GetRuntimeInitPath should NOT be called for unified logging
 	fakeProcessManager.LaunchProcessReturns(&execution.ProcessResult{
 		Command: fakeCommand,
 		PID:     12345,
@@ -48,7 +48,7 @@ func TestExecutionCoordinator_RuntimeInitPathResolution(t *testing.T) {
 		Uuid:    "test-job-123",
 		Command: "python3",
 		Args:    []string{"script.py"},
-		Runtime: "python:3.11-ml",
+		Runtime: "python-3.11-ml",
 	}
 
 	opts := &execution.StartProcessOptions{
@@ -67,24 +67,18 @@ func TestExecutionCoordinator_RuntimeInitPathResolution(t *testing.T) {
 		t.Fatalf("Expected command result, got: %v", result)
 	}
 
-	// Verify runtime init path resolution was called
-	if fakeEnvManager.GetRuntimeInitPathCallCount() != 1 {
-		t.Errorf("Expected GetRuntimeInitPath to be called once, got: %d", fakeEnvManager.GetRuntimeInitPathCallCount())
+	// CRITICAL: Runtime init path resolution should NOT be called for unified logging
+	if fakeEnvManager.GetRuntimeInitPathCallCount() != 0 {
+		t.Errorf("Expected GetRuntimeInitPath NOT to be called for unified logging, got: %d", fakeEnvManager.GetRuntimeInitPathCallCount())
 	}
 
-	// Verify correct runtime was passed
-	_, runtimeSpec := fakeEnvManager.GetRuntimeInitPathArgsForCall(0)
-	if runtimeSpec != "python:3.11-ml" {
-		t.Errorf("Expected runtime spec 'python:3.11-ml', got: %s", runtimeSpec)
-	}
-
-	// Verify launch config uses runtime init path
+	// Verify launch config uses joblet binary for unified logging
 	if fakeProcessManager.LaunchProcessCallCount() != 1 {
 		t.Errorf("Expected LaunchProcess to be called once, got: %d", fakeProcessManager.LaunchProcessCallCount())
 	}
 	_, launchConfig := fakeProcessManager.LaunchProcessArgsForCall(0)
-	if launchConfig.InitPath != "/opt/runtime/python3" {
-		t.Errorf("Expected InitPath to be '/opt/runtime/python3', got: %s", launchConfig.InitPath)
+	if launchConfig.InitPath != "/opt/joblet/joblet" {
+		t.Errorf("Expected InitPath to be '/opt/joblet/joblet' for unified logging, got: %s", launchConfig.InitPath)
 	}
 }
 
@@ -143,12 +137,16 @@ func TestExecutionCoordinator_NoRuntimeFallback(t *testing.T) {
 	}
 }
 
-func TestExecutionCoordinator_RuntimeResolutionError(t *testing.T) {
+func TestExecutionCoordinator_RuntimeJobsSucceedWithoutRuntimeResolution(t *testing.T) {
+	// This test verifies that runtime jobs succeed without needing runtime init path resolution
+	// because we now use unified logging with joblet binary for all jobs
+
 	// Setup
 	fakeEnvManager := &executionfakes.FakeEnvironmentManager{}
 	fakeNetworkManager := &executionfakes.FakeNetworkManager{}
 	fakeProcessManager := &executionfakes.FakeProcessManager{}
 	fakeIsolationManager := &executionfakes.FakeIsolationManager{}
+	fakeCommand := &platformfakes.FakeCommand{}
 	testLogger := logger.New()
 
 	coordinator := execution.NewExecutionCoordinator(
@@ -159,45 +157,46 @@ func TestExecutionCoordinator_RuntimeResolutionError(t *testing.T) {
 		testLogger,
 	)
 
-	// Setup mocks
+	// Setup mocks for success path (no GetRuntimeInitPath needed)
 	fakeIsolationManager.CreateIsolatedEnvironmentReturns(&execution.IsolationContext{}, nil)
 	fakeEnvManager.PrepareWorkspaceReturns("/tmp/test-workspace", nil)
 	fakeEnvManager.BuildEnvironmentReturns([]string{"TEST=value"})
-	fakeEnvManager.GetRuntimeInitPathReturns("", errors.New("runtime not found"))
-
-	// Setup cleanup mocks
-	fakeEnvManager.CleanupWorkspaceReturns(nil)
-	fakeIsolationManager.DestroyIsolatedEnvironmentReturns(nil)
+	fakeProcessManager.LaunchProcessReturns(&execution.ProcessResult{
+		Command: fakeCommand,
+		PID:     12345,
+	}, nil)
 
 	job := &domain.Job{
 		Uuid:    "test-job-123",
 		Command: "python3",
-		Runtime: "python:3.11-ml",
+		Runtime: "python-3.11-ml",
 	}
 	opts := &execution.StartProcessOptions{Job: job}
 
 	// Test
-	_, err := coordinator.StartJob(context.Background(), opts)
+	result, err := coordinator.StartJob(context.Background(), opts)
 
-	// Verify
-	if err == nil {
-		t.Fatal("Expected error when runtime resolution fails, got nil")
+	// Verify success
+	if err != nil {
+		t.Fatalf("Expected no error with unified logging, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "failed to resolve runtime init path") {
-		t.Errorf("Expected runtime resolution error, got: %v", err)
-	}
-
-	// Verify cleanup was called
-	if fakeEnvManager.CleanupWorkspaceCallCount() != 1 {
-		t.Errorf("Expected CleanupWorkspace to be called once for cleanup, got: %d", fakeEnvManager.CleanupWorkspaceCallCount())
-	}
-	if fakeIsolationManager.DestroyIsolatedEnvironmentCallCount() != 1 {
-		t.Errorf("Expected DestroyIsolatedEnvironment to be called once for cleanup, got: %d", fakeIsolationManager.DestroyIsolatedEnvironmentCallCount())
+	if result != fakeCommand {
+		t.Fatalf("Expected command result, got: %v", result)
 	}
 
-	// Verify process launch was NOT called due to early failure
-	if fakeProcessManager.LaunchProcessCallCount() != 0 {
-		t.Errorf("Expected LaunchProcess not to be called when runtime resolution fails, got: %d", fakeProcessManager.LaunchProcessCallCount())
+	// Verify runtime init path was NOT called (unified logging approach)
+	if fakeEnvManager.GetRuntimeInitPathCallCount() != 0 {
+		t.Errorf("Expected GetRuntimeInitPath NOT to be called for unified logging, got: %d", fakeEnvManager.GetRuntimeInitPathCallCount())
+	}
+
+	// Verify process was launched with joblet binary
+	if fakeProcessManager.LaunchProcessCallCount() != 1 {
+		t.Errorf("Expected LaunchProcess to be called once, got: %d", fakeProcessManager.LaunchProcessCallCount())
+	}
+
+	_, launchConfig := fakeProcessManager.LaunchProcessArgsForCall(0)
+	if launchConfig.InitPath != "/opt/joblet/joblet" {
+		t.Errorf("Expected InitPath to be '/opt/joblet/joblet' for unified logging, got: %s", launchConfig.InitPath)
 	}
 }
 

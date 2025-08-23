@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // RunServer starts and runs the Joblet server with the provided configuration.
@@ -541,12 +542,22 @@ func writeFileInChunks(path string, content []byte, mode os.FileMode, logger *lo
 //
 // Returns: Error if network synchronization fails or times out
 func waitForNetworkReady(logger *logger.Logger, platform platform.Platform) error {
+	// Check for legacy FD-based approach (for backward compatibility)
 	networkReadyFD := platform.Getenv("NETWORK_READY_FD")
-	if networkReadyFD == "" {
-		logger.Debug("NETWORK_READY_FD not set, skipping network wait")
+	networkReadyFile := platform.Getenv("NETWORK_READY_FILE")
+
+	if networkReadyFD == "" && networkReadyFile == "" {
+		logger.Debug("NETWORK_READY_FD and NETWORK_READY_FILE not set, skipping network wait")
 		return nil
 	}
 
+	// Use file-based approach if available
+	if networkReadyFile != "" {
+		logger.Debug("waiting for network setup", "file", networkReadyFile)
+		return waitForNetworkReadyFile(logger, networkReadyFile)
+	}
+
+	// Fall back to FD-based approach
 	logger.Debug("waiting for network setup", "fd", networkReadyFD)
 
 	fd, err := strconv.Atoi(networkReadyFD)
@@ -579,6 +590,25 @@ func waitForNetworkReady(logger *logger.Logger, platform platform.Platform) erro
 
 	logger.Debug("network setup signal received, proceeding with initialization")
 	return nil
+}
+
+// waitForNetworkReadyFile waits for the network ready signal file to be created
+func waitForNetworkReadyFile(logger *logger.Logger, filePath string) error {
+	logger.Debug("blocking on network ready signal file...")
+
+	// Poll for the file to exist with a timeout
+	for i := 0; i < 100; i++ { // 10 second timeout (100 * 100ms)
+		if _, err := os.Stat(filePath); err == nil {
+			logger.Debug("network setup signal received, proceeding with initialization")
+			// Clean up the signal file
+			os.Remove(filePath)
+			return nil
+		}
+		// Sleep 100ms between checks
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for network ready signal file: %s", filePath)
 }
 
 // assignToCgroup assigns the current process to the specified cgroup.

@@ -20,8 +20,8 @@ Joblet provides comprehensive network management capabilities:
 
 - **Network isolation** between jobs
 - **Custom networks** with defined CIDR ranges
-- **Traffic control** and bandwidth limiting
-- **DNS configuration** per network
+- **Resource limits** (memory, CPU, I/O) with network isolation
+- **DNS configuration** per network via /etc/hosts
 - **Inter-job communication** within same network
 
 ### Network Architecture
@@ -44,6 +44,135 @@ Joblet provides comprehensive network management capabilities:
 │    └────────┘         └────────┘            │
 └─────────────────────────────────────────────┘
 ```
+
+## Network Implementation: 2-Phase Setup
+
+Joblet uses a sophisticated 2-phase network setup to ensure proper network namespace configuration without race conditions.
+
+### The Problem
+
+Network namespace configuration requires:
+- A process PID to attach the namespace to
+- Network configuration (IP, routes, interfaces)
+
+However, there's a timing challenge:
+- Network namespaces can only be configured after the process exists
+- But the process needs to wait for network configuration before executing
+
+### The Solution: 2-Phase Network Setup
+
+#### Phase 1: Resource Allocation (Pre-Launch)
+Before the job process is created:
+
+```go
+// Allocate IP address from network pool
+ip := networkStore.AllocateIP("bridge")  // e.g., 172.20.0.19
+
+// Store allocation for later retrieval
+networkStore.AssignJobToNetwork(jobID, "bridge", allocation)
+
+// Create synchronization file path
+networkReadyFile := "/tmp/joblet-network-ready-{jobID}"
+
+// Pass to job via environment
+environment["NETWORK_READY_FILE"] = networkReadyFile
+```
+
+#### Phase 2: Namespace Configuration (Post-Launch)
+After the job process is created with PID:
+
+```go
+// Now we have the process PID
+pid := process.Pid()
+
+// Create veth pair interfaces
+ip link add veth-h-{jobID} type veth peer name veth-p-{jobID}
+
+// Move peer interface into job's network namespace
+ip link set veth-p-{jobID} netns {pid}
+
+// Configure IP and routes inside namespace
+nsenter --net=/proc/{pid}/ns/net ip addr add {ip}/16 dev veth-p-{jobID}
+nsenter --net=/proc/{pid}/ns/net ip link set veth-p-{jobID} up
+nsenter --net=/proc/{pid}/ns/net ip route add default via {gateway}
+
+// Signal to job that network is ready
+echo "ready" > {networkReadyFile}
+```
+
+### Synchronization Mechanism
+
+The job process waits for network setup before continuing:
+
+```go
+// Job init process (server.go)
+func waitForNetworkReady() {
+    networkFile := os.Getenv("NETWORK_READY_FILE")
+    if networkFile == "" {
+        return // No network setup needed (e.g., "none" network)
+    }
+    
+    // Wait for signal file
+    for i := 0; i < 100; i++ {
+        if _, err := os.Stat(networkFile); err == nil {
+            os.Remove(networkFile)  // Clean up
+            return  // Network ready!
+        }
+        time.Sleep(100 * time.Millisecond)
+    }
+    panic("timeout waiting for network setup")
+}
+```
+
+### Sequence Diagram
+
+```
+Server (Coordinator)          Job Process              NetworkService
+        |                          |                         |
+        |-- Phase 1: Allocate IP --|------------------------>|
+        |<-------------------------|-- IP: 172.20.0.19 ------|
+        |                          |                         |
+        |-- Launch Process ------->|                         |
+        |                          |-- Start (PID: 12345) -->|
+        |                          |                         |
+        |-- Phase 2: Setup NS -----|------------------------>|
+        |                          |                         |
+        |                          |<- Create veth pairs ----|
+        |                          |<- Configure namespace --|
+        |                          |                         |
+        |-- Write Ready File ------|------------------------>|
+        |                          |                         |
+        |                          |-- Check Ready File ---->|
+        |                          |-- Network Ready! ------>|
+        |                          |-- Continue Execution -->|
+```
+
+### Benefits
+
+1. **No Race Conditions**: Network is guaranteed to be ready before job executes
+2. **Clean Separation**: Resource allocation separate from namespace configuration
+3. **Flexible**: Works with all network types (bridge, isolated, custom)
+4. **Simple Synchronization**: File-based signaling avoids complex IPC
+5. **Robust**: Handles timeouts and cleanup gracefully
+
+### Testing the 2-Phase Setup
+
+The network test suite verifies this implementation:
+
+```bash
+# Test output showing 2-phase operation
+[DEBUG] [init] waiting for network setup | file=/tmp/joblet-network-ready-abc123
+[DEBUG] [init] blocking on network ready signal file...
+[DEBUG] [server] configuring network namespace with process PID | pid=12345
+[DEBUG] [init] network setup signal received, proceeding with initialization
+```
+
+Tests verify:
+- Phase 1 allocates IP before launch
+- Phase 2 configures namespace after PID exists  
+- Job waits for network before continuing
+- "none" network skips both phases
+- Proper cleanup of synchronization files
 
 ## Network Modes
 
@@ -171,6 +300,14 @@ rnx network list
 
 # JSON output
 rnx network list --json
+
+# Output format:
+# {
+#   "networks": [
+#     {"name": "bridge", "cidr": "172.20.0.0/16", "bridge": "joblet0", "builtin": true},
+#     {"name": "development", "cidr": "10.1.0.0/24", "bridge": "joblet-dev", "builtin": false}
+#   ]
+# }
 ```
 
 ## Network Isolation
@@ -200,10 +337,7 @@ rnx network create db-net --cidr=10.20.0.0/24
 rnx network create app-net --cidr=10.21.0.0/24
 
 # Run database in isolated network
-rnx run \
-  --network=db-net \
-  --volume=pgdata \
-  postgres:latest
+rnx run --network=db-net --volume=pgdata postgres:latest
 
 # Run app with access to both networks (if supported)
 # Note: Joblet typically supports one network per job
@@ -244,9 +378,7 @@ sleep 2
 BACKEND_IP=$(rnx run --network=microservices ip addr show | grep "inet 10.30" | awk '{print $2}' | cut -d/ -f1)
 
 # Start frontend connecting to backend
-rnx run \
-  --network=microservices \
-  node frontend.js
+rnx run --network=microservices node frontend.js
 ```
 
 ### Load Balancing Pattern
@@ -254,16 +386,11 @@ rnx run \
 ```bash
 # Start multiple backend instances
 for i in {1..3}; do
-  rnx run \
-    --network=app-net \
-    python app.py --port=$((8000 + i)) &
+  rnx run --network=app-net python app.py --port=$((8000 + i)) &
 done
 
 # Simple load balancer
-rnx run \
-  --network=app-net \
-  --upload=nginx.conf \
-  nginx -c /work/nginx.conf
+rnx run --network=app-net --upload=nginx.conf nginx -c /work/nginx.conf
 ```
 
 ### Workflow Network Configuration
@@ -356,21 +483,26 @@ rnx run \
   python process_sensitive.py
 ```
 
-## Performance and Bandwidth
+## Performance and Resource Management
 
-### Bandwidth Limiting
+### Resource Limits
 
 ```bash
-# Limit network bandwidth via I/O limits
-# Note: --max-iobps affects all I/O, not just network
-
-# Run with bandwidth limit (10MB/s total I/O)
+# Limit total I/O operations (affects network, disk, all I/O)
+# Note: --max-iobps controls all I/O operations, not network-specific bandwidth
 rnx run \
   --max-iobps=10485760 \
   --network=bridge \
   wget https://example.com/large-file.zip
 
-# Test network performance
+# Set memory and CPU limits along with network isolation
+rnx run \
+  --max-memory=512M \
+  --max-cpu=50 \
+  --network=isolated \
+  python data-processing.py
+
+# Test network performance within resource constraints
 rnx run --network=bridge iperf3 -c iperf.server.com
 ```
 
@@ -393,16 +525,15 @@ rnx run --network=mynet \
 ### Optimizing Network Performance
 
 ```bash
-# Use host network for maximum performance
-rnx run --network=host iperf3 -s
-
-# Minimize network hops
-# Place related services in same network
+# Minimize network hops by placing related services in same network
 rnx network create fast-local --cidr=10.70.0.0/24
 
-# Run communicating services together
+# Run communicating services together in same network
 rnx run --network=fast-local data-producer
 rnx run --network=fast-local data-consumer
+
+# Use bridge network for balanced performance and isolation
+rnx run --network=bridge iperf3 -c remote-server
 ```
 
 ## Best Practices
@@ -465,20 +596,20 @@ rnx run --network=data-tier postgres
 # Regular cleanup script
 #!/bin/bash
 # List unused networks (no running jobs)
-for network in $(rnx network list --json | jq -r '.[].name'); do
+for network in $(rnx network list --json | jq -r '.networks[].name'); do
   if [ "$network" != "bridge" ]; then
     JOBS=$(rnx list --json | jq --arg net "$network" '.[] | select(.network == $net) | .id')
     if [ -z "$JOBS" ]; then
       echo "Network $network appears unused"
-      # rnx network delete $network
+      # rnx network remove $network
     fi
   fi
 done
 
 # Remove test networks
 rnx network list --json | \
-  jq -r '.[] | select(.name | startswith("test-")) | .name' | \
-  xargs -I {} rnx network delete {}
+  jq -r '.networks[] | select(.name | startswith("test-")) | .name' | \
+  xargs -I {} rnx network remove {}
 ```
 
 ### 5. Monitoring
@@ -630,7 +761,9 @@ rnx run \
 rnx network create dev --cidr=10.100.0.0/24
 
 # Start all services
-docker-compose -f dev-services.yml up -d
+# Start development services as separate jobs
+rnx run --network=dev --name=db postgres:13
+rnx run --network=dev --name=redis redis:6
 
 # Run development job with hot reload
 rnx run \

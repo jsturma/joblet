@@ -2948,7 +2948,7 @@ func (x *RuntimesRes) GetRuntimes() []*RuntimeInfo {
 
 type RuntimeInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`               // e.g., "python:3.11+ml"
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`               // e.g., "python-3.11-ml"
 	Language      string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`       // e.g., "python"
 	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`         // e.g., "3.11"
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"` // Human readable description
@@ -3100,7 +3100,7 @@ func (x *RuntimeRequirements) GetGpu() bool {
 
 type RuntimeInfoReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"` // e.g., "python:3.11+ml"
+	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"` // e.g., "python-3.11-ml"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3196,7 +3196,7 @@ func (x *RuntimeInfoRes) GetFound() bool {
 
 type RuntimeTestReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"` // e.g., "python:3.11+ml"
+	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"` // e.g., "python-3.11-ml"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

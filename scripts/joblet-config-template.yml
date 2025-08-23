@@ -43,11 +43,16 @@ filesystem:
   allowedMounts:
     - "/usr/bin"
     - "/bin"
+    - "/usr/sbin"               # Network tools (ip, route, etc.)
     - "/lib"
     - "/lib64"
     - "/usr/lib"
     - "/usr/lib64"
-    # Add SSL certificate directories
+    # Network configuration files
+    - "/etc/resolv.conf"        # DNS resolver configuration
+    - "/etc/hosts"              # Local hostname resolution  
+    - "/etc/nsswitch.conf"      # Name service switch configuration
+    # SSL certificate directories
     - "/etc/ssl"
     - "/etc/pki"
     - "/etc/ca-certificates"
@@ -111,8 +116,13 @@ monitoring:
 
 # Runtime System Configuration
 runtime:
-  enabled: true
   base_path: "/opt/joblet/runtimes"
+  common_paths:
+    - "/usr/local/bin"
+    - "/usr/local/lib"
+    - "/usr/lib/jvm"
+    - "/usr/local/node"
+    - "/usr/local/go"
 
 # Security section will be added by certs_gen_embedded.sh
 # DO NOT ADD CERTIFICATES HERE - they will be embedded automatically

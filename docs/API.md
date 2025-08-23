@@ -619,12 +619,22 @@ multi-job execution with dependency management, resource isolation, and comprehe
 - **Real-time Monitoring**: Track workflow progress with job-level status updates
 - **Validation**: Pre-execution validation prevents runtime failures
 
-### Workflow Services
+### Service Architecture
 
-The API provides dedicated workflow services for orchestration:
+The API provides multiple services with distinct responsibilities:
+
+#### JobService (Production Operations)
+Handles regular user jobs with production isolation:
 
 ```protobuf
 service JobService {
+  // Job execution with production isolation
+  rpc RunJob(RunJobReq) returns (RunJobRes);
+  rpc GetJobStatus(GetJobStatusReq) returns (GetJobStatusRes);
+  rpc StopJob(StopJobReq) returns (StopJobRes);
+  rpc ListJobs(EmptyRequest) returns (Jobs);
+  rpc GetJobLogs(GetJobLogsReq) returns (stream DataChunk);
+  
   // Workflow execution
   rpc RunWorkflow(RunWorkflowRequest) returns (RunWorkflowResponse);
   rpc GetWorkflowStatus(GetWorkflowStatusRequest) returns (GetWorkflowStatusResponse);
@@ -632,6 +642,23 @@ service JobService {
   rpc GetWorkflowJobs(GetWorkflowJobsRequest) returns (GetWorkflowJobsResponse);
 }
 ```
+
+#### RuntimeService (Administrative Operations)
+Handles runtime building with builder chroot access:
+
+```protobuf
+service RuntimeService {
+  // Runtime installation and management
+  rpc InstallRuntime(InstallRuntimeRequest) returns (InstallRuntimeResponse);
+  rpc ListRuntimes(ListRuntimesRequest) returns (ListRuntimesResponse);
+  rpc GetRuntimeInfo(GetRuntimeInfoRequest) returns (GetRuntimeInfoResponse);
+  rpc TestRuntime(TestRuntimeRequest) returns (TestRuntimeResponse);
+}
+```
+
+**Key Differences:**
+- **JobService**: Sets `JobType: "standard"` → minimal chroot with production isolation
+- **RuntimeService**: Sets `JobType: "runtime-build"` → builder chroot with host OS access
 
 ### Workflow Messages
 

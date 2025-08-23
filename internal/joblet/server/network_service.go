@@ -16,13 +16,13 @@ import (
 // NetworkServiceServer implements the gRPC network service
 type NetworkServiceServer struct {
 	pb.UnimplementedNetworkServiceServer
-	auth         auth2.GrpcAuthorization
+	auth         auth2.GRPCAuthorization
 	networkStore adapters.NetworkStoreAdapter
 	logger       *logger.Logger
 }
 
 // NewNetworkServiceServer creates a new network service server
-func NewNetworkServiceServer(auth auth2.GrpcAuthorization, networkStore adapters.NetworkStoreAdapter) *NetworkServiceServer {
+func NewNetworkServiceServer(auth auth2.GRPCAuthorization, networkStore adapters.NetworkStoreAdapter) *NetworkServiceServer {
 	return &NetworkServiceServer{
 		auth:         auth,
 		networkStore: networkStore,

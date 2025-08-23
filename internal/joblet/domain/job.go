@@ -52,6 +52,7 @@ type Job struct {
 	// Execution details
 	Command string   // Executable command path
 	Args    []string // Command line arguments
+	Type    JobType  // Job type (standard or runtime-build)
 
 	// Resource management
 	Limits     ResourceLimits // CPU/memory/IO constraints using value objects
@@ -106,6 +107,19 @@ func (j *Job) IsCompleted() bool {
 // IsScheduled returns true if the job is scheduled for future execution
 func (j *Job) IsScheduled() bool {
 	return j.Status == StatusScheduled
+}
+
+// IsRuntimeBuild returns true if this is a runtime build job
+func (j *Job) IsRuntimeBuild() bool {
+	return j.Type == JobTypeRuntimeBuild
+}
+
+// GetType returns the job type, defaulting to standard if not specified
+func (j *Job) GetType() JobType {
+	if j.Type == "" {
+		return JobTypeStandard
+	}
+	return j.Type
 }
 
 // HasResourceLimits returns true if any resource limits are set

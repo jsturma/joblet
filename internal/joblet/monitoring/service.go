@@ -5,12 +5,49 @@ import (
 	"sync"
 	"time"
 
+	volumeDomain "joblet/internal/joblet/domain"
 	"joblet/internal/joblet/monitoring/cloud"
 	"joblet/internal/joblet/monitoring/collectors"
 	"joblet/internal/joblet/monitoring/domain"
 	"joblet/pkg/config"
 	"joblet/pkg/logger"
 )
+
+// VolumeManagerAdapter adapts the volume manager interface for monitoring
+type VolumeManagerAdapter struct {
+	volumeManager interface {
+		ListVolumes() []*volumeDomain.Volume
+		GetVolumeUsage(volumeName string) (used int64, available int64, err error)
+	}
+}
+
+// ListVolumes adapts the volume manager's ListVolumes method
+func (v *VolumeManagerAdapter) ListVolumes() []*collectors.Volume {
+	if v.volumeManager == nil {
+		return nil
+	}
+
+	volumes := v.volumeManager.ListVolumes()
+	result := make([]*collectors.Volume, len(volumes))
+	for i, vol := range volumes {
+		result[i] = &collectors.Volume{
+			Name:      vol.Name,
+			Type:      string(vol.Type), // Convert VolumeType to string
+			Size:      vol.Size,
+			SizeBytes: vol.SizeBytes,
+			Path:      vol.Path,
+		}
+	}
+	return result
+}
+
+// GetVolumeUsage adapts the volume manager's GetVolumeUsage method
+func (v *VolumeManagerAdapter) GetVolumeUsage(volumeName string) (used int64, available int64, err error) {
+	if v.volumeManager == nil {
+		return 0, 0, nil
+	}
+	return v.volumeManager.GetVolumeUsage(volumeName)
+}
 
 // Service is the main monitoring service coordinator
 type Service struct {
@@ -61,7 +98,7 @@ func NewService(config *domain.MonitoringConfig) *Service {
 		hostCollector:    collectors.NewHostCollector(),
 		cpuCollector:     collectors.NewCPUCollector(),
 		memoryCollector:  collectors.NewMemoryCollector(),
-		diskCollector:    collectors.NewDiskCollector(),
+		diskCollector:    collectors.NewDiskCollector(), // Will be updated with volume manager later
 		networkCollector: collectors.NewNetworkCollector(),
 		ioCollector:      collectors.NewIOCollector(),
 		processCollector: collectors.NewProcessCollector(),
@@ -74,6 +111,20 @@ func NewService(config *domain.MonitoringConfig) *Service {
 	}
 
 	return service
+}
+
+// SetVolumeManager configures volume monitoring integration
+func (s *Service) SetVolumeManager(volumeManager interface {
+	ListVolumes() []*volumeDomain.Volume
+	GetVolumeUsage(volumeName string) (used int64, available int64, err error)
+}, volumeBasePath string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Create adapter and update disk collector
+	adapter := &VolumeManagerAdapter{volumeManager: volumeManager}
+	s.diskCollector = collectors.NewDiskCollectorWithVolumeManager(adapter, volumeBasePath)
+	s.logger.Debug("volume manager configured for monitoring", "basePath", volumeBasePath)
 }
 
 // NewServiceFromConfig creates a new monitoring service from configuration package types.

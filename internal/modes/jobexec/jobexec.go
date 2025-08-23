@@ -12,6 +12,7 @@ import (
 	"joblet/pkg/platform"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // JobExecutor handles job execution in init mode with consolidated environment handling
@@ -53,7 +54,7 @@ func (je *JobExecutor) ExecuteInInitMode() error {
 
 	log.Debug("executing job in init mode",
 		"command", config.Command,
-		"args", config.Args,
+		"args", je.truncateArgsForLogging(config.Args),
 		"hasUploads", config.HasUploadSession)
 
 	// Process uploads if present
@@ -99,7 +100,7 @@ func (je *JobExecutor) ExecuteJob() error {
 
 	case "execute", "":
 		// Execute phase - just run the command
-		log.Debug("executing job in init mode", "command", config.Command, "args", config.Args,
+		log.Debug("executing job in init mode", "command", config.Command, "args", je.truncateArgsForLogging(config.Args),
 			"hasUploads", je.platform.Getenv("JOB_HAS_UPLOADS") == "true")
 
 		return je.executeCommand(config)
@@ -164,7 +165,7 @@ func (je *JobExecutor) executeCommand(config *environment.JobConfig) error {
 	// Get current environment (already set up by parent process)
 	envv := je.platform.Environ()
 
-	je.logger.Debug("executing job command", "command", commandPath, "args", config.Args)
+	je.logger.Debug("executing job command", "command", commandPath, "args", je.truncateArgsForLogging(config.Args))
 	je.logger.Debug("about to exec to replace init process with job command")
 
 	// Use exec to replace the current process (init) with the job command
@@ -222,4 +223,30 @@ func (je *JobExecutor) SetupCgroup(cgroupPath string) error {
 func (je *JobExecutor) HandleSignals(ctx context.Context) {
 	// Signal handling can be added here if needed
 	je.logger.Debug("signal handling setup")
+}
+
+// truncateArgsForLogging truncates long arguments for cleaner log output
+func (je *JobExecutor) truncateArgsForLogging(args []string) []string {
+	const maxArgLength = 100
+	truncated := make([]string, len(args))
+
+	for i, arg := range args {
+		if len(arg) > maxArgLength {
+			// For script content (usually starts with #!/bin/bash), show a summary
+			if strings.HasPrefix(arg, "#!/bin/bash") || strings.HasPrefix(arg, "#!/bin/sh") {
+				lines := strings.Split(arg, "\n")
+				if len(lines) > 0 {
+					truncated[i] = fmt.Sprintf("<script: %d lines, starts with: %s...>", len(lines), lines[0])
+				} else {
+					truncated[i] = "<script content truncated>"
+				}
+			} else {
+				truncated[i] = arg[:maxArgLength] + "..."
+			}
+		} else {
+			truncated[i] = arg
+		}
+	}
+
+	return truncated
 }

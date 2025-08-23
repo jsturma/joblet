@@ -3,6 +3,8 @@ package network
 import (
 	"fmt"
 	"sync"
+
+	"joblet/pkg/logger"
 )
 
 // NetworkManager implements the Manager interface
@@ -12,6 +14,7 @@ type NetworkManager struct {
 	ipPool    IPPool
 	setup     Setup
 	dns       DNS
+	logger    *logger.Logger
 
 	// State management
 	networks    map[string]*NetworkConfig
@@ -27,6 +30,7 @@ func NewNetworkManager(validator Validator, monitor Monitor, ipPool IPPool, setu
 		ipPool:      ipPool,
 		setup:       setup,
 		dns:         dns,
+		logger:      logger.WithField("component", "network-manager"),
 		networks:    make(map[string]*NetworkConfig),
 		allocations: make(map[string]*JobAllocation),
 	}
@@ -213,11 +217,14 @@ func (nm *NetworkManager) SetupJobNetworking(jobID, networkName string) (*JobAll
 	}
 
 	// Setup network namespace
+	nm.logger.Debug("calling SetupNamespace for job", "jobID", jobID, "allocation", allocation != nil)
 	if err := nm.setup.SetupNamespace(jobID, allocation); err != nil {
+		nm.logger.Error("SetupNamespace failed", "jobID", jobID, "error", err)
 		// Cleanup on failure (ignore errors)
 		_ = nm.ReleaseIP(jobID)
 		return nil, fmt.Errorf("namespace setup failed: %w", err)
 	}
+	nm.logger.Debug("SetupNamespace completed successfully", "jobID", jobID)
 
 	// Setup DNS
 	if err := nm.dns.SetupDNS(jobID, allocation.Hostname, allocation.IP); err != nil {

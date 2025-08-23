@@ -2,7 +2,7 @@ version: "1.0"
 
 # Python 3.11 ML Examples - Machine Learning and Data Science
 defaults:
-  runtime: "python:3.11-ml"
+  runtime: "python-3.11-ml"
   resources:
     max_memory: 2048
     max_cpu: 75
@@ -167,7 +167,7 @@ jobs:
     resources:
       max_memory: 4096
       max_cpu: 80
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
 
   # Data visualization
   visualization:

@@ -43,6 +43,7 @@ type BuildRequest interface {
 	GetRuntime() string
 	GetEnvironment() map[string]string
 	GetSecretEnvironment() map[string]string
+	GetJobType() domain.JobType
 }
 
 // Build creates a new job from the request
@@ -60,6 +61,7 @@ func (b *Builder) Build(req BuildRequest) (*domain.Job, error) {
 		Uuid:              jobUuid,
 		Command:           req.GetCommand(),
 		Args:              b.copyStrings(req.GetArgs()),
+		Type:              b.determineJobType(req), // Set job type
 		Status:            domain.StatusInitializing,
 		CgroupPath:        b.generateCgroupPath(jobUuid),
 		StartTime:         time.Now(),
@@ -158,6 +160,7 @@ type BuildParams struct {
 	Runtime           string
 	Environment       map[string]string
 	SecretEnvironment map[string]string
+	JobType           domain.JobType
 }
 
 // Implement BuildRequest interface for BuildParams
@@ -169,8 +172,23 @@ func (p BuildParams) GetVolumes() []string                    { return p.Volumes
 func (p BuildParams) GetRuntime() string                      { return p.Runtime }
 func (p BuildParams) GetEnvironment() map[string]string       { return p.Environment }
 func (p BuildParams) GetSecretEnvironment() map[string]string { return p.SecretEnvironment }
+func (p BuildParams) GetJobType() domain.JobType              { return p.JobType }
 
 // BuildFromParams builds a job from BuildParams (convenience method)
 func (b *Builder) BuildFromParams(params BuildParams) (*domain.Job, error) {
 	return b.Build(params)
+}
+
+// determineJobType determines the job type based on the request
+func (b *Builder) determineJobType(req BuildRequest) domain.JobType {
+	// Use the explicit JobType from the request (set by service layer)
+	jobType := req.GetJobType()
+
+	if jobType == domain.JobTypeRuntimeBuild {
+		b.logger.Debug("using runtime build job type from service request")
+	} else {
+		b.logger.Debug("using standard job type from service request")
+	}
+
+	return jobType
 }

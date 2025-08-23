@@ -13,9 +13,17 @@ router.get('/', async (req, res) => {
         let jobs = [];
         if (output && output.trim()) {
             try {
-                jobs = JSON.parse(output);
-                if (!Array.isArray(jobs)) {
+                const rawJobs = JSON.parse(output);
+                if (!Array.isArray(rawJobs)) {
                     jobs = [];
+                } else {
+                    // Transform field names to match frontend interface
+                    jobs = rawJobs.map(job => ({
+                        ...job,
+                        startTime: job.start_time,
+                        endTime: job.end_time,
+                        exitCode: job.exit_code
+                    }));
                 }
             } catch (e) {
                 console.warn('Failed to parse JSON from rnx list:', e.message);
@@ -33,7 +41,21 @@ router.get('/', async (req, res) => {
 // Execute a new job
 router.post('/execute', async (req, res) => {
     try {
-        const {command, runtime, volumes, uploads, network, cpuLimit, memoryLimit, cpuCores} = req.body;
+        const {
+            command, 
+            schedule, 
+            runtime, 
+            volumes, 
+            uploads, 
+            uploadDirs,
+            network, 
+            maxCPU, 
+            maxMemory, 
+            maxIOBPS,
+            cpuCores,
+            envVars,
+            secretEnvVars
+        } = req.body;
         const node = req.query.node;
 
         if (!command) {
@@ -42,32 +64,79 @@ router.post('/execute', async (req, res) => {
 
         const args = ['run'];
         
-        // Add resource specifications
-        if (runtime) args.push('--runtime', runtime);
-        if (cpuLimit) args.push('--cpu-limit', cpuLimit);
-        if (memoryLimit) args.push('--memory-limit', memoryLimit);
-        if (cpuCores) args.push('--cpu-cores', cpuCores.toString());
-        if (network) args.push('--network', network);
+        // Add schedule if provided (using = format)
+        if (schedule && schedule.trim()) {
+            args.push(`--schedule=${schedule.trim()}`);
+        }
 
-        // Add volumes
+        // Add resource limits (using = format)
+        if (maxCPU) args.push(`--max-cpu=${maxCPU}`);
+        if (maxMemory) args.push(`--max-memory=${maxMemory}`);
+        if (maxIOBPS) args.push(`--max-iobps=${maxIOBPS}`);
+        if (cpuCores) args.push(`--cpu-cores=${cpuCores}`);
+
+        // Add runtime (using = format)
+        if (runtime) args.push(`--runtime=${runtime}`);
+
+        // Add network (using = format)
+        if (network) args.push(`--network=${network}`);
+
+        // Add volumes (using = format)
         if (volumes && volumes.length > 0) {
             volumes.forEach(volume => {
-                args.push('--volume', volume);
+                args.push(`--volume=${volume}`);
             });
         }
 
-        // Add uploads
+        // Add file uploads (using = format)
         if (uploads && uploads.length > 0) {
             uploads.forEach(upload => {
-                args.push('--upload', upload);
+                args.push(`--upload=${upload}`);
             });
         }
 
-        // Add the command
-        args.push(command);
+        // Add directory uploads (using = format)
+        if (uploadDirs && uploadDirs.length > 0) {
+            uploadDirs.forEach(uploadDir => {
+                args.push(`--upload-dir=${uploadDir}`);
+            });
+        }
+
+        // Add environment variables (using = format)
+        if (envVars) {
+            Object.entries(envVars).forEach(([key, value]) => {
+                args.push(`--env=${key}=${value}`);
+            });
+        }
+
+        // Add secret environment variables (using = format)
+        if (secretEnvVars) {
+            Object.entries(secretEnvVars).forEach(([key, value]) => {
+                args.push(`--secret-env=${key}=${value}`);
+            });
+        }
+
+        // Add the command and any arguments
+        const commandParts = command.trim().split(/\s+/);
+        args.push(...commandParts);
 
         const output = await execRnx(args, {node});
-        res.json({success: true, output});
+        
+        // Try to parse the output to extract job ID
+        let jobId = null;
+        const lines = output.split('\n');
+        for (const line of lines) {
+            if (line.includes('ID:')) {
+                jobId = line.split('ID:')[1]?.trim();
+                break;
+            }
+        }
+
+        res.json({
+            success: true, 
+            output: output,
+            jobId: jobId
+        });
     } catch (error) {
         console.error('Failed to execute job:', error);
         res.status(500).json({error: error.message});
@@ -88,12 +157,13 @@ router.get('/:jobId', async (req, res) => {
 
                 // Map RNX response to expected Job interface
                 jobDetails = {
-                    id: rawJob.jobUuid || rawJob.id || jobId,
+                    id: rawJob.uuid || rawJob.jobUuid || rawJob.id || jobId,
                     command: rawJob.command || '',
                     args: rawJob.args || [],
                     status: rawJob.status || 'UNKNOWN',
                     startTime: rawJob.startTime || '',
                     endTime: rawJob.endTime || '',
+                    scheduledTime: rawJob.scheduledTime || rawJob.scheduled_time || '',
                     duration: rawJob.duration || 0,
                     exitCode: rawJob.exitCode || rawJob.exit_code,
                     maxCPU: rawJob.maxCPU || rawJob.max_cpu || 0,
@@ -148,6 +218,27 @@ router.post('/:jobId/stop', async (req, res) => {
     } catch (error) {
         console.error('Failed to stop job:', error);
         res.status(500).json({error: error.message});
+    }
+});
+
+// Delete a job
+router.delete('/:jobId', async (req, res) => {
+    try {
+        const {jobId} = req.params;
+        const node = req.query.node || 'default';
+        
+        const output = await execRnx(['delete', jobId], {node});
+        
+        res.json({
+            message: `Job ${jobId} deleted successfully`,
+            output: output.trim()
+        });
+    } catch (error) {
+        console.error('Failed to delete job:', error);
+        res.status(500).json({
+            error: 'Failed to delete job',
+            message: error.message
+        });
     }
 });
 

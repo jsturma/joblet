@@ -1,10 +1,12 @@
 // React import not needed with modern JSX transform
 import {Link} from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {useJobs} from '../hooks/useJobs';
 import {useMonitorStream} from '../hooks/useMonitorStream';
 import {Activity, Cpu, HardDrive, Zap} from 'lucide-react';
 
 const Dashboard: React.FC = () => {
+    const { t } = useTranslation();
     const {jobs, loading: jobsLoading, error: jobsError} = useJobs();
     const {metrics, connected, error: metricsError} = useMonitorStream();
 
@@ -14,25 +16,25 @@ const Dashboard: React.FC = () => {
 
     const stats = [
         {
-            name: 'Total Jobs',
+            name: t('dashboard.stats.totalJobs'),
             value: jobs.length.toString(),
             icon: Activity,
             color: 'bg-blue-500',
         },
         {
-            name: 'Running',
+            name: t('dashboard.stats.running'),
             value: runningJobs.length.toString(),
             icon: Zap,
             color: 'bg-yellow-500',
         },
         {
-            name: 'Completed',
+            name: t('dashboard.stats.completed'),
             value: completedJobs.length.toString(),
             icon: Activity,
             color: 'bg-green-500',
         },
         {
-            name: 'Failed',
+            name: t('dashboard.stats.failed'),
             value: failedJobs.length.toString(),
             icon: Activity,
             color: 'bg-red-500',
@@ -42,8 +44,8 @@ const Dashboard: React.FC = () => {
     return (
         <div className="p-6">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p className="mt-2 text-gray-600 dark:text-gray-300">Overview of your Joblet system</p>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('dashboard.title')}</h1>
+                <p className="mt-2 text-gray-600 dark:text-gray-300">{t('dashboard.subtitle')}</p>
             </div>
 
             {/* Stats Grid */}
@@ -69,7 +71,7 @@ const Dashboard: React.FC = () => {
             {/* System Health */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">System Health</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.systemHealth')}</h3>
                     {metricsError ? (
                         <p className="text-red-500">Error: {metricsError}</p>
                     ) : metrics ? (
@@ -110,17 +112,17 @@ const Dashboard: React.FC = () => {
                         </div>
                     ) : (
                         <p className="text-gray-500 dark:text-gray-400">
-                            {connected ? 'Waiting for metrics...' : 'Connecting to monitoring service...'}
+                            {connected ? t('dashboard.waitingForMetrics') : t('dashboard.connectingToMonitoring')}
                         </p>
                     )}
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Jobs</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentJobs')}</h3>
                     {jobsLoading ? (
-                        <p className="text-white-500">Loading jobs...</p>
+                        <p className="text-white-500">{t('dashboard.loadingJobs')}</p>
                     ) : jobsError ? (
-                        <p className="text-red-500">Error: {jobsError}</p>
+                        <p className="text-red-500">{t('common.error')}: {jobsError}</p>
                     ) : jobs.length > 0 ? (
                         <div className="space-y-3">
                             {jobs.slice(0, 5).map((job) => (
@@ -143,29 +145,29 @@ const Dashboard: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <p className="text-gray-500">No jobs found</p>
+                        <p className="text-gray-500">{t('jobs.noJobs')}</p>
                     )}
                 </div>
             </div>
 
             {/* Quick Actions */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">{t('dashboard.quickActions')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Link to="/jobs/create"
+                    <Link to="/jobs"
                           className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-500 transition-colors">
                         <Zap className="h-5 w-5 mr-2 text-blue-600"/>
-                        Run New Job
+                        {t('dashboard.runNewJob')}
                     </Link>
                     <Link to="/jobs"
                           className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-500 transition-colors">
                         <Activity className="h-5 w-5 mr-2 text-green-600"/>
-                        View All Jobs
+                        {t('dashboard.viewAllJobs')}
                     </Link>
                     <Link to="/resources"
                           className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-500 transition-colors">
                         <HardDrive className="h-5 w-5 mr-2 text-purple-600"/>
-                        Manage Resources
+                        {t('dashboard.manageResources')}
                     </Link>
                 </div>
             </div>

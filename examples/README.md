@@ -1,481 +1,67 @@
 # Joblet Examples
 
-Comprehensive examples demonstrating Joblet's capabilities, from instant runtime environments to advanced job
-coordination patterns.
+This directory contains example code and workflows for testing Joblet runtime environments.
 
-## ⚡ Recent Improvements
+## Directory Structure
 
-### 🎯 YAML Workflow System
+```
+examples/
+├── java/           # Java example programs
+├── python/         # Python example scripts
+└── workflows/      # Multi-job workflow YAML files
+```
 
-Each example directory now includes a `jobs.yaml` file that defines multiple job configurations. Instead of complex
-multi-flag commands, you can run jobs with simple workflow references:
+## Java Examples
 
-**Before (Complex):**
+### JavaRuntimeTest.java
+Comprehensive Java runtime test that validates:
+- Java version and system properties
+- File I/O operations
+- Environment variables
+- Basic data structures
 
+Usage:
 ```bash
-rnx run --runtime=python:3.11-ml --upload=script.py --volume=data --volume=results --max-memory=2048 --max-cpu=75 python3 script.py
+rnx run --runtime=openjdk:21 --upload=examples/java/JavaRuntimeTest.java javac JavaRuntimeTest.java
+rnx run --runtime=openjdk:21 java JavaRuntimeTest
 ```
 
-**After (Simple):**
+### SimpleTest.java
+Simple "Hello World" Java program for quick testing.
 
+## Python Examples
+
+### comprehensive-python-test.py
+Complete Python runtime test that validates:
+- Python version and system info
+- NumPy, pandas, scikit-learn functionality
+- File operations
+- Network connectivity
+
+Usage:
 ```bash
-rnx run --workflow=jobs.yaml:ml-analysis
+rnx run --runtime=python-3.11-ml --upload=examples/python/comprehensive-python-test.py python3 comprehensive-python-test.py
 ```
 
-**Template Benefits:**
+### data-processor.py & data-analyzer.py
+Example scripts for multi-job workflows demonstrating data processing pipelines.
 
-- ✅ **Simplified Commands**: One-liner execution instead of multi-flag commands
-- ✅ **Predefined Jobs**: Common use cases pre-configured and tested
-- ✅ **Easy Discovery**: See all available jobs with `cat jobs.yaml`
-- ✅ **Consistent Resource Limits**: Optimized memory/CPU settings per job type
-- ✅ **External Scripts**: Debuggable script files instead of embedded commands
+## Workflow Examples
 
-### 🛠️ Technical Improvements
-
-✅ **External Scripts**: Moved from embedded scripts to debuggable external files  
-✅ **Realistic Features**: Removed unsupported/future features, using only current Joblet capabilities  
-✅ **Resource Limits**: Updated to realistic CPU/memory constraints (≤80% CPU, ≤6GB RAM)  
-✅ **Clean Templates**: Eliminated preview features and experimental options  
-✅ **Supported Runtimes**: Only uses available runtimes (`python:3.11`, `python:3.11-ml`, `java:17`, `java:21`)
-
-## ⚡ Runtime-Powered Examples (Instant Startup)
-
-### 🐍 [Python 3.11 ML](./python-3.11-ml/) ⚡ **Instant Execution**
-
-- **Advanced Analytics**: Complete ML stack with visualization
-- **Libraries**: NumPy, Pandas, Matplotlib, SciPy, Seaborn
-- **Examples**: Data analysis, statistical visualization
-- **Runtime**: python-3.11-ml (pre-built environment)
-- **Status**: ✅ With runtime / ⚠️ Without runtime
-
-### ☕ [Java 17](./java-17/) ⚡ **2-3 seconds vs 30-120 seconds**
-
-- **Enterprise Java**: OpenJDK 17 LTS with Maven
-- **Development**: Complete Java development environment
-- **Performance**: ~15-40x faster than JDK installation
-- **Runtime**: java-17 (pre-compiled)
-- **Status**: ✅ With runtime / ⚠️ Without runtime
-
-### ☕ [Java 21](./java-21/) ⚡ **Modern Java Features**
-
-- **Cutting-edge Java**: Virtual Threads, Pattern Matching, Records
-- **Modern Features**: Latest Java 21 language enhancements
-- **Development**: Modern Java development patterns
-- **Runtime**: java-21 (latest features)
-- **Status**: ✅ With runtime / ⚠️ Without runtime
-
-## 📋 Traditional Examples (System Dependencies)
-
-### 💻 [Basic Usage](./basic-usage/) ✅ **Always Works**
-
-- **Simple Commands**: Basic command execution patterns
-- **File Operations**: Upload files and workspace management
-- **Resource Management**: CPU, memory, and I/O limits
-- **Volume Storage**: Persistent data storage between jobs
-- **Job Monitoring**: Status tracking and log viewing
-- **Dependencies**: Shell commands only
-- **Status**: ✅ Always works
-
-### 🐍 [Python Analytics](./python-analytics/) ✅ **Always Works**
-
-- **Sales Analysis**: Statistical analysis using Python standard library
-- **Customer Segmentation**: K-means clustering implemented from scratch
-- **Time Series Processing**: Data generation and moving averages
-- **Dependencies**: Python 3 standard library only
-- **Status**: ✅ Works out of the box with Python 3
-
-### 🔗 [Advanced Examples](./advanced/) ✅ **Works with Python 3**
-
-- **Job Coordination**: Sequential jobs with data dependencies
-- **Volume Sharing**: Data passing between isolated jobs
-- **Error Handling**: Robust job pipeline patterns
-- **Dependencies**: Python 3 standard library
-- **Status**: ✅ Works with Python 3
-
-### 🤖 [Agentic AI](./agentic-ai/) ⚠️ **Requires Dependencies**
-
-- **AI/ML Workflows**: LLM inference, RAG systems, distributed training
-- **Multi-Agent Systems**: Complex AI coordination patterns
-- **Dependencies**: External Python packages
-- **Status**: ⚠️ May require additional setup
-
-## 🚀 Quick Start
-
-### 🎯 YAML Workflows (NEW - Recommended)
-
-All examples now support YAML Workflows for simplified job execution:
-
+### java-complete-test.yaml
+Multi-job workflow for compiling and executing Java code:
 ```bash
-# Run examples using YAML Workflows (simple one-liner)
-cd python-3.11-ml/
-rnx run --workflow=jobs.yaml:ml-analysis      # Data analysis with pre-installed ML libs
-
-cd ../java-17/
-rnx run --workflow=jobs.yaml:hello-joblet     # Compile and run Java application
-
-cd ../basic-usage/
-rnx run --workflow=jobs.yaml:hello-world      # Basic hello world
-rnx run --workflow=jobs.yaml:file-ops         # File operations demo
-
-cd ../python-analytics/
-rnx run --workflow=jobs.yaml:sales-analysis   # Sales data analysis
+rnx run --workflow=examples/workflows/java-complete-test.yaml --upload=examples/java/JavaRuntimeTest.java
 ```
 
-### 🏃‍♂️ Traditional Method
-
+### python-e2e-test.yaml
+End-to-end Python runtime test workflow:
 ```bash
-# Option 1: Deploy pre-built packages (fastest - no host contamination)
-# Copy packages from examples/packages/ to target host
-scp examples/packages/python-3.11-ml-runtime.tar.gz admin@host:/tmp/
-scp examples/packages/java-17-runtime-complete.tar.gz admin@host:/tmp/
-
-# Deploy on target host
-ssh admin@host
-sudo tar -xzf /tmp/python-3.11-ml-runtime.tar.gz -C /opt/joblet/runtimes/python/
-sudo tar -xzf /tmp/java-17-runtime-complete.tar.gz -C /opt/joblet/runtimes/java/
-sudo chown -R joblet:joblet /opt/joblet/runtimes/
-
-# Option 2: Build from setup scripts (builds on host)
-sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
-sudo /opt/joblet/runtimes/java-17/setup_java_17.sh
-sudo /opt/joblet/runtimes/java-21/setup_java_21.sh
-
-# 2. Verify runtimes are available
-rnx runtime list
-
-# 3. Try instant ML demo (2-3 seconds total)
-cd python-3.11-ml/
-rnx run --runtime=python:3.11-ml python example_data_analysis.py
-
-# 4. Try Java development (instant compilation)
-cd ../java-17/
-rnx run --runtime=java:17 --upload=HelloJoblet.java bash -c "javac HelloJoblet.java && java HelloJoblet"
+rnx run --workflow=examples/workflows/python-e2e-test.yaml --upload=examples/python/comprehensive-python-test.py
 ```
 
-### 📚 Traditional Path (Always Works)
-
+### multi-job-test.yaml
+Demonstrates volume sharing between Python jobs in a data processing pipeline:
 ```bash
-# 1. Start with Python Analytics (most comprehensive working example)
-cd python-analytics/
-./run_demo.sh
-
-# 2. Try Basic Usage (fundamental concepts) 
-cd ../basic-usage/
-./run_demos.sh
-
-# 3. Explore Advanced Patterns (job coordination)
-cd ../advanced/
-./job_coordination.sh
+rnx run --workflow=examples/workflows/multi-job-test.yaml --upload=examples/python/data-processor.py --upload=examples/python/data-analyzer.py
 ```
-
-### 🎯 Run All Examples
-
-```bash
-# Execute all working examples
-./run_all_demos.sh
-```
-
-## ⚡ Performance Comparison
-
-| **Example Type**     | **Traditional**              | **Runtime** | **Speedup**   |
-|----------------------|------------------------------|-------------|---------------|
-| **Python ML**        | 5-45 minutes (pip install)   | 2-3 seconds | **~100-300x** |
-| **Java Development** | 30-120 seconds (JDK install) | 2-3 seconds | **~15-40x**   |
-| **Python Analytics** | 30-60 seconds                | 2-5 seconds | **~10-20x**   |
-
-## 🎯 Key Examples by Use Case
-
-### 🤖 AI/ML Development (Runtime-Powered)
-
-- **[Python 3.11 ML](./python-3.11-ml/)** - Advanced data analysis and visualization
-- **[Agentic AI](./agentic-ai/)** - Complex AI workflows and multi-agent systems
-
-### ☕ Enterprise Development (Runtime-Powered)
-
-- **[Java 17 LTS](./java-17/)** - Enterprise Java with instant compilation
-- **[Java 21 Modern](./java-21/)** - Cutting-edge Java features
-
-### 📊 Data Analysis & Processing
-
-- **[Python Analytics](./python-analytics/)** - Complete data analysis pipeline (no dependencies)
-- **[Advanced Job Coordination](./advanced/)** - Multi-step data workflows
-
-### 🎓 Learning Joblet Fundamentals
-
-- **[Basic Usage](./basic-usage/)** - Core concepts and patterns
-- **[Simple Commands](./basic-usage/01_simple_commands.sh)** - Start here
-
-## 🔧 Prerequisites
-
-### 🏎️ Runtime Approach (Recommended)
-
-**Option 1: Deploy Pre-built Packages (Fastest, Zero Contamination):**
-
-```bash
-# Available packages in examples/packages/:
-# - python-3.11-ml-runtime.tar.gz (226MB)
-# - java-17-runtime-complete.tar.gz (193MB)  
-# - java-21-runtime-complete.tar.gz (208MB)
-
-# Deploy Python ML runtime
-scp examples/packages/python-3.11-ml-runtime.tar.gz admin@host:/tmp/
-ssh admin@host "sudo tar -xzf /tmp/python-3.11-ml-runtime.tar.gz -C /opt/joblet/runtimes/python/"
-
-# Deploy Java runtimes
-scp examples/packages/java-*-runtime-complete.tar.gz admin@host:/tmp/
-ssh admin@host "sudo tar -xzf /tmp/java-17-runtime-complete.tar.gz -C /opt/joblet/runtimes/java/"
-ssh admin@host "sudo tar -xzf /tmp/java-21-runtime-complete.tar.gz -C /opt/joblet/runtimes/java/"
-```
-
-**Option 2: Build from Setup Scripts (on Joblet server):**
-
-```bash
-# Python 3.11 + ML Stack (builds from source)
-sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
-
-# Java 17 LTS + Maven
-sudo /opt/joblet/runtimes/java-17/setup_java_17.sh
-
-# Java 21 + Modern Features  
-sudo /opt/joblet/runtimes/java-21/setup_java_21.sh
-```
-
-**Benefits:**
-
-- ⚡ 10-1000x faster startup times
-- 🔒 Complete isolation from host system
-- 📦 Pre-installed packages and tools
-- 🛡️ Security and consistency
-
-### 📚 Traditional Approach (System Dependencies)
-
-**Minimal Setup (for ✅ examples):**
-
-- Joblet server running
-- RNX client configured
-- Python 3 available in job environment (for analytics)
-
-**Full Setup (for all examples):**
-
-- Java JDK (for Java examples)
-- External package installation capability (for AI examples)
-
-## 💡 Example Status Guide
-
-### ⚡ Runtime-Powered (Instant Startup)
-
-**With Runtimes Installed:**
-
-- **Python ML**: ✅ Instant execution with complete ML stack
-- **Java**: ✅ Instant compilation and execution
-
-**Without Runtimes:**
-
-- **Python ML**: ⚠️ Requires pip install (5-45 minutes)
-- **Java**: ⚠️ Requires JDK installation (30-120 seconds)
-
-### ✅ Always Works (System Dependencies)
-
-These examples use commonly available tools:
-
-- **Python Analytics**: Uses Python 3 standard library
-- **Basic Usage**: Uses shell commands only
-- **Advanced Coordination**: Uses Python 3 standard library
-
-## 📚 Learning Path
-
-### 🚀 Runtime Path (Recommended - Instant Results)
-
-```bash
-# 1. Install runtimes first (5-10 minutes one-time setup)
-# See Prerequisites section above
-
-# 2. Try ML demo (2-3 seconds)
-cd python-3.11-ml/ && rnx run --runtime=python:3.11-ml python example_data_analysis.py
-
-# 3. Try Java development (2-3 seconds)
-cd ../java-17/ && rnx run --runtime=java:17 --upload=HelloJoblet.java javac HelloJoblet.java && java HelloJoblet
-```
-
-### 📋 Traditional Path (No Setup Required)
-
-```bash
-# 1. Start Here (5 minutes)
-cd basic-usage/ && ./01_simple_commands.sh
-
-# 2. Try Data Processing (10 minutes)
-cd ../python-analytics/ && ./run_demo.sh
-
-# 3. Learn Job Coordination (15 minutes)
-cd ../advanced/ && ./job_coordination.sh
-
-# 4. Explore All Basics (30 minutes)
-cd ../basic-usage/ && ./run_demos.sh
-```
-
-## 🎉 Expected Results
-
-### Runtime-Powered Examples
-
-**After Python ML Demo:**
-
-- Machine learning classification results
-- Statistical analysis with NumPy/Pandas
-- Execution time: 2-3 seconds total
-
-**After Java Development:**
-
-- Compiled Java application output
-- Modern Java features demonstration
-- Execution time: 2-3 seconds total
-
-### Traditional Examples
-
-**After Python Analytics:**
-
-- Sales analysis results in JSON format
-- Customer segmentation data
-- Time series processing output
-
-**After Job Coordination:**
-
-- Multi-job workflow demonstration
-- Data passing between jobs
-- Dependency management patterns
-
-## 🔍 Inspecting Results
-
-### Runtime Examples
-
-```bash
-# View Python ML results
-rnx run --runtime=python:3.11-ml --volume=ml-data cat /volumes/ml-data/results.json
-
-# Check runtime availability
-rnx runtime list
-rnx runtime info python-3.11-ml
-```
-
-### Traditional Examples
-
-```bash
-# View analytics results
-rnx run --volume=analytics-data cat /volumes/analytics-data/results/sales_analysis.json
-
-# View coordination results  
-rnx run --volume=shared-data cat /volumes/shared-data/results.json
-
-# List all volumes
-rnx volume list
-
-# Check job history
-rnx list
-```
-
-## 🛠️ Troubleshooting
-
-### Runtime Issues
-
-#### "runtime not found"
-
-```bash
-# Install the missing runtime on Joblet server
-sudo /opt/joblet/runtimes/python-3.11-ml/setup_python_3_11_ml.sh
-
-# Verify installation
-rnx runtime list
-rnx runtime test python-3.11-ml
-```
-
-### Traditional Issues
-
-#### "command not found"
-
-- **Python scripts**: Ensure Python 3 is available in job environment
-- **Java scripts**: JDK may not be available in job environment
-- **Solution**: Install runtimes or stick to ✅ examples
-
-#### Job failures
-
-```bash
-# Check job logs
-rnx log <job-id>
-
-# View job status
-rnx list
-
-# Test connectivity
-rnx run echo "test"
-```
-
-#### Resource issues
-
-```bash
-# Monitor system resources
-rnx monitor
-
-# Adjust memory limits in scripts (--max-memory=1024)
-# For runtime examples, 512MB-2GB recommended
-```
-
-## 📖 Documentation
-
-Each example directory contains detailed README files:
-
-- **[Java 17 README](./java-17/README.md)** - Enterprise Java development
-- **[Python Analytics README](./python-analytics/README.md)** - Data analysis
-- **[Basic Usage README](./basic-usage/README.md)** - Fundamental concepts
-- **[Advanced README](./advanced/README.md)** - Job coordination patterns
-
-## 🔗 Workflow Orchestration Examples
-
-Advanced multi-job workflows with dependency management and job names feature:
-
-### 📁 [Workflow Templates](./workflows/)
-
-- **[ML Pipeline](./workflows/ml-pipeline/)** - Complete machine learning workflow
-- **[Data Pipeline](./workflows/data-pipeline/)** - ETL processing with volume sharing
-- **[Parallel Jobs](./workflows/parallel-jobs/)** - Independent batch processing
-- **[Test Workflows](./workflows/tests/)** - Job names feature validation 🧪
-
-### 🧪 Job Names Testing
-
-Test workflows specifically for validating job names functionality:
-
-```bash
-# Test job names with 2-job workflow
-rnx run --workflow=examples/workflows/tests/test-simple-workflow.yaml
-
-# Test comprehensive job names with 4-job dependency chain  
-rnx run --workflow=examples/workflows/tests/test-workflow-names.yaml
-
-# View workflow status with job names
-rnx status --workflow <workflow-id>
-```
-
-**Expected Output Format:**
-
-```
-JOB ID          JOB NAME             STATUS       EXIT CODE  DEPENDENCIES        
------------------------------------------------------------------------------------------
-42              setup-data           COMPLETED    0          -                   
-43              process-data         RUNNING      -          setup-data          
-```
-
-## 🚀 Next Steps
-
-### 🏎️ Runtime Approach (Recommended)
-
-1. **Install Runtimes**: Set up pre-built environments (5-10 minutes one-time)
-2. **Try ML Demo**: Experience 100-300x speedup
-3. **Build APIs**: Create HTTP servers instantly
-4. **Scale Up**: Use runtimes for production workloads
-
-### 📚 Traditional Approach
-
-1. **Master the Basics**: Complete basic-usage examples
-2. **Explore Analytics**: Try python-analytics examples
-3. **Learn Coordination**: Understand advanced job patterns
-4. **Apply to Your Use Case**: Adapt examples for your workflows
-
-**The runtime-powered examples transform development from minutes of waiting to seconds of execution!** 🚀

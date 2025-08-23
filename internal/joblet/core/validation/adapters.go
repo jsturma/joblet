@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"context"
 	"joblet/internal/joblet/core/volume"
 	"joblet/internal/joblet/runtime"
 	"joblet/pkg/logger"
@@ -27,17 +26,15 @@ func (vma *VolumeManagerAdapter) VolumeExists(volumeName string) bool {
 	return exists
 }
 
-// RuntimeManagerAdapter adapts the runtime.Manager to RuntimeManagerInterface
+// RuntimeManagerAdapter adapts the runtime.Resolver to RuntimeManagerInterface
 type RuntimeManagerAdapter struct {
-	manager  *runtime.Manager
 	resolver *runtime.Resolver
 	logger   *logger.Logger
 }
 
-// NewRuntimeManagerAdapter creates a new adapter for runtime.Manager
-func NewRuntimeManagerAdapter(manager *runtime.Manager, resolver *runtime.Resolver) *RuntimeManagerAdapter {
+// NewRuntimeManagerAdapter creates a new adapter for runtime.Resolver
+func NewRuntimeManagerAdapter(resolver *runtime.Resolver) *RuntimeManagerAdapter {
 	return &RuntimeManagerAdapter{
-		manager:  manager,
 		resolver: resolver,
 		logger:   logger.WithField("component", "runtime-manager-adapter"),
 	}
@@ -46,8 +43,7 @@ func NewRuntimeManagerAdapter(manager *runtime.Manager, resolver *runtime.Resolv
 // RuntimeExists checks if a runtime exists and is available
 func (rma *RuntimeManagerAdapter) RuntimeExists(runtimeName string) bool {
 	// Try to resolve the runtime configuration
-	ctx := context.Background()
-	_, err := rma.manager.ResolveRuntimeConfig(ctx, runtimeName)
+	_, err := rma.resolver.ResolveRuntime(runtimeName)
 	return err == nil
 }
 

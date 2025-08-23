@@ -378,7 +378,7 @@ rnx status --workflow --json --detail a1b2c3d4-e5f6-7890-1234-567890abcdef | jq 
     "seconds": 1691234567,
     "nanos": 0
   },
-  "yaml_content": "jobs:\n  setup-data:\n    command: \"python3\"\n    args: [\"extract.py\"]\n    runtime: \"python:3.11-ml\"\n  process-data:\n    command: \"python3\"\n    args: [\"transform.py\"]\n    requires:\n      - setup-data: \"COMPLETED\"\n",
+  "yaml_content": "jobs:\n  setup-data:\n    command: \"python3\"\n    args: [\"extract.py\"]\n    runtime: \"python-3.11-ml\"\n  process-data:\n    command: \"python3\"\n    args: [\"transform.py\"]\n    requires:\n      - setup-data: \"COMPLETED\"\n",
   "jobs": [
     {
       "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
@@ -679,8 +679,47 @@ rnx runtime info <runtime-spec>
 
 ```bash
 # Get runtime details
-rnx runtime info python:3.11-ml
-rnx runtime info java:17
+rnx runtime info python-3.11-ml
+rnx runtime info openjdk:21
+```
+
+### `rnx runtime install`
+
+Install a runtime environment from GitHub or local files.
+
+```bash
+rnx runtime install <runtime-spec> [flags]
+```
+
+#### Flags
+
+| Flag     | Short | Description                                      | Default |
+|----------|-------|--------------------------------------------------|---------|
+| `--force`| `-f`  | Force reinstall by deleting existing runtime    | false   |
+
+#### Description
+
+The install command downloads and executes platform-specific setup scripts in a secure builder chroot environment. It automatically detects the host platform (Ubuntu, Amazon Linux, RHEL) and architecture (AMD64, ARM64) to run the appropriate setup script.
+
+When using `--force`, the command will:
+1. Delete the existing runtime at `/opt/joblet/runtimes/<runtime-name>` if it exists
+2. Proceed with fresh installation
+3. Continue even if deletion fails (with warning)
+
+#### Examples
+
+```bash
+# Install a runtime
+rnx runtime install python-3.11-ml
+rnx runtime install openjdk-21
+
+# Force reinstall (delete existing runtime first)
+rnx runtime install python-3.11-ml --force
+rnx runtime install openjdk-21 -f
+
+# Install from local development files (auto-detected)
+cd ~/joblet
+rnx runtime install python-3.11-ml  # Uses local runtimes/ directory if found
 ```
 
 ### `rnx runtime test`
@@ -695,49 +734,150 @@ rnx runtime test <runtime-spec>
 
 ```bash
 # Test runtime functionality
-rnx runtime test python:3.11-ml
-rnx runtime test java:17
+rnx runtime test python-3.11-ml
+rnx runtime test openjdk:21
 ```
 
 ## System Commands
 
 ### `rnx monitor`
 
-Monitor system metrics in real-time.
+Monitor comprehensive remote joblet server metrics including CPU, memory, disk, network, processes, and volumes.
 
 ```bash
-rnx monitor [subcommand] [flags]
+rnx monitor <subcommand> [flags]
 ```
 
 #### Subcommands
 
-- `status` - Show current system status
-- (default) - Stream real-time metrics
+- `status` - Display comprehensive remote server status with detailed resource information
+- `top` - Show current remote server metrics in condensed format with top processes  
+- `watch` - Stream real-time remote server metrics with configurable refresh intervals
 
-#### Flags
+#### Common Flags
 
-| Flag         | Description                | Default |
-|--------------|----------------------------|---------|
-| `--interval` | Update interval in seconds | 2       |
-| `--json`     | Output in JSON format      | false   |
+| Flag         | Description                              | Default |
+|--------------|------------------------------------------|---------|
+| `--json`     | Output in UI-compatible JSON format     | false   |
+| `--interval` | Update interval in seconds (watch only) | 5       |
+| `--filter`   | Filter metrics by type (top/watch only) | all     |
+| `--compact`  | Use compact display format (watch only) | false   |
+
+#### Available Server Metric Types (for --filter)
+
+- `cpu` - Server CPU usage, load averages, per-core utilization
+- `memory` - Server memory and swap usage with detailed breakdowns
+- `disk` - Server disk usage for all mount points and joblet volumes
+- `network` - Server network interface statistics with live throughput
+- `io` - Server I/O operations, throughput, and utilization
+- `process` - Server process statistics with top consumers
+
+#### Monitoring Features
+
+**Enhanced Remote Server Monitoring:**
+- Real-time server resource utilization tracking from client
+- Server cloud environment detection (AWS, GCP, Azure, KVM, etc.)
+- Remote joblet volume usage and availability monitoring
+- Server network throughput and packet statistics
+- Server process state tracking (running, sleeping, stopped, zombie)
+- Server per-core CPU utilization breakdown
+
+**Remote JSON Data Format:**
+- UI-compatible JSON structure with server data for dashboards
+- Structured server metrics for monitoring tool integrations
+- Real-time server data streaming for live monitoring systems
 
 #### Examples
 
 ```bash
-# Real-time monitoring
-rnx monitor
-
-# Update every 5 seconds
-rnx monitor --interval=5
-
-# Get current status
+# Comprehensive remote server status
 rnx monitor status
 
-# JSON output for metrics collection
+# JSON server data for dashboards/APIs
 rnx monitor status --json
 
-# Continuous JSON stream
-rnx monitor --json --interval=10
+# Current server metrics with top processes
+rnx monitor top
+
+# Filter specific server metrics
+rnx monitor top --filter=cpu,memory
+
+# Real-time server monitoring (5s intervals)
+rnx monitor watch
+
+# Faster server monitoring refresh rate
+rnx monitor watch --interval=2
+
+# Monitor specific server resources
+rnx monitor watch --filter=disk,network
+
+# JSON server streaming for monitoring tools
+rnx monitor watch --json --interval=10
+
+# Compact format for server monitoring
+rnx monitor watch --compact
+
+# Monitor specific joblet server node
+rnx --node=production monitor status
+```
+
+#### JSON Output Structure
+
+The `--json` flag produces UI-compatible output with the following structure:
+
+```json
+{
+  "hostInfo": {
+    "hostname": "server-name",
+    "platform": "Ubuntu 22.04.2 LTS",
+    "arch": "amd64",
+    "uptime": 152070,
+    "cloudProvider": "AWS",
+    "instanceType": "t3.medium",
+    "region": "us-east-1"
+  },
+  "cpuInfo": {
+    "cores": 8,
+    "usage": 0.15,
+    "loadAverage": [0.5, 0.3, 0.2],
+    "perCoreUsage": [0.1, 0.2, 0.05, 0.3, ...]
+  },
+  "memoryInfo": {
+    "total": 4100255744,
+    "used": 378679296,
+    "percent": 9.23,
+    "swap": { "total": 0, "used": 0, "percent": 0 }
+  },
+  "disksInfo": {
+    "disks": [
+      {
+        "name": "/dev/sda1",
+        "mountpoint": "/",
+        "filesystem": "ext4",
+        "size": 19896352768,
+        "used": 11143790592,
+        "percent": 56.01
+      },
+      {
+        "name": "analytics-data",
+        "mountpoint": "/opt/joblet/volumes/analytics-data",
+        "filesystem": "joblet-volume",
+        "size": 1073741824,
+        "used": 52428800,
+        "percent": 4.88
+      }
+    ]
+  },
+  "networkInfo": {
+    "interfaces": [...],
+    "totalRxBytes": 1234567890,
+    "totalTxBytes": 987654321
+  },
+  "processesInfo": {
+    "processes": [...],
+    "totalProcesses": 149
+  }
+}
 ```
 
 ### `rnx nodes`

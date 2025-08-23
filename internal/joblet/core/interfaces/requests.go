@@ -29,11 +29,14 @@ type StartJobRequest struct {
 	Volumes []string // volume names to mount
 
 	// Runtime specification
-	Runtime string // runtime specification (e.g., "python:3.11+ml")
+	Runtime string // runtime specification (e.g., "python-3.11-ml")
 
 	// Environment variables
 	Environment       map[string]string // Regular environment variables (visible in logs)
 	SecretEnvironment map[string]string // Secret environment variables (hidden from logs)
+
+	// Job type determines isolation level
+	JobType domain.JobType // JobTypeStandard (production isolation) or JobTypeRuntimeBuild (builder chroot)
 }
 
 // ResourceLimits encapsulates resource constraints for a job

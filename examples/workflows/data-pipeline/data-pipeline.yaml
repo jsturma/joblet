@@ -5,7 +5,7 @@ jobs:
   extract-data:
     command: "python3"
     args: [ "extract.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "extract.py" ]
     volumes: [ "data-pipeline" ]
@@ -15,7 +15,7 @@ jobs:
   validate-data:
     command: "python3"
     args: [ "validate.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "validate.py" ]
     volumes: [ "data-pipeline" ]
@@ -25,7 +25,7 @@ jobs:
   transform-data:
     command: "python3"
     args: [ "transform.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "transform.py" ]
     volumes: [ "data-pipeline" ]
@@ -38,7 +38,7 @@ jobs:
   load-to-warehouse:
     command: "python3"
     args: [ "load.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "load.py" ]
     volumes: [ "data-pipeline" ]
@@ -48,7 +48,7 @@ jobs:
   generate-report:
     command: "python3"
     args: [ "report.py" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     uploads:
       files: [ "report.py" ]
     volumes: [ "data-pipeline" ]

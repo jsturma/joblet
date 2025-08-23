@@ -1,15 +1,21 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {useNode} from '../contexts/NodeContext';
 
+interface LogEntry {
+    message: string;
+    type: 'system' | 'info' | 'output' | 'error' | 'connection';
+    timestamp: string;
+}
+
 interface UseLogStreamReturn {
-    logs: string[];
+    logs: LogEntry[];
     connected: boolean;
     error: string | null;
     clearLogs: () => void;
 }
 
 export const useLogStream = (jobId: string | null): UseLogStreamReturn => {
-    const [logs, setLogs] = useState<string[]>([]);
+    const [logs, setLogs] = useState<LogEntry[]>([]);
     const [connected, setConnected] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -40,22 +46,43 @@ export const useLogStream = (jobId: string | null): UseLogStreamReturn => {
                 const logEntry = JSON.parse(event.data);
                 const timestamp = new Date().toLocaleTimeString();
 
+                let type: 'system' | 'info' | 'output' | 'error' | 'connection' = 'output';
+                let message = logEntry.message;
+
                 if (logEntry.type === 'log') {
-                    setLogs(prev => [...prev, `[${timestamp}] ${logEntry.message}`]);
+                    if (logEntry.subtype === 'system') {
+                        type = 'system';
+                    } else if (logEntry.subtype === 'info') {
+                        type = 'info';
+                    } else {
+                        type = 'output';
+                    }
                 } else if (logEntry.type === 'error') {
-                    setLogs(prev => [...prev, `[${timestamp}] ERROR: ${logEntry.message}`]);
+                    type = 'error';
+                    message = `ERROR: ${logEntry.message}`;
                 } else if (logEntry.type === 'connection') {
-                    setLogs(prev => [...prev, `[${timestamp}] ${logEntry.message}`]);
+                    type = 'connection';
                 } else if (logEntry.type === 'status') {
-                    setLogs(prev => [...prev, `[${timestamp}] STATUS: ${logEntry.message}`]);
+                    type = 'connection';
+                    message = `STATUS: ${logEntry.message}`;
                 } else {
                     // Fallback for unknown message types
-                    setLogs(prev => [...prev, `[${timestamp}] ${logEntry.message || JSON.stringify(logEntry)}`]);
+                    message = logEntry.message || JSON.stringify(logEntry);
                 }
+
+                setLogs(prev => [...prev, {
+                    message,
+                    type,
+                    timestamp
+                }]);
             } catch {
                 // Fallback for plain text logs
                 const timestamp = new Date().toLocaleTimeString();
-                setLogs(prev => [...prev, `[${timestamp}] ${event.data}`]);
+                setLogs(prev => [...prev, {
+                    message: event.data,
+                    type: 'output',
+                    timestamp
+                }]);
             }
         };
 

@@ -36,7 +36,7 @@ type WorkflowYAML struct {
 // JobSpec defines the complete specification for a single job within a workflow.
 // Contains all necessary information for job execution including:
 // - Command and arguments to execute
-// - Runtime environment (e.g., "python:3.11-ml")
+// - Runtime environment (e.g., "python-3.11-ml")
 // - File uploads and volume mounts
 // - Dependency requirements on other jobs
 // - Resource limits (CPU, memory, I/O)
@@ -46,7 +46,7 @@ type JobSpec struct {
 	Command string `yaml:"command"`
 	// Args are the command-line arguments passed to the command
 	Args []string `yaml:"args"`
-	// Runtime specifies the execution environment (e.g., "python:3.11-ml")
+	// Runtime specifies the execution environment (e.g., "python-3.11-ml")
 	Runtime string `yaml:"runtime"`
 	// Network specifies the network for job isolation (e.g., "bridge", "isolated", "none", "custom-network")
 	Network string `yaml:"network"`

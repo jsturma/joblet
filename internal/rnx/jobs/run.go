@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"joblet/internal/rnx/common"
 	"os"
@@ -74,10 +75,10 @@ Volume Examples:
 
 Runtime Examples:
   # Use pre-built runtime environments for fast job startup
-  rnx run --runtime=python:3.11 --upload=script.py python script.py
-  rnx run --runtime=java:17 --jar myapp.jar
-  rnx run --runtime=python:3.11+ml+gpu python train_model.py
-  rnx run --runtime=node:18 --upload=app.js node app.js
+  rnx run --runtime=python-3.11-ml --upload=script.py python script.py
+  rnx run --runtime=openjdk-21 java -jar myapp.jar
+  rnx run --runtime=python-3.11-ml python train_model.py
+  rnx run --runtime=node-18 --upload=app.js node app.js
 
 Environment Variable Examples:
   # Pass regular environment variables (visible in logs)
@@ -112,7 +113,7 @@ Flags:
   --cpu-cores=SPEC    CPU cores specification
   --upload=FILE       Upload a file to the job workspace
   --upload-dir=DIR    Upload entire directory to the job workspace
-  --runtime=SPEC      Use pre-built runtime (e.g., python:3.11, java:17)
+  --runtime=SPEC      Use pre-built runtime (e.g., openjdk-21, python-3.11-ml)
   --volume=NAME       Mount persistent volume
   --network=NAME      Use network configuration
   --env=KEY=VALUE         Set environment variable (visible in logs)
@@ -128,6 +129,12 @@ Flags:
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
+	// Handle help requests manually since DisableFlagParsing is true
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			return cmd.Help()
+		}
+	}
 	var (
 		maxCPU        int32
 		cpuCores      string
@@ -165,6 +172,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 		} else if arg == "--node" && i+1 < len(args) {
 			common.NodeName = args[i+1]
 			i++ // Skip the next argument since we consumed it
+		} else if arg == "--json" {
+			common.JSONOutput = true
 		} else if strings.HasPrefix(arg, "--schedule=") {
 			schedule = strings.TrimPrefix(arg, "--schedule=")
 		} else if strings.HasPrefix(arg, "--cpu-cores=") {
@@ -399,6 +408,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 	response, err := jobClient.RunJob(ctx, request)
 	if err != nil {
 		return fmt.Errorf("failed to run job: %v", err)
+	}
+
+	// Output JSON if requested
+	if common.JSONOutput {
+		return outputRunJobJSON(response, schedule, len(fileUploads), len(environment), len(secretEnvironment))
 	}
 
 	fmt.Printf("Job started:\n")
@@ -1201,7 +1215,7 @@ func validateRuntimesExist(workflow types.WorkflowYAML) error {
 	for _, runtime := range listRes.Runtimes {
 		// Store both original name and normalized name (colon format)
 		existingRuntimes[runtime.Name] = true
-		// Convert hyphen format to colon format (python-3.11-ml -> python:3.11-ml)
+		// Convert hyphen format to colon format (python-3.11-ml -> python-3.11-ml)
 		normalizedName := strings.Replace(runtime.Name, "-", ":", 1)
 		existingRuntimes[normalizedName] = true
 	}
@@ -1302,11 +1316,6 @@ func isReservedEnvironmentVariable(name string) bool {
 		"LANG":     true,
 		"LC_ALL":   true,
 
-		// Docker/Container variables
-		"DOCKER_HOST":       true,
-		"DOCKER_TLS_VERIFY": true,
-		"DOCKER_CERT_PATH":  true,
-
 		// Joblet-specific variables (that might be set by the system)
 		"JOBLET_JOB_ID":      true,
 		"JOBLET_WORKFLOW_ID": true,
@@ -1373,4 +1382,36 @@ func validateJobDependencies(workflow types.WorkflowYAML) error {
 	}
 
 	return nil
+}
+
+// outputRunJobJSON outputs the run job response in JSON format
+func outputRunJobJSON(response *pb.RunJobResponse, scheduleInput string, fileCount, envCount, secretEnvCount int) error {
+	// Create a structured response that includes additional context
+	output := struct {
+		JobUUID       string   `json:"job_uuid"`
+		Command       string   `json:"command"`
+		Args          []string `json:"args"`
+		Status        string   `json:"status"`
+		StartTime     string   `json:"start_time,omitempty"`
+		ScheduleInput string   `json:"schedule_input,omitempty"`
+		ScheduledTime string   `json:"scheduled_time,omitempty"`
+		FilesUploaded int      `json:"files_uploaded,omitempty"`
+		EnvVars       int      `json:"env_vars,omitempty"`
+		SecretEnvVars int      `json:"secret_env_vars,omitempty"`
+	}{
+		JobUUID:       response.JobUuid,
+		Command:       response.Command,
+		Args:          response.Args,
+		Status:        response.Status,
+		StartTime:     response.StartTime,
+		ScheduleInput: scheduleInput,
+		ScheduledTime: response.ScheduledTime,
+		FilesUploaded: fileCount,
+		EnvVars:       envCount,
+		SecretEnvVars: secretEnvCount,
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(output)
 }

@@ -166,3 +166,41 @@ func (c *JobClient) GetRuntimeInfo(ctx context.Context, req *pb.RuntimeInfoReq) 
 func (c *JobClient) TestRuntime(ctx context.Context, req *pb.RuntimeTestReq) (*pb.RuntimeTestRes, error) {
 	return c.runtimeClient.TestRuntime(ctx, req)
 }
+
+// Runtime building methods
+
+func (c *JobClient) BuildRuntime(ctx context.Context, req *pb.BuildRuntimeRequest) (*pb.BuildRuntimeResponse, error) {
+	return c.runtimeClient.BuildRuntime(ctx, req)
+}
+
+func (c *JobClient) GetBuildStatus(ctx context.Context, req *pb.GetBuildStatusRequest) (*pb.GetBuildStatusResponse, error) {
+	return c.runtimeClient.GetBuildStatus(ctx, req)
+}
+
+func (c *JobClient) ListBuildJobs(ctx context.Context) (*pb.BuildJobsResponse, error) {
+	return c.runtimeClient.ListBuildJobs(ctx, &pb.EmptyRequest{})
+}
+
+func (c *JobClient) InstallRuntimeFromGithub(ctx context.Context, req *pb.InstallRuntimeRequest) (*pb.InstallRuntimeResponse, error) {
+	return c.runtimeClient.InstallRuntimeFromGithub(ctx, req)
+}
+
+func (c *JobClient) InstallRuntimeFromLocal(ctx context.Context, req *pb.InstallRuntimeFromLocalRequest) (*pb.InstallRuntimeResponse, error) {
+	return c.runtimeClient.InstallRuntimeFromLocal(ctx, req)
+}
+
+func (c *JobClient) ValidateRuntimeSpec(ctx context.Context, req *pb.ValidateRuntimeSpecRequest) (*pb.ValidateRuntimeSpecResponse, error) {
+	return c.runtimeClient.ValidateRuntimeSpec(ctx, req)
+}
+
+func (c *JobClient) StreamingInstallRuntimeFromGithub(ctx context.Context, req *pb.InstallRuntimeRequest) (pb.RuntimeService_StreamingInstallRuntimeFromGithubClient, error) {
+	return c.runtimeClient.StreamingInstallRuntimeFromGithub(ctx, req)
+}
+
+func (c *JobClient) StreamingInstallRuntimeFromLocal(ctx context.Context, req *pb.InstallRuntimeFromLocalRequest) (pb.RuntimeService_StreamingInstallRuntimeFromLocalClient, error) {
+	return c.runtimeClient.StreamingInstallRuntimeFromLocal(ctx, req)
+}
+
+func (c *JobClient) RemoveRuntime(ctx context.Context, req *pb.RuntimeRemoveReq) (*pb.RuntimeRemoveRes, error) {
+	return c.runtimeClient.RemoveRuntime(ctx, req)
+}

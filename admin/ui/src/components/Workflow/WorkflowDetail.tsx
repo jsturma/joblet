@@ -1,20 +1,19 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {Job, JobStatus, WorkflowJob} from '@/types';
-import {WorkflowGraph} from './WorkflowGraph';
+import WorkflowMermaidGraph from './WorkflowMermaidGraph';
 import WorkflowTimeline from './WorkflowTimeline';
-import {ArrowLeft, BarChart3, Code, FileText, List, Network, X} from 'lucide-react';
+import {BarChart3, Code, FileText, List, Network, X} from 'lucide-react';
 import {apiService} from '@/services/apiService';
-import {useLogStream} from '../../hooks/useLogStream';
+import {useLogStream} from '@/hooks/useLogStream.ts';
 import clsx from 'clsx';
 
 interface WorkflowDetailProps {
     workflowId: string;
-    onBack: () => void;
     onRefresh: () => void; // Keep for compatibility but not used since WebSocket handles updates
 }
 
 interface WorkflowData {
-    id: string | number; // Support both UUID strings and legacy numeric IDs
+    uuid: string;
     name: string;
     workflow: string;
     status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
@@ -31,7 +30,6 @@ type ViewMode = 'graph' | 'tree' | 'timeline' | 'yaml';
 
 const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                            workflowId,
-                                                           onBack,
                                                        }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('graph');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -47,7 +45,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     const [jobLoading, setJobLoading] = useState<boolean>(false);
     const [autoScroll, setAutoScroll] = useState<boolean>(true);
     const logsContainerRef = useRef<HTMLDivElement>(null);
-    
+
     // YAML content state
     const [yamlContent, setYamlContent] = useState<{
         content: string;
@@ -87,12 +85,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         void fetchWorkflow();
     }, [fetchWorkflow]);
 
-    // Automatically navigate back if workflow fails to load (not found)
-    useEffect(() => {
-        if (error && error.includes('not found')) {
-            onBack();
-        }
-    }, [error, onBack]);
+    // Note: Auto-navigation removed - users can use escape key to go back
 
     // Auto-scroll to bottom when logs change
     useEffect(() => {
@@ -102,13 +95,17 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         }
     }, [logs, autoScroll]);
 
-    const handleJobSelect = (job: Job | null) => {
+    const handleJobSelect = (job: WorkflowJob | null) => {
         setSelectedJob(job);
+        // Open job details dialog when job is selected from graph
+        if (job) {
+            void handleViewJob(job.id);
+        }
     };
 
-    const handleJobAction = (job: Job, action: string) => {
+    const handleJobAction = (jobId: string, action: string) => {
         if (action === 'details') {
-            void handleViewJob(job.id);
+            void handleViewJob(jobId);
         }
     };
 
@@ -276,6 +273,20 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         clearLogs();
     };
 
+    // Handle escape key to close job details modal
+    useEffect(() => {
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && selectedJobId) {
+                handleCloseModal();
+            }
+        };
+
+        document.addEventListener('keydown', handleEscapeKey);
+        return () => {
+            document.removeEventListener('keydown', handleEscapeKey);
+        };
+    }, [selectedJobId]);
+
     const formatDuration = (duration: number) => {
         if (!duration) return '-';
         const seconds = Math.floor(duration / 1000);
@@ -294,17 +305,17 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'RUNNING':
-                return 'bg-yellow-100 text-yellow-800';
+                return 'bg-yellow-900 text-yellow-200';
             case 'COMPLETED':
-                return 'bg-green-100 text-green-800';
+                return 'bg-green-900 text-green-200';
             case 'FAILED':
-                return 'bg-red-100 text-red-800';
+                return 'bg-red-900 text-red-200';
             case 'STOPPED':
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-gray-700 text-gray-200';
             case 'QUEUED':
-                return 'bg-blue-100 text-blue-800';
+                return 'bg-blue-900 text-blue-200';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-gray-700 text-gray-200';
         }
     };
 
@@ -312,12 +323,12 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
         try {
             setYamlContent(prev => ({...prev, loading: true, error: null}));
             const response = await fetch(`/api/workflows/${workflowId}/yaml`);
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to fetch YAML content');
             }
-            
+
             const data = await response.json();
             setYamlContent({
                 content: data.content,
@@ -355,13 +366,6 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center space-x-4">
-                        <button
-                            onClick={onBack}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            <ArrowLeft className="w-4 h-4 mr-2"/>
-                            Back to Workflows
-                        </button>
                         <div className="text-lg text-white">Loading workflow...</div>
                     </div>
                 </div>
@@ -374,13 +378,6 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center space-x-4">
-                        <button
-                            onClick={onBack}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            <ArrowLeft className="w-4 h-4 mr-2"/>
-                            Back to Workflows
-                        </button>
                         <div className="text-lg text-red-500">Error: {error || 'Workflow not found'}</div>
                     </div>
                 </div>
@@ -393,13 +390,6 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             {/* Header */}
             <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4 mb-4">
-                    <button
-                        onClick={onBack}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-2"/>
-                        Back to Workflows
-                    </button>
                     <div className="flex-1">
                         <div className="flex items-center space-x-3">
                             <h1 className="text-3xl font-bold text-white">{workflow.name}</h1>
@@ -409,7 +399,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                 {workflow.status}
                             </span>
                         </div>
-                        <p className="mt-2 text-gray-300">Workflow: {workflow.workflow}</p>
+                        <p className="mt-2 text-gray-300">Workflow: {workflow.uuid}</p>
                     </div>
                     <div className="flex items-center text-sm">
                         <div className="w-2 h-2 rounded-full mr-2 bg-green-500 animate-pulse"></div>
@@ -443,7 +433,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             <div className="flex-1 overflow-hidden">
                 {/* Graph View */}
                 {viewMode === 'graph' && (
-                    <WorkflowGraph
+                    <WorkflowMermaidGraph
                         jobs={workflow.jobs}
                         onJobSelect={handleJobSelect}
                         onJobAction={handleJobAction}
@@ -453,9 +443,9 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                 {/* Tree View */}
                 {viewMode === 'tree' && (
                     <div className="p-6">
-                        <div className="bg-white rounded-lg shadow">
+                        <div className="bg-gray-800 rounded-lg shadow">
                             <div className="p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                <h3 className="text-lg font-medium text-white mb-4">
                                     Workflow Execution Tree
                                 </h3>
                                 {workflow.jobs.length === 0 ? (
@@ -467,16 +457,64 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {workflow.jobs.map(job => (
+                                        {(() => {
+                                                // Topological sort based on dependencies
+                                                const jobs = [...workflow.jobs];
+                                                const sorted: typeof jobs = [];
+                                                const visited = new Set<string>();
+                                                const temp = new Set<string>();
+                                                
+                                                // Helper function to find job by name or id
+                                                const findJob = (nameOrId: string) => 
+                                                    jobs.find(j => j.name === nameOrId || j.id === nameOrId);
+                                                
+                                                // Depth-first search for topological sorting
+                                                const visit = (job: typeof jobs[0]) => {
+                                                    if (temp.has(job.id)) return; // Circular dependency, skip
+                                                    if (visited.has(job.id)) return;
+                                                    
+                                                    temp.add(job.id);
+                                                    
+                                                    // Visit dependencies first
+                                                    if (job.dependsOn) {
+                                                        for (const dep of job.dependsOn) {
+                                                            const depJob = findJob(dep);
+                                                            if (depJob) {
+                                                                visit(depJob);
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    temp.delete(job.id);
+                                                    visited.add(job.id);
+                                                    sorted.push(job);
+                                                };
+                                                
+                                                // Visit all jobs
+                                                for (const job of jobs) {
+                                                    if (!visited.has(job.id)) {
+                                                        visit(job);
+                                                    }
+                                                }
+                                                
+                                                return sorted;
+                                            })().map(job => (
                                             <div key={job.id}
-                                                 className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
+                                                 className="border border-gray-600 rounded-lg p-4 hover:bg-gray-700 cursor-pointer"
                                                  onClick={() => {
                                                      void handleViewJob(job.id);
-                                                 }}>
+                                                 }}
+                                                 style={{ marginLeft: `${(job.dependsOn?.length || 0) * 20}px` }}>
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex-1">
                                                         <div className="flex items-center space-x-3">
-                                                            <h4 className="font-medium">{job.id}</h4>
+                                                            {job.dependsOn && job.dependsOn.length > 0 && (
+                                                                <span className="text-gray-500 text-xs">└─</span>
+                                                            )}
+                                                            <div>
+                                                                <h4 className="font-medium text-white">{job.name || job.id}</h4>
+                                                                <p className="text-xs text-gray-400">UUID: {job.id}</p>
+                                                            </div>
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -488,7 +526,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                                                 <FileText className="h-4 w-4"/>
                                                             </button>
                                                         </div>
-                                                        <p className="text-sm text-gray-500">
+                                                        <p className="text-sm text-gray-300">
                                                             {job.command} {job.args?.join(' ') || ''}
                                                         </p>
                                                         {job.dependsOn && job.dependsOn.length > 0 && (
@@ -520,8 +558,8 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
 
                 {/* Timeline View */}
                 {viewMode === 'timeline' && (
-                    <WorkflowTimeline 
-                        jobs={workflow.jobs} 
+                    <WorkflowTimeline
+                        jobs={workflow.jobs}
                         onJobClick={handleViewJob}
                     />
                 )}
@@ -551,9 +589,10 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                             <div>
                                 <div className="mb-4 text-sm text-gray-600">
                                     <div><strong>Source:</strong> {yamlContent.note || 'Original workflow YAML'}</div>
-                                    <div><strong>Last Modified:</strong> {new Date(yamlContent.lastModified).toLocaleString()}</div>
+                                    <div><strong>Last
+                                        Modified:</strong> {new Date(yamlContent.lastModified).toLocaleString()}</div>
                                 </div>
-                                <div className="bg-gray-900 rounded-md p-4 overflow-auto max-h-96 border">
+                                <div className="bg-gray-900 rounded-md p-4 overflow-auto max-h-[70vh] border">
                                     <pre className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap">
                                         <code>{yamlContent.content}</code>
                                     </pre>
@@ -587,7 +626,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
             {selectedJobId && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
                     <div
-                        className="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+                        className="relative top-16 mx-auto p-5 border w-11/12 max-w-[90vw] min-h-[80vh] shadow-lg rounded-md bg-white dark:bg-gray-800">
                         <div className="flex items-center justify-between pb-3 border-b">
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                                 Job Details - {selectedJobId}
@@ -672,7 +711,7 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
 
                                     <div
                                         ref={logsContainerRef}
-                                        className="bg-black text-green-400 p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm"
+                                        className="bg-black text-green-400 p-4 rounded-lg h-[70vh] overflow-y-auto font-mono text-sm"
                                     >
                                         {/* Display real logs for started jobs, appropriate message for other job states */}
                                         {!selectedRnxJobId ? (
@@ -694,8 +733,14 @@ const WorkflowDetail: React.FC<WorkflowDetailProps> = ({
                                             </div>
                                         ) : (
                                             logs.map((log, index) => (
-                                                <div key={index} className="mb-1 whitespace-pre-wrap">
-                                                    {log}
+                                                <div key={index} className={`mb-1 whitespace-pre-wrap ${
+                                                    log.type === 'system' ? 'text-gray-400 opacity-80' :
+                                                        log.type === 'info' ? 'text-gray-200' :
+                                                            log.type === 'error' ? 'text-red-400' :
+                                                                log.type === 'connection' ? 'text-blue-400' :
+                                                                    'text-green-400'
+                                                }`}>
+                                                    {log.message}
                                                 </div>
                                             ))
                                         )}

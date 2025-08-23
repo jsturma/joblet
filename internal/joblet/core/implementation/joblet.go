@@ -89,6 +89,7 @@ func (j *JobletImplementation) StartJob(ctx context.Context, req interfaces.Star
 		Name:              req.Name,
 		Command:           req.Command,
 		Args:              req.Args,
+		Type:              req.JobType,     // Use job type from service layer
 		Limits:            *resourceLimits, // Use the built ResourceLimits directly
 		Status:            domain.StatusInitializing,
 		Network:           req.Network,

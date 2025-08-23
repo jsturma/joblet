@@ -38,6 +38,16 @@ type FakeBuildRequest struct {
 	getEnvironmentReturnsOnCall map[int]struct {
 		result1 map[string]string
 	}
+	GetJobTypeStub        func() domain.JobType
+	getJobTypeMutex       sync.RWMutex
+	getJobTypeArgsForCall []struct {
+	}
+	getJobTypeReturns struct {
+		result1 domain.JobType
+	}
+	getJobTypeReturnsOnCall map[int]struct {
+		result1 domain.JobType
+	}
 	GetLimitsStub        func() domain.ResourceLimits
 	getLimitsMutex       sync.RWMutex
 	getLimitsArgsForCall []struct {
@@ -248,6 +258,59 @@ func (fake *FakeBuildRequest) GetEnvironmentReturnsOnCall(i int, result1 map[str
 	}
 	fake.getEnvironmentReturnsOnCall[i] = struct {
 		result1 map[string]string
+	}{result1}
+}
+
+func (fake *FakeBuildRequest) GetJobType() domain.JobType {
+	fake.getJobTypeMutex.Lock()
+	ret, specificReturn := fake.getJobTypeReturnsOnCall[len(fake.getJobTypeArgsForCall)]
+	fake.getJobTypeArgsForCall = append(fake.getJobTypeArgsForCall, struct {
+	}{})
+	stub := fake.GetJobTypeStub
+	fakeReturns := fake.getJobTypeReturns
+	fake.recordInvocation("GetJobType", []interface{}{})
+	fake.getJobTypeMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeBuildRequest) GetJobTypeCallCount() int {
+	fake.getJobTypeMutex.RLock()
+	defer fake.getJobTypeMutex.RUnlock()
+	return len(fake.getJobTypeArgsForCall)
+}
+
+func (fake *FakeBuildRequest) GetJobTypeCalls(stub func() domain.JobType) {
+	fake.getJobTypeMutex.Lock()
+	defer fake.getJobTypeMutex.Unlock()
+	fake.GetJobTypeStub = stub
+}
+
+func (fake *FakeBuildRequest) GetJobTypeReturns(result1 domain.JobType) {
+	fake.getJobTypeMutex.Lock()
+	defer fake.getJobTypeMutex.Unlock()
+	fake.GetJobTypeStub = nil
+	fake.getJobTypeReturns = struct {
+		result1 domain.JobType
+	}{result1}
+}
+
+func (fake *FakeBuildRequest) GetJobTypeReturnsOnCall(i int, result1 domain.JobType) {
+	fake.getJobTypeMutex.Lock()
+	defer fake.getJobTypeMutex.Unlock()
+	fake.GetJobTypeStub = nil
+	if fake.getJobTypeReturnsOnCall == nil {
+		fake.getJobTypeReturnsOnCall = make(map[int]struct {
+			result1 domain.JobType
+		})
+	}
+	fake.getJobTypeReturnsOnCall[i] = struct {
+		result1 domain.JobType
 	}{result1}
 }
 

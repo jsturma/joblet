@@ -3,7 +3,7 @@ REMOTE_USER ?= jay
 REMOTE_DIR ?= /opt/joblet
 REMOTE_ARCH ?= amd64
 
-.PHONY: all clean rnx joblet admin-ui deploy config-generate config-remote-generate config-download config-view help setup-remote-passwordless setup-dev service-status live-log test-connection validate-user-namespaces setup-user-namespaces check-kernel-support setup-subuid-subgid test-user-namespace-isolation debug-user-namespaces test-user-namespace-job release release-clean
+.PHONY: all clean rnx joblet admin-ui deploy config-generate config-remote-generate config-download config-view help setup-remote-passwordless setup-dev service-status live-log test-connection validate-user-namespaces setup-user-namespaces check-kernel-support setup-subuid-subgid test-user-namespace-isolation debug-user-namespaces test-user-namespace-job release release-clean test test-unit test-visual test-automated
 
 all: rnx joblet admin-ui
 
@@ -39,6 +39,12 @@ help:
 	@echo "  make setup-user-namespaces     - Setup user namespace environment"
 	@echo "  make debug-user-namespaces     - Debug user namespace issues"
 	@echo "  make test-user-namespace-job   - Test job isolation"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test              - Run comprehensive test suite (unit + visual + automated)"
+	@echo "  make test-unit         - Run Go unit tests only"
+	@echo "  make test-visual       - Run visual feature tests only"
+	@echo "  make test-automated    - Run automated feature tests only"
 	@echo ""
 	@echo "Debugging:"
 	@echo "  make config-check-remote - Check config status on server"
@@ -106,6 +112,47 @@ clean:
 	rm -rf web/ui/dist/
 	rm -rf web/ui/node_modules/
 	rm -rf internal/rnx/admin/static/
+
+# Testing targets
+test: all deploy
+	@echo "🧪 Running comprehensive joblet test suite..."
+	@echo "Testing Go unit tests + all joblet features (2-step execution, namespaces, isolation, cgroups, logs, networking, filesystem, security boundaries)..."
+	@echo ""
+	@echo "📋 Phase 1: Unit Tests"
+	@go test ./... || (echo "❌ Unit tests failed" && exit 1)
+	@echo "✅ Unit tests passed"
+	@echo ""
+	@echo "📋 Phase 2: Visual Feature Tests"
+	@cd tests/e2e && SKIP_BUILD=true ./final_isolation_test.sh
+	@echo ""
+	@echo "📋 Phase 3: Comprehensive Automated Tests"
+	@cd tests/e2e && SKIP_BUILD=true ./test_joblet_principles.sh
+	@echo ""
+	@echo "🎉 Complete joblet test suite finished!"
+	@echo "   ✅ Unit tests: Go code validation"
+	@echo "   ✅ Feature tests: Visual verification of core isolation"
+	@echo "   ✅ Automated tests: Comprehensive feature validation"
+	@echo ""
+	@echo "💡 To run individual components:"
+	@echo "   go test ./...                              # Unit tests only"
+	@echo "   cd tests/e2e && ./final_isolation_test.sh  # Visual tests only"
+	@echo "   cd tests/e2e && ./test_joblet_principles.sh # Automated tests only"
+
+# Individual test components (for advanced users)
+test-unit:
+	@echo "🧪 Running unit tests only..."
+	@go test ./... || (echo "❌ Unit tests failed" && exit 1)
+	@echo "✅ Unit tests passed"
+
+test-visual: all deploy
+	@echo "👁️ Running visual feature tests only..."
+	@cd tests/e2e && SKIP_BUILD=true ./final_isolation_test.sh
+	@echo "✅ Visual tests completed"
+
+test-automated: all deploy
+	@echo "🤖 Running automated feature tests only..."
+	@cd tests/e2e && SKIP_BUILD=true ./test_joblet_principles.sh
+	@echo "✅ Automated tests completed"
 
 config-generate:
 	@echo "🔐 Generating local configuration with embedded certificates..."

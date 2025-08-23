@@ -3,16 +3,24 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"joblet/internal/rnx/common"
+	"joblet/pkg/client"
+	"net/http"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
 	pb "joblet/api/gen"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/status"
 )
 
 func NewRuntimeCmd() *cobra.Command {
@@ -21,38 +29,75 @@ func NewRuntimeCmd() *cobra.Command {
 		Short: "Manage pre-built runtime environments",
 		Long: `Manage pre-built runtime environments for fast job execution.
 
-Runtimes provide pre-installed language environments and packages that can be
-mounted into jobs, eliminating the need to install dependencies on every job run.
+Runtimes provide pre-installed environments and services that can be mounted into jobs,
+eliminating the need to install dependencies on every job run. Runtimes can include
+programming languages, databases, message queues, web servers, or any other services.
 
 Examples:
   # List available runtimes
   rnx runtime list
   
-  # Get information about a specific runtime
-  rnx runtime info python:3.11+ml
+  # Install from local codebase
+  rnx runtime install openjdk-21
+  
+  # Install from GitHub repository
+  rnx runtime install openjdk-21 --github-repo=owner/repo/tree/main/runtimes
+  
+  # Get information about a specific runtime (language, database, etc.)
+  rnx runtime info openjdk-21
+  rnx runtime info redis-7.0
   
   # Test a runtime
-  rnx runtime test java:17`,
+  rnx runtime test openjdk-21
+  
+  # Remove a runtime
+  rnx runtime remove python-3.11-ml`,
 	}
 
 	cmd.AddCommand(NewRuntimeListCmd())
 	cmd.AddCommand(NewRuntimeInfoCmd())
 	cmd.AddCommand(NewRuntimeTestCmd())
+	cmd.AddCommand(NewRuntimeInstallCmd())
+	cmd.AddCommand(NewRuntimeBuildCmd())
+	cmd.AddCommand(NewRuntimeStatusCmd())
+	cmd.AddCommand(NewRuntimeBuildsCmd())
+	cmd.AddCommand(NewRuntimeValidateCmd())
+	cmd.AddCommand(NewRuntimeRemoveCmd())
 
 	return cmd
 }
 
 func NewRuntimeListCmd() *cobra.Command {
-	return &cobra.Command{
+	var githubRepo string
+
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available runtimes",
-		Long:  `List all available runtime environments that can be used with the --runtime flag.`,
-		RunE:  runRuntimeList,
+		Long: `List all available runtime environments that can be used with the --runtime flag.
+
+Examples:
+  # List locally installed runtimes
+  rnx runtime list
+  
+  # List available runtimes from a GitHub repository
+  rnx runtime list --github-repo=owner/repo/tree/main/runtimes`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRuntimeList(cmd, args, githubRepo)
+		},
 	}
+
+	cmd.Flags().StringVar(&githubRepo, "github-repo", "", "List runtimes from GitHub repository instead of local files. Supports formats: owner/repo, owner/repo/tree/branch/path")
+
+	return cmd
 }
 
-func runRuntimeList(cmd *cobra.Command, args []string) error {
-	// Create client and connect to server
+func runRuntimeList(cmd *cobra.Command, args []string, githubRepo string) error {
+	// If github-repo flag is provided, list runtimes from GitHub manifest
+	if githubRepo != "" {
+		return runGitHubRuntimeList(githubRepo)
+	}
+
+	// Create client and connect to server for local runtimes
 	client, err := common.NewJobClient()
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
@@ -90,8 +135,8 @@ func runRuntimeList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(w, "-------\t-------\t----\t-----------")
 
 	for _, rt := range runtimes {
-		// Format runtime identifier
-		runtimeID := fmt.Sprintf("%s:%s", rt.Language, strings.TrimPrefix(rt.Name, rt.Language+"-"))
+		// Use runtime name directly (aligned with builder-runtime-final.md design)
+		runtimeID := rt.Name
 
 		// Format size
 		sizeStr := formatSize(rt.SizeBytes)
@@ -153,6 +198,11 @@ func runRuntimeInfo(cmd *cobra.Command, args []string) error {
 
 	rt := resp.Runtime
 
+	// Check if JSON output is requested
+	if common.JSONOutput {
+		return outputRuntimeInfoJSON(rt, runtimeSpec)
+	}
+
 	// Display runtime information
 	fmt.Printf("Runtime: %s\n", rt.Name)
 	fmt.Printf("Version: %s\n", rt.Version)
@@ -180,6 +230,40 @@ func runRuntimeInfo(cmd *cobra.Command, args []string) error {
 	fmt.Println("\nUsage:")
 	fmt.Printf("  rnx run --runtime=%s <command>\n", runtimeSpec)
 
+	return nil
+}
+
+func outputRuntimeInfoJSON(rt *pb.RuntimeInfo, runtimeSpec string) error {
+	// Create JSON output structure
+	output := map[string]interface{}{
+		"name":        rt.Name,
+		"version":     rt.Version,
+		"description": rt.Description,
+		"packages":    rt.Packages,
+		"usage":       fmt.Sprintf("rnx run --runtime=%s <command>", runtimeSpec),
+	}
+
+	// Add requirements if they exist
+	if rt.Requirements != nil {
+		requirements := make(map[string]interface{})
+		if rt.Requirements.Gpu {
+			requirements["gpu"] = true
+		}
+		if len(rt.Requirements.Architectures) > 0 {
+			requirements["architectures"] = rt.Requirements.Architectures
+		}
+		if len(requirements) > 0 {
+			output["requirements"] = requirements
+		}
+	}
+
+	// Marshal and print JSON
+	jsonData, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	fmt.Println(string(jsonData))
 	return nil
 }
 
@@ -229,31 +313,9 @@ func runRuntimeTest(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("runtime test failed")
 	}
 
-	// Parse runtime spec to determine test command suggestion
-	var language string
-	if strings.Contains(runtimeSpec, ":") {
-		parts := strings.Split(runtimeSpec, ":")
-		language = parts[0]
-	} else if strings.Contains(runtimeSpec, "-") {
-		parts := strings.Split(runtimeSpec, "-")
-		language = parts[0]
-	} else {
-		language = runtimeSpec
-	}
-
-	var testCmd string
-	switch language {
-	case "python":
-		testCmd = "python --version"
-	case "java":
-		testCmd = "java -version"
-	case "node":
-		testCmd = "node --version"
-	case "go":
-		testCmd = "go version"
-	default:
-		testCmd = "echo 'Hello from runtime'"
-	}
+	// Use runtime.yml defined test command instead of hardcoded language-specific commands
+	testCmd := "echo 'Runtime available'" // Generic fallback
+	// TODO: Read test_command from runtime.yml when implementing generic approach
 
 	fmt.Printf("\nTo test the runtime in a job:\n")
 	fmt.Printf("  rnx run --runtime=%s %s\n", runtimeSpec, testCmd)
@@ -278,8 +340,8 @@ func outputRuntimesJSON(runtimes []*pb.RuntimeInfo) error {
 
 	jsonRuntimes := make([]jsonRuntime, len(runtimes))
 	for i, rt := range runtimes {
-		// Format runtime identifier
-		runtimeID := fmt.Sprintf("%s:%s", rt.Language, strings.TrimPrefix(rt.Name, rt.Language+"-"))
+		// Use runtime name directly (aligned with builder-runtime-final.md design)
+		runtimeID := rt.Name
 
 		jsonRuntimes[i] = jsonRuntime{
 			ID:          runtimeID,
@@ -316,4 +378,995 @@ func formatSize(bytes int64) string {
 	default:
 		return fmt.Sprintf("%dB", bytes)
 	}
+}
+
+func NewRuntimeInstallCmd() *cobra.Command {
+	var force bool
+	var githubRepo string
+
+	cmd := &cobra.Command{
+		Use:   "install <runtime-spec>",
+		Short: "Install a runtime environment from local codebase or GitHub",
+		Long: `Install a runtime environment from the local /runtimes directory
+or from a GitHub repository and execute it in a secure builder chroot environment.
+
+The runtime can be installed from:
+  - Local codebase: runtimes/<runtime-name>/
+  - GitHub repository: using --github-repo flag
+
+Examples:
+  # Install from local codebase
+  rnx runtime install openjdk-21
+  
+  # Install from GitHub repository
+  rnx runtime install openjdk-21 --github-repo=ehsaniara/joblet/tree/main/runtimes
+  
+  # Install Python 3.11 ML runtime  
+  rnx runtime install python-3.11-ml
+  
+  # Force reinstall existing runtime
+  rnx runtime install openjdk-21 --force`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRuntimeInstall(cmd, args[0], force, githubRepo)
+		},
+	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force reinstall if runtime already exists")
+	cmd.Flags().StringVar(&githubRepo, "github-repo", "", "Install from GitHub repository instead of local files. Supports formats: owner/repo, owner/repo/tree/branch/path")
+
+	return cmd
+}
+
+func runRuntimeInstall(cmd *cobra.Command, runtimeSpec string, force bool, githubRepo string) error {
+	ctx := cmd.Context()
+
+	fmt.Printf("🏗️  Installing runtime: %s\n", runtimeSpec)
+
+	// Create client and connect to server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	// If github-repo flag is provided, install from GitHub
+	if githubRepo != "" {
+		fmt.Printf("📦 Installing from GitHub repository: %s\n", githubRepo)
+		return runGitHubRuntimeInstall(ctx, client, runtimeSpec, githubRepo, force)
+	}
+
+	// Check for local runtime scripts on client machine
+	localPath := findLocalRuntime(runtimeSpec)
+	if localPath != "" {
+		fmt.Printf("📁 Found local runtime: %s\n", localPath)
+		fmt.Printf("📦 Starting local runtime installation with real-time logs...\n\n")
+
+		// Upload and install with streaming
+		return runStreamingLocalRuntimeInstall(ctx, client, runtimeSpec, localPath, force)
+	} else {
+		// Parse runtime spec for error message
+		var expectedDir string
+		parts := strings.SplitN(runtimeSpec, ":", 2)
+		if len(parts) == 2 {
+			expectedDir = fmt.Sprintf("%s-%s", parts[0], parts[1])
+		} else {
+			expectedDir = runtimeSpec
+		}
+		return fmt.Errorf("runtime '%s' not found in local codebase. Runtime must be present in runtimes/%s/ or use --github-repo flag to install from GitHub", runtimeSpec, expectedDir)
+	}
+}
+
+// New runtime building commands
+
+func NewRuntimeBuildCmd() *cobra.Command {
+	var repository, branch, path string
+	var force bool
+
+	cmd := &cobra.Command{
+		Use:   "build <runtime-spec>",
+		Short: "Build a runtime from a custom source",
+		Long: `Build a runtime environment from a custom source configuration.
+This provides more control than the install command, allowing you to specify
+custom repositories, branches, or even local scripts.
+
+Examples:
+  # Build from default repository
+  rnx runtime build python-3.11-ml
+  
+  # Build from custom repository
+  rnx runtime build openjdk-21 --repository=myorg/custom-runtimes
+  
+  # Build from specific branch
+  rnx runtime build python-3.11-ml --repository=myorg/runtimes --branch=experimental`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRuntimeBuild(cmd, args[0], repository, branch, path, force)
+		},
+	}
+
+	cmd.Flags().StringVar(&repository, "repository", "", "GitHub repository (default: joblet-org/runtimes)")
+	cmd.Flags().StringVar(&branch, "branch", "", "Repository branch (default: main)")
+	cmd.Flags().StringVar(&path, "path", "", "Path within repository (auto-detected if not specified)")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force rebuild if runtime already exists")
+
+	return cmd
+}
+
+func runRuntimeBuild(cmd *cobra.Command, runtimeSpec, repository, branch, path string, force bool) error {
+	ctx := cmd.Context()
+
+	fmt.Printf("🏗️  Building runtime: %s\n", runtimeSpec)
+
+	// Create client and connect to server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	// Check for local runtime scripts first
+	localRuntimePath := filepath.Join("runtimes", runtimeSpec)
+	setupScriptPath := filepath.Join(localRuntimePath, "setup.sh")
+
+	if _, err := os.Stat(setupScriptPath); err == nil {
+		fmt.Printf("📦 Found local runtime at: %s\n", localRuntimePath)
+		return runLocalRuntimeBuild(ctx, client, runtimeSpec, localRuntimePath, force)
+	}
+
+	// If no local runtime and no custom repository specified, error out
+	if repository == "" {
+		return fmt.Errorf("no local runtime found at %s and no repository specified", localRuntimePath)
+	}
+
+	fmt.Printf("📦 No local runtime found, using GitHub repository %s\n", repository)
+
+	// Create build request with GitHub source (only if repository is explicitly specified)
+	req := &pb.BuildRuntimeRequest{
+		RuntimeSpec:  runtimeSpec,
+		Name:         fmt.Sprintf("Build %s", runtimeSpec),
+		ForceRebuild: force,
+		Source: &pb.RuntimeSourceConfig{
+			SourceType: &pb.RuntimeSourceConfig_Github{
+				Github: &pb.GithubSource{
+					Repository: repository,
+					Branch:     branch,
+					Path:       path,
+				},
+			},
+		},
+	}
+
+	resp, err := client.BuildRuntime(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to start runtime build: %w", err)
+	}
+
+	fmt.Printf("✅ Runtime build started\n")
+	fmt.Printf("🔧 Build Job: %s\n", resp.BuildJobUuid)
+	fmt.Printf("📊 Status: %s\n", resp.Status)
+
+	if resp.Message != "" {
+		fmt.Printf("💬 Message: %s\n", resp.Message)
+	}
+
+	fmt.Printf("\n💡 Monitor progress with:\n")
+	fmt.Printf("  rnx log %s                # View build logs\n", resp.BuildJobUuid)
+	fmt.Printf("  rnx runtime status %s     # Check build status\n", resp.BuildJobUuid)
+
+	return nil
+}
+
+func runLocalRuntimeBuild(ctx context.Context, client *client.JobClient, runtimeSpec, localRuntimePath string, force bool) error {
+	// Upload all files from the local runtime directory
+	fmt.Printf("📤 Uploading local runtime scripts...\n")
+
+	// Collect runtime files
+	files := make([]*pb.RuntimeFile, 0)
+
+	// Walk through the runtime directory and collect all files
+	err := filepath.Walk(localRuntimePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			// Read file content
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", path, err)
+			}
+
+			// Get relative path from runtime directory
+			relPath, err := filepath.Rel(localRuntimePath, path)
+			if err != nil {
+				return fmt.Errorf("failed to get relative path for %s: %w", path, err)
+			}
+
+			// Create runtime file
+			files = append(files, &pb.RuntimeFile{
+				Path:       relPath,
+				Content:    content,
+				Executable: strings.HasSuffix(relPath, ".sh"),
+			})
+
+			fmt.Printf("📄 Added file: %s\n", relPath)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to collect runtime files: %w", err)
+	}
+
+	if len(files) == 0 {
+		return fmt.Errorf("no files found in runtime directory: %s", localRuntimePath)
+	}
+
+	fmt.Printf("📦 Collected %d files for upload\n", len(files))
+
+	// Create install runtime from local request
+	req := &pb.InstallRuntimeFromLocalRequest{
+		RuntimeSpec:    runtimeSpec,
+		Files:          files,
+		ForceReinstall: force,
+	}
+
+	resp, err := client.InstallRuntimeFromLocal(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to start local runtime installation: %w", err)
+	}
+
+	fmt.Printf("✅ Runtime installation started\n")
+	fmt.Printf("📊 Status: %s\n", resp.Status)
+	fmt.Printf("💬 Message: %s\n", resp.Message)
+
+	return nil
+}
+
+func NewRuntimeStatusCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "status <build-job-uuid>",
+		Short: "Check the status of a runtime build",
+		Long:  `Display the current status and progress of a runtime build job.`,
+		Args:  cobra.ExactArgs(1),
+		RunE:  runRuntimeStatus,
+	}
+}
+
+func runRuntimeStatus(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	buildJobUUID := args[0]
+
+	// Create client and connect to server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	req := &pb.GetBuildStatusRequest{
+		BuildJobUuid: buildJobUUID,
+	}
+
+	resp, err := client.GetBuildStatus(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to get build status: %w", err)
+	}
+
+	// Display build status
+	fmt.Printf("Build Job: %s\n", resp.BuildJobUuid)
+	fmt.Printf("Runtime: %s\n", resp.RuntimeSpec)
+	fmt.Printf("Status: %s\n", resp.Status)
+	fmt.Printf("Message: %s\n", resp.Message)
+
+	if resp.StartTime != "" {
+		fmt.Printf("Started: %s\n", resp.StartTime)
+	}
+
+	if resp.EndTime != "" && resp.EndTime != "0001-01-01T00:00:00Z" {
+		fmt.Printf("Ended: %s\n", resp.EndTime)
+	}
+
+	if resp.ExitCode != 0 && (resp.Status == "completed" || resp.Status == "failed") {
+		fmt.Printf("Exit Code: %d\n", resp.ExitCode)
+	}
+
+	// Display progress if available
+	if resp.Progress != nil && resp.Progress.TotalSteps > 0 {
+		fmt.Printf("\nProgress:\n")
+		fmt.Printf("  Step %d of %d: %s\n", resp.Progress.StepNumber, resp.Progress.TotalSteps, resp.Progress.CurrentStep)
+		if resp.Progress.PercentComplete > 0 {
+			fmt.Printf("  Progress: %.1f%%\n", resp.Progress.PercentComplete)
+		}
+
+		if len(resp.Progress.CompletedSteps) > 0 {
+			fmt.Printf("  Completed steps:\n")
+			for _, step := range resp.Progress.CompletedSteps {
+				fmt.Printf("    ✅ %s\n", step)
+			}
+		}
+	}
+
+	return nil
+}
+
+func NewRuntimeBuildsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "builds",
+		Short: "List all runtime build jobs",
+		Long:  `List all runtime build jobs with their current status.`,
+		RunE:  runRuntimeBuilds,
+	}
+}
+
+func runRuntimeBuilds(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	// Create client and connect to server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	resp, err := client.ListBuildJobs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list build jobs: %w", err)
+	}
+
+	if len(resp.BuildJobs) == 0 {
+		fmt.Println("No runtime build jobs found.")
+		return nil
+	}
+
+	// Display builds in a table
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "BUILD JOB\tRUNTIME\tSTATUS\tSTARTED\tENDED")
+	fmt.Fprintln(w, "---------\t-------\t------\t-------\t-----")
+
+	for _, build := range resp.BuildJobs {
+		endTime := build.EndTime
+		if endTime == "0001-01-01T00:00:00Z" {
+			endTime = "-"
+		} else if len(endTime) > 19 {
+			endTime = endTime[:19] // Truncate to YYYY-MM-DDTHH:MM:SS
+		}
+
+		startTime := build.StartTime
+		if len(startTime) > 19 {
+			startTime = startTime[:19] // Truncate to YYYY-MM-DDTHH:MM:SS
+		}
+
+		jobUUID := build.BuildJobUuid
+		if len(jobUUID) > 8 {
+			jobUUID = jobUUID[:8] + "..." // Truncate for table display
+		}
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			jobUUID,
+			build.RuntimeSpec,
+			build.Status,
+			startTime,
+			endTime,
+		)
+	}
+
+	w.Flush()
+
+	fmt.Printf("\nTotal: %d runtime build jobs\n", len(resp.BuildJobs))
+	fmt.Printf("Use 'rnx runtime status <build-job-uuid>' for detailed status\n")
+
+	return nil
+}
+
+func NewRuntimeValidateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "validate <runtime-spec>",
+		Short: "Validate a runtime specification",
+		Long: `Validate a runtime specification format and check if it's supported.
+
+Examples:
+  # Validate basic spec
+  rnx runtime validate python-3.11-ml
+  
+  # Validate spec with variants
+  rnx runtime validate python-3.11-ml
+  
+  # Validate spec with architecture
+  rnx runtime validate openjdk-21`,
+		Args: cobra.ExactArgs(1),
+		RunE: runRuntimeValidate,
+	}
+}
+
+func runRuntimeValidate(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	runtimeSpec := args[0]
+
+	// Create client and connect to server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	req := &pb.ValidateRuntimeSpecRequest{
+		RuntimeSpec: runtimeSpec,
+	}
+
+	resp, err := client.ValidateRuntimeSpec(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to validate runtime spec: %w", err)
+	}
+
+	if resp.Valid {
+		fmt.Printf("✅ Runtime specification is valid\n")
+		fmt.Printf("Original: %s\n", runtimeSpec)
+		fmt.Printf("Normalized: %s\n", resp.NormalizedSpec)
+
+		if resp.SpecInfo != nil {
+			fmt.Printf("\nParsed Information:\n")
+			fmt.Printf("  Language: %s\n", resp.SpecInfo.Language)
+			fmt.Printf("  Version: %s\n", resp.SpecInfo.Version)
+
+			if len(resp.SpecInfo.Variants) > 0 {
+				fmt.Printf("  Variants: %s\n", strings.Join(resp.SpecInfo.Variants, ", "))
+			}
+
+			fmt.Printf("  Architecture: %s\n", resp.SpecInfo.Architecture)
+		}
+	} else {
+		fmt.Printf("❌ Runtime specification is invalid\n")
+		fmt.Printf("Error: %s\n", resp.Message)
+		return fmt.Errorf("invalid runtime specification")
+	}
+
+	return nil
+}
+
+func NewRuntimeRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <runtime>",
+		Short: "Remove a runtime environment",
+		Long: `Remove an installed runtime environment and clean up its files.
+
+Examples:
+  # Remove Java 21 runtime
+  rnx runtime remove openjdk-21
+  
+  # Remove Python 3.11 ML runtime  
+  rnx runtime remove python-3.11-ml`,
+		Args: cobra.ExactArgs(1),
+		RunE: runRuntimeRemove,
+	}
+}
+
+func runRuntimeRemove(cmd *cobra.Command, args []string) error {
+	runtimeSpec := args[0]
+
+	fmt.Printf("🗑️  Removing runtime: %s\n", runtimeSpec)
+
+	// Create client and connect to server
+	client, err := common.NewJobClient()
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	// Remove runtime via gRPC
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req := &pb.RuntimeRemoveReq{Runtime: runtimeSpec}
+	resp, err := client.RemoveRuntime(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to remove runtime: %w", err)
+	}
+
+	if resp.Success {
+		fmt.Printf("✅ Runtime removed successfully\n")
+		if resp.Message != "" {
+			fmt.Printf("Message: %s\n", resp.Message)
+		}
+		if resp.FreedSpaceBytes > 0 {
+			fmt.Printf("Freed space: %s\n", formatSize(resp.FreedSpaceBytes))
+		}
+	} else {
+		fmt.Printf("❌ Failed to remove runtime\n")
+		if resp.Message != "" {
+			fmt.Printf("Error: %s\n", resp.Message)
+		}
+		return fmt.Errorf("runtime removal failed")
+	}
+
+	return nil
+}
+
+// runGitHubRuntimeInstall installs runtime from GitHub repository
+func runGitHubRuntimeList(githubRepo string) error {
+	// Parse GitHub repository URL
+	repository, branch, path, err := parseGitHubRepo(githubRepo)
+	if err != nil {
+		return fmt.Errorf("failed to parse GitHub repository: %w", err)
+	}
+
+	fmt.Printf("📦 Fetching runtime manifest from GitHub repository: %s\n", githubRepo)
+	fmt.Printf("📋 Repository: %s\n", repository)
+	fmt.Printf("📋 Branch: %s\n", branch)
+	fmt.Printf("📋 Path: %s\n", path)
+	fmt.Println()
+
+	// Construct manifest URL
+	manifestURL := fmt.Sprintf("https://github.com/%s/raw/%s/%s/runtime-manifest.json", repository, branch, path)
+	fmt.Printf("🔍 Downloading manifest from: %s\n", manifestURL)
+
+	// Download and parse manifest
+	manifest, err := fetchGitHubManifest(manifestURL)
+	if err != nil {
+		fmt.Printf("❌ Failed to fetch runtime manifest: %v\n", err)
+		fmt.Println()
+		fmt.Println("This repository may not support the new manifest-based runtime system.")
+		fmt.Printf("Repository maintainers: Please create a runtime-manifest.json file at: %s\n", manifestURL)
+		return fmt.Errorf("failed to fetch runtime manifest")
+	}
+
+	fmt.Printf("✅ Successfully fetched manifest (version %s)\n", manifest.Version)
+	fmt.Printf("📅 Generated: %s\n", manifest.Generated)
+	fmt.Println()
+
+	// Display available runtimes
+	runtimes := manifest.Runtimes
+	if len(runtimes) == 0 {
+		if common.JSONOutput {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No runtimes available in this repository.")
+		}
+		return nil
+	}
+
+	if common.JSONOutput {
+		return outputManifestRuntimesJSON(runtimes)
+	}
+
+	// Display runtimes in a table
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "RUNTIME\tVERSION\tLANGUAGE\tPLATFORMS\tDESCRIPTION")
+	fmt.Fprintln(w, "-------\t-------\t--------\t---------\t-----------")
+
+	for name, rt := range runtimes {
+		// Count supported platforms
+		platformCount := 0
+		for _, platform := range rt.Platforms {
+			if platform.Supported {
+				platformCount++
+			}
+		}
+		platformStr := fmt.Sprintf("%d platforms", platformCount)
+
+		// Truncate description if too long
+		desc := rt.Description
+		if len(desc) > 40 {
+			desc = desc[:37] + "..."
+		}
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			name,
+			rt.Version,
+			rt.Language,
+			platformStr,
+			desc,
+		)
+	}
+
+	w.Flush()
+	fmt.Printf("\nFound %d runtime(s) in repository %s\n", len(runtimes), repository)
+	fmt.Printf("\nInstall with: rnx runtime install <runtime-name> --github-repo=%s\n", githubRepo)
+	fmt.Printf("Get details with: rnx runtime info <runtime-name> --github-repo=%s\n", githubRepo)
+
+	return nil
+}
+
+// GitHubManifest represents the runtime manifest structure
+type GitHubManifest struct {
+	Version    string                     `json:"version"`
+	Generated  string                     `json:"generated"`
+	Repository string                     `json:"repository"`
+	BaseURL    string                     `json:"base_url"`
+	Runtimes   map[string]ManifestRuntime `json:"runtimes"`
+}
+
+type ManifestRuntime struct {
+	Name          string                      `json:"name"`
+	DisplayName   string                      `json:"display_name"`
+	Version       string                      `json:"version"`
+	Description   string                      `json:"description"`
+	Category      string                      `json:"category"`
+	Language      string                      `json:"language"`
+	Platforms     map[string]ManifestPlatform `json:"platforms"`
+	Requirements  ManifestRequirements        `json:"requirements"`
+	Provides      ManifestProvides            `json:"provides"`
+	Documentation ManifestDocumentation       `json:"documentation"`
+	Tags          []string                    `json:"tags"`
+}
+
+type ManifestPlatform struct {
+	Supported   bool   `json:"supported"`
+	ArchiveURL  string `json:"archive_url"`
+	ArchiveSize int64  `json:"archive_size"`
+	Checksum    string `json:"checksum"`
+}
+
+type ManifestRequirements struct {
+	MinRAM      int  `json:"min_ram_mb"`
+	MinDisk     int  `json:"min_disk_mb"`
+	GPURequired bool `json:"gpu_required"`
+}
+
+type ManifestProvides struct {
+	Executables     []string          `json:"executables"`
+	Libraries       []string          `json:"libraries"`
+	EnvironmentVars map[string]string `json:"environment_vars"`
+}
+
+type ManifestDocumentation struct {
+	Usage    string   `json:"usage"`
+	Examples []string `json:"examples"`
+}
+
+// fetchGitHubManifest downloads and parses the runtime manifest from GitHub
+func fetchGitHubManifest(manifestURL string) (*GitHubManifest, error) {
+	resp, err := http.Get(manifestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download manifest: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to download manifest: HTTP %d", resp.StatusCode)
+	}
+
+	var manifest GitHubManifest
+	if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
+		return nil, fmt.Errorf("failed to parse manifest JSON: %w", err)
+	}
+
+	return &manifest, nil
+}
+
+// outputManifestRuntimesJSON outputs manifest runtimes in JSON format
+func outputManifestRuntimesJSON(runtimes map[string]ManifestRuntime) error {
+	// Convert to slice format for consistent JSON output
+	var runtimeList []map[string]interface{}
+
+	for name, rt := range runtimes {
+		runtimeInfo := map[string]interface{}{
+			"name":          name,
+			"display_name":  rt.DisplayName,
+			"version":       rt.Version,
+			"description":   rt.Description,
+			"category":      rt.Category,
+			"language":      rt.Language,
+			"platforms":     rt.Platforms,
+			"requirements":  rt.Requirements,
+			"provides":      rt.Provides,
+			"documentation": rt.Documentation,
+			"tags":          rt.Tags,
+		}
+		runtimeList = append(runtimeList, runtimeInfo)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(runtimeList)
+}
+
+func runGitHubRuntimeInstall(ctx context.Context, client *client.JobClient, runtimeSpec, githubRepo string, force bool) error {
+	// Parse GitHub repository URL
+	repository, branch, path, err := parseGitHubRepo(githubRepo)
+	if err != nil {
+		return fmt.Errorf("failed to parse GitHub repository: %w", err)
+	}
+
+	fmt.Printf("📋 Repository: %s\n", repository)
+	fmt.Printf("📋 Branch: %s\n", branch)
+	fmt.Printf("📋 Path: %s\n", path)
+	fmt.Printf("📦 Starting GitHub runtime installation...\n\n")
+
+	// Create build request with GitHub source
+	req := &pb.BuildRuntimeRequest{
+		RuntimeSpec:  runtimeSpec,
+		Name:         fmt.Sprintf("Install %s from GitHub", runtimeSpec),
+		ForceRebuild: force,
+		Source: &pb.RuntimeSourceConfig{
+			SourceType: &pb.RuntimeSourceConfig_Github{
+				Github: &pb.GithubSource{
+					Repository: repository,
+					Branch:     branch,
+					Path:       path,
+				},
+			},
+		},
+	}
+
+	resp, err := client.BuildRuntime(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to start GitHub runtime installation: %w", err)
+	}
+
+	fmt.Printf("✅ GitHub runtime installation started\n")
+	fmt.Printf("🔧 Build Job: %s\n", resp.BuildJobUuid)
+	fmt.Printf("📊 Status: %s\n", resp.Status)
+
+	if resp.Message != "" {
+		fmt.Printf("💬 Message: %s\n", resp.Message)
+	}
+
+	fmt.Printf("📦 Starting real-time log streaming...\n\n")
+
+	// Stream build logs automatically for consistent UX
+	return streamBuildLogs(ctx, client, resp.BuildJobUuid)
+}
+
+// parseGitHubRepo parses GitHub repository URL in various formats
+// Examples:
+//   - "owner/repo/tree/branch/path" -> ("owner/repo", "branch", "path")
+//   - "owner/repo/tree/main/runtimes" -> ("owner/repo", "main", "runtimes")
+//   - "owner/repo" -> ("owner/repo", "main", "")
+func parseGitHubRepo(githubRepo string) (repository, branch, path string, err error) {
+	if githubRepo == "" {
+		return "", "", "", fmt.Errorf("GitHub repository URL cannot be empty")
+	}
+
+	// Handle different GitHub URL formats
+	parts := strings.Split(githubRepo, "/")
+
+	// Minimum format: owner/repo
+	if len(parts) < 2 {
+		return "", "", "", fmt.Errorf("invalid GitHub repository format. Expected: owner/repo or owner/repo/tree/branch/path")
+	}
+
+	repository = fmt.Sprintf("%s/%s", parts[0], parts[1])
+	branch = "main" // default branch
+	path = ""
+
+	// If more parts exist, parse tree/branch/path structure
+	if len(parts) > 2 {
+		if len(parts) >= 4 && parts[2] == "tree" {
+			// Format: owner/repo/tree/branch[/path...]
+			branch = parts[3]
+			if len(parts) > 4 {
+				path = strings.Join(parts[4:], "/")
+			}
+		} else {
+			// Format: owner/repo/path... (assume main branch)
+			path = strings.Join(parts[2:], "/")
+		}
+	}
+
+	return repository, branch, path, nil
+}
+
+// streamBuildLogs streams build logs automatically for consistent UX with local installations
+func streamBuildLogs(ctx context.Context, client *client.JobClient, buildJobUUID string) error {
+	// Set up signal handling for Ctrl+C
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		fmt.Println("\nReceived termination signal. Closing log stream...")
+		cancel()
+	}()
+
+	// Stream build logs
+	stream, err := client.GetJobLogs(ctx, buildJobUUID)
+	if err != nil {
+		return fmt.Errorf("failed to start log stream: %v", err)
+	}
+
+	for {
+		chunk, e := stream.Recv()
+		if e == io.EOF {
+			// Build completed successfully
+			fmt.Printf("\n✅ GitHub runtime installation completed successfully!\n")
+			return nil
+		}
+		if e != nil {
+			if errors.Is(ctx.Err(), context.Canceled) {
+				// This is an expected error due to our cancellation
+				return nil
+			}
+
+			if s, ok := status.FromError(e); ok {
+				return fmt.Errorf("log stream error: %v", s.Message())
+			}
+
+			return fmt.Errorf("error receiving log stream: %v", e)
+		}
+
+		// Output the log chunk (same as local streaming)
+		if common.JSONOutput {
+			logEntry := map[string]interface{}{
+				"timestamp": time.Now().Format(time.RFC3339),
+				"data":      string(chunk.Payload),
+			}
+			encoder := json.NewEncoder(os.Stdout)
+			if err := encoder.Encode(logEntry); err != nil {
+				return fmt.Errorf("failed to output JSON: %v", err)
+			}
+		} else {
+			fmt.Printf("%s", chunk.Payload)
+		}
+	}
+}
+
+// findProjectRoot finds the project root directory by looking for go.mod file
+func findProjectRoot() (string, error) {
+	// Start from current directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	// Walk up the directory tree looking for go.mod
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root directory without finding go.mod
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("go.mod not found in directory tree")
+}
+
+// findLocalRuntime searches for runtime scripts only in the local codebase /runtimes directory
+func findLocalRuntime(runtimeSpec string) string {
+	// Parse runtime spec (e.g., "python:3.11-ml" -> "python-3.11-ml", or "openjdk-21" -> "openjdk-21")
+	var runtimeDir string
+	parts := strings.SplitN(runtimeSpec, ":", 2)
+	if len(parts) == 2 {
+		// Format: "python:3.11-ml" -> "python-3.11-ml"
+		runtimeDir = fmt.Sprintf("%s-%s", parts[0], parts[1])
+	} else {
+		// Format: "openjdk-21" -> "openjdk-21" (use as-is)
+		runtimeDir = runtimeSpec
+	}
+
+	// Find project root by looking for go.mod file
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		return ""
+	}
+
+	// Check local codebase runtimes directory from project root
+	path := filepath.Join(projectRoot, "runtimes", runtimeDir)
+
+	// Check if directory exists
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		// Check for common setup script names
+		setupScripts := []string{"setup.sh", "install.sh"}
+		for _, script := range setupScripts {
+			scriptPath := filepath.Join(path, script)
+			if _, err := os.Stat(scriptPath); err == nil {
+				return path
+			}
+		}
+		// Also check for pattern-based scripts
+		matches, _ := filepath.Glob(filepath.Join(path, "setup_*.sh"))
+		if len(matches) > 0 {
+			return path
+		}
+	}
+
+	return ""
+}
+
+// readRuntimeFiles reads all files from the local runtime directory
+func readRuntimeFiles(localPath string) ([]*pb.RuntimeFile, error) {
+	var files []*pb.RuntimeFile
+
+	err := filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories and hidden files
+		if info.IsDir() || strings.HasPrefix(info.Name(), ".") {
+			return nil
+		}
+
+		// Read file content
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", path, err)
+		}
+
+		// Get relative path from runtime directory
+		relPath, err := filepath.Rel(localPath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %w", err)
+		}
+
+		files = append(files, &pb.RuntimeFile{
+			Path:       relPath,
+			Content:    content,
+			Executable: info.Mode()&0111 != 0, // Check if file is executable
+		})
+
+		return nil
+	})
+
+	return files, err
+}
+
+// runStreamingLocalRuntimeInstall installs runtime from local files with streaming logs
+func runStreamingLocalRuntimeInstall(ctx context.Context, client *client.JobClient, runtimeSpec, localPath string, force bool) error {
+	// Upload all files from the local runtime directory
+	files, err := readRuntimeFiles(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to read local runtime files: %w", err)
+	}
+
+	fmt.Printf("📤 Uploading %d runtime files...\n", len(files))
+
+	// Send streaming installation request with uploaded files
+	req := &pb.InstallRuntimeFromLocalRequest{
+		RuntimeSpec:    runtimeSpec,
+		Files:          files,
+		ForceReinstall: force,
+	}
+
+	stream, err := client.StreamingInstallRuntimeFromLocal(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to start streaming local runtime installation: %w", err)
+	}
+
+	// Process streaming chunks
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			// Stream completed successfully
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("streaming error: %w", err)
+		}
+
+		switch chunk.ChunkType.(type) {
+		case *pb.RuntimeInstallationChunk_Progress:
+			progress := chunk.GetProgress()
+			fmt.Printf("📊 %s\n", progress.Message)
+
+		case *pb.RuntimeInstallationChunk_Log:
+			log := chunk.GetLog()
+			fmt.Print(string(log.Data))
+
+		case *pb.RuntimeInstallationChunk_Result:
+			result := chunk.GetResult()
+			if result.Success {
+				fmt.Printf("\n🎉 %s\n", result.Message)
+				if result.InstallPath != "" {
+					fmt.Printf("📍 Installed at: %s\n", result.InstallPath)
+				}
+				return nil
+			} else {
+				fmt.Printf("\n❌ %s\n", result.Message)
+				return fmt.Errorf("local runtime installation failed")
+			}
+		}
+	}
+
+	return nil
 }

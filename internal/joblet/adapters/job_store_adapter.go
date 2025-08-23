@@ -3,8 +3,6 @@ package adapters
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -59,10 +57,6 @@ type jobStoreAdapter struct {
 	logger     *logger.Logger
 	closed     bool
 	closeMutex sync.RWMutex
-
-	// Cleanup goroutine control
-	cleanupTicker *time.Ticker
-	cleanupDone   chan bool
 }
 
 // Ensure jobStoreAdapter implements the interfaces
@@ -148,10 +142,7 @@ func NewJobStoreAdapterWithLogPersistence(
 		adapter.asyncLogSystem = NewAsyncLogSystem(logPersistenceConfig, logger)
 	}
 
-	// Start cleanup goroutine if retention is configured
-	if logPersistenceConfig != nil && logPersistenceConfig.RetentionDays > 0 {
-		adapter.startLogCleanup()
-	}
+	// Automatic log cleanup disabled - logs preserved until manually deleted
 
 	return adapter
 }
@@ -535,13 +526,7 @@ func (a *jobStoreAdapter) Close() error {
 	}
 	a.closed = true
 
-	// Stop cleanup goroutine if running
-	if a.cleanupTicker != nil {
-		a.cleanupTicker.Stop()
-		if a.cleanupDone != nil {
-			close(a.cleanupDone)
-		}
-	}
+	// No cleanup goroutine to stop - automatic log cleanup has been disabled
 
 	// Close all task subscriptions
 	a.tasksMutex.Lock()
@@ -619,7 +604,7 @@ func (a *jobStoreAdapter) validateJobNotRunning(job *domain.Job) error {
 	return nil
 }
 
-// cleanupTaskWrapper removes task wrapper, cancels subscriptions, and cleans up buffers
+// cleanupTaskWrapper removes subscriptions but preserves buffers for log access
 func (a *jobStoreAdapter) cleanupTaskWrapper(jobId string) error {
 	a.tasksMutex.Lock()
 	defer a.tasksMutex.Unlock()
@@ -632,14 +617,29 @@ func (a *jobStoreAdapter) cleanupTaskWrapper(jobId string) error {
 	// Cancel subscriptions
 	task.cleanupSubscribers()
 
-	// Remove buffer
+	// Preserve buffer and task for log access after job completion
+	// Only remove subscriptions to prevent resource leaks
+	return nil
+}
+
+// completeTaskCleanup fully removes task wrapper, buffers, and logs (used only for explicit log deletion)
+func (a *jobStoreAdapter) completeTaskCleanup(jobId string) error {
+	a.tasksMutex.Lock()
+	defer a.tasksMutex.Unlock()
+
+	task, exists := a.tasks[jobId]
+	if !exists {
+		return nil // No task to cleanup
+	}
+
+	// Cancel subscriptions
+	task.cleanupSubscribers()
+
+	// Remove buffer and task completely (deletes logs)
 	if task.buffer != nil {
 		_ = a.bufferMgr.RemoveBuffer(jobId)
 	}
-
-	// Remove from map
 	delete(a.tasks, jobId)
-	a.logger.Debug("cleaned up task wrapper and subscriptions", "jobId", jobId)
 	return nil
 }
 
@@ -659,9 +659,8 @@ func (a *jobStoreAdapter) publishJobEvent(eventType, jobId string, metadata map[
 	return nil
 }
 
-// DeleteJobLogs deletes log files for a specific job.
-// With async log system, individual log deletion is handled by retention policies.
-// This method logs the request and returns success for compatibility.
+// DeleteJobLogs deletes log files and buffers for a specific job.
+// This method should only be called when user explicitly requests log deletion.
 func (a *jobStoreAdapter) DeleteJobLogs(jobId string) error {
 	if err := a.ensureNotClosed(); err != nil {
 		return err
@@ -673,19 +672,14 @@ func (a *jobStoreAdapter) DeleteJobLogs(jobId string) error {
 		return err
 	}
 
-	// For async log system, we don't directly manage individual log files
-	// Log cleanup is handled by the retention policy in the async system
-	a.logger.Info("log deletion requested for job", "jobId", resolvedUuid)
-
-	// Note: With the async log system, logs are managed by retention policies
-	// Individual log deletion would require extending the AsyncLogSystem interface
-	// For now, we log the request and return success
+	// Perform complete cleanup including buffer removal
+	if err := a.completeTaskCleanup(resolvedUuid); err != nil {
+		return fmt.Errorf("failed to delete job logs: %w", err)
+	}
 	return nil
 }
 
-// DeleteJob performs complete job deletion including logs, metadata, and resources.
-// This removes the job from the store, cleans up logs via async system, removes buffers,
-// cancels subscriptions, and cleans up any remaining resources.
+// DeleteJob performs complete job deletion but preserves logs for user control.
 func (a *jobStoreAdapter) DeleteJob(jobId string) error {
 	if err := a.ensureNotClosed(); err != nil {
 		return err
@@ -708,10 +702,7 @@ func (a *jobStoreAdapter) DeleteJob(jobId string) error {
 		a.logger.Warn("task cleanup failed", "jobId", resolvedUuid, "error", err)
 	}
 
-	if err := a.DeleteJobLogs(resolvedUuid); err != nil {
-		a.logger.Warn("log cleanup failed", "jobId", resolvedUuid, "error", err)
-		// Continue with deletion even if log cleanup fails
-	}
+	// Logs are preserved and must be deleted manually if needed
 
 	// Remove from store
 	if err := a.jobStore.Delete(context.Background(), resolvedUuid); err != nil {
@@ -906,91 +897,4 @@ func (t *taskWrapper) cleanupSubscribers() {
 	// The buffer should remain readable to allow viewing historical logs
 	// after job completion. The buffer will be closed when the entire
 	// adapter is shut down.
-}
-
-// startLogCleanup starts a goroutine that periodically cleans up old log files.
-// Runs every hour and removes files older than configured retention period.
-// Only starts if retention period is configured.
-func (a *jobStoreAdapter) startLogCleanup() {
-	// Run cleanup every hour
-	a.cleanupTicker = time.NewTicker(1 * time.Hour)
-	a.cleanupDone = make(chan bool)
-
-	go func() {
-		// Run initial cleanup
-		a.cleanupOldLogs()
-
-		for {
-			select {
-			case <-a.cleanupTicker.C:
-				a.cleanupOldLogs()
-			case <-a.cleanupDone:
-				return
-			}
-		}
-	}()
-
-	a.logger.Info("started log cleanup goroutine",
-		"directory", a.logPersistenceConfig.Directory,
-		"retentionDays", a.logPersistenceConfig.RetentionDays)
-}
-
-// cleanupOldLogs removes log files older than the retention period.
-// Scans log directory for .log files, checks modification time against cutoff,
-// and deletes expired files. Logs cleanup statistics.
-func (a *jobStoreAdapter) cleanupOldLogs() {
-	if a.logPersistenceConfig == nil {
-		return
-	}
-
-	logDir := a.logPersistenceConfig.Directory
-	retentionDays := a.logPersistenceConfig.RetentionDays
-
-	if retentionDays <= 0 {
-		return // No cleanup if retention is not set
-	}
-
-	cutoffTime := time.Now().AddDate(0, 0, -retentionDays)
-
-	// Read directory
-	entries, err := os.ReadDir(logDir)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			a.logger.Error("failed to read log directory for cleanup", "error", err)
-		}
-		return
-	}
-
-	deletedCount := 0
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		// Only process .log files
-		if !strings.HasSuffix(entry.Name(), ".log") {
-			continue
-		}
-
-		info, err := entry.Info()
-		if err != nil {
-			a.logger.Warn("failed to get file info", "file", entry.Name(), "error", err)
-			continue
-		}
-
-		// Check if file is older than retention period
-		if info.ModTime().Before(cutoffTime) {
-			filePath := filepath.Join(logDir, entry.Name())
-			if err := os.Remove(filePath); err != nil {
-				a.logger.Error("failed to delete old log file", "file", filePath, "error", err)
-			} else {
-				deletedCount++
-				a.logger.Debug("deleted old log file", "file", entry.Name(), "age", time.Since(info.ModTime()))
-			}
-		}
-	}
-
-	if deletedCount > 0 {
-		a.logger.Info("cleaned up old log files", "count", deletedCount, "retentionDays", retentionDays)
-	}
 }

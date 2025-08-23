@@ -1,286 +1,619 @@
-# Joblet Multi-Architecture Runtime Setup Scripts
+# Joblet Runtime Environments
 
-This directory contains setup scripts for Joblet runtime environments that provide instant startup for common
-programming languages across multiple CPU architectures and Linux distributions.
+This directory contains runtime environments that provide pre-installed languages, tools, and services for Joblet jobs.
+Runtimes eliminate the need to install dependencies on every job run, significantly improving performance.
 
-## 🌐 Multi-Architecture Support
+## 📋 Table of Contents
 
-### 🏗️ **Auto-Detection System**
+- [Available Runtimes](#available-runtimes)
+- [Using Runtimes](#using-runtimes)
+- [GitHub Repository Installation](#github-repository-installation)
+- [Creating New Runtimes](#creating-new-runtimes)
+- [Packaging Runtimes for GitHub](#packaging-runtimes-for-github)
+- [Runtime Manifest System Architecture](#runtime-manifest-system-architecture)
+- [Best Practices](#best-practices)
+- [Contributing](#contributing)
+- [Support](#support)
 
-All runtime scripts automatically detect and optimize for your target system:
+## Available Runtimes
 
-- **CPU Architecture**: x86_64/amd64, aarch64/arm64, armv7l/armhf
-- **Linux Distributions**: Ubuntu, Debian, CentOS, RHEL, Amazon Linux, Fedora, openSUSE, Arch, Alpine
-- **Package Managers**: apt, yum, dnf, zypper, pacman, apk
+| Runtime          | Description                                 | Platforms                                |
+|------------------|---------------------------------------------|------------------------------------------|
+| `openjdk-21`     | OpenJDK 21 with Java development tools      | Ubuntu, RHEL, Amazon Linux (AMD64/ARM64) |
+| `python-3.11-ml` | Python 3.11 with machine learning libraries | Ubuntu, RHEL, Amazon Linux (AMD64/ARM64) |
+| `graalvmjdk-21`  | GraalVM JDK 21 with native-image support    | Ubuntu, RHEL, Amazon Linux (AMD64/ARM64) |
 
-### 📊 **Platform Support Matrix**
+## Using Runtimes
 
-| **Platform**           | **Java 17/21** | **Python 3.11** | **Python ML**      | **Performance** |
-|------------------------|----------------|-----------------|--------------------|-----------------|
-| **x86_64 (Intel/AMD)** | ✅ Full         | ✅ Full          | ✅ Full ML Stack    | Maximum         |
-| **ARM64 (aarch64)**    | ✅ Full         | ✅ Full          | ✅ Most ML Packages | Native ARM64    |
-| **ARM32 (armhf)**      | ⚠️ Limited     | ✅ Compatible    | ⚠️ Basic Only      | Compatibility   |
+### Local Installation
 
-## 🚀 Quick Start (Recommended)
-
-### Auto-Detecting Deployment (NEW)
-
-```bash
-# Automatically detects target architecture and optimizes installation
-./java-17/deploy_to_host.sh user@arm64-server    # ARM64 optimization
-./java-21/deploy_to_host.sh user@x86-server      # x86_64 optimization
-./python-3.11-ml/deploy_to_host.sh user@host     # Architecture-specific ML packages
-```
-
-### For Production: Zero Contamination Deployment
+Install a runtime from your local codebase:
 
 ```bash
-# Step 1: Build runtime on a test/build host with auto-detection
-sudo ./python-3.11-ml/setup_python_3_11_ml_multiarch.sh
-# Creates: /tmp/runtime-deployments/python-3.11-ml-runtime.tar.gz
-
-# Step 2: Copy package to your workstation
-scp build-host:/tmp/runtime-deployments/python-3.11-ml-runtime.tar.gz .
-
-# Step 3: Deploy to ANY production host (ZERO contamination)
-ssh admin@production-host
-sudo tar -xzf python-3.11-ml-runtime.tar.gz -C /opt/joblet/runtimes/python/
-sudo chown -R joblet:joblet /opt/joblet/runtimes/python/python-3.11-ml
+rnx runtime install openjdk-21
 ```
 
-### Available Multi-Architecture Runtimes
+### GitHub Repository Installation with Manifest System
 
-Each runtime script automatically detects your system and creates optimized packages:
-
-| Runtime          | Multi-Arch Script                                  | Auto-Deploy Script                 | Package Size         |
-|------------------|----------------------------------------------------|------------------------------------|----------------------|
-| Python 3.11 + ML | `python-3.11-ml/setup_python_3_11_ml_multiarch.sh` | `python-3.11-ml/deploy_to_host.sh` | ~500MB-2GB (by arch) |
-| Python 3.11      | `python-3.11/setup_python_3_11_multiarch.sh`       | `python-3.11/deploy_to_host.sh`    | ~200-400MB (by arch) |
-| Java 17 LTS      | `java-17/setup_java_17_multiarch.sh`               | `java-17/deploy_to_host.sh`        | ~193-250MB (by arch) |
-| Java 21          | `java-21/setup_java_21_multiarch.sh`               | `java-21/deploy_to_host.sh`        | ~208-280MB (by arch) |
-
-### Architecture-Specific Features
-
-**Java 17/21:**
-
-- **x86_64**: Temurin binaries with full optimization
-- **ARM64**: Native ARM64 Temurin binaries
-- **ARM32**: Limited support (may require manual compilation)
-
-**Python 3.11:**
-
-- **x86_64**: Full optimizations, complete package ecosystem
-- **ARM64**: Native compilation with ARM64 optimizations
-- **ARM32**: Compatibility mode, basic package support
-
-**Python 3.11 ML:**
-
-- **x86_64**: Full ML stack (NumPy, Pandas, Scikit-learn, Matplotlib, SciPy)
-- **ARM64**: Most ML packages with ARM64 native compilation
-- **ARM32**: NumPy + basic packages only
-
-### For Development: Direct Multi-Architecture Installation
+The new manifest-based system provides rich metadata and platform validation:
 
 ```bash
-# Multi-architecture Python with auto-detection (⚠️ installs build tools on host)  
-sudo ./python-3.11-ml/setup_python_3_11_ml_multiarch.sh
-sudo ./python-3.11/setup_python_3_11_multiarch.sh
+# List available runtimes with detailed metadata
+rnx runtime list --github-repo=owner/repo/tree/main/runtimes
 
-# Multi-architecture Java with auto-detection (⚠️ installs download tools on host)
-sudo ./java-17/setup_java_17_multiarch.sh
-sudo ./java-21/setup_java_21_multiarch.sh
+# Install with automatic platform compatibility checking
+rnx runtime install openjdk-21 --github-repo=owner/repo/tree/main/runtimes
 
-# All scripts support help to show platform compatibility:
-sudo ./java-17/setup_java_17_multiarch.sh --help
+# JSON output for programmatic use
+rnx runtime list --github-repo=owner/repo/tree/main/runtimes --json
 ```
 
-## 📁 Directory Structure
+### Enhanced Runtime Information
+
+Get detailed information about runtimes:
+
+```bash
+# List locally installed runtimes
+rnx runtime list
+
+# List runtimes from GitHub with platform and version info
+rnx runtime list --github-repo=owner/repo/tree/main/runtimes
+
+# Get detailed runtime information
+rnx runtime info openjdk-21
+```
+
+### Remove a Runtime
+
+```bash
+rnx runtime remove openjdk-21
+```
+
+### Manifest-Based Features
+
+The new system provides:
+- **Pre-installation visibility**: See runtime details before downloading
+- **Platform validation**: Automatic compatibility checking
+- **Resource requirements**: RAM, disk, and GPU requirements displayed
+- **Rich metadata**: Version info, supported platforms, provided executables
+
+## GitHub Repository Installation
+
+### How It Works
+
+When using the `--github-repo` flag, RNX downloads **pre-packaged runtime archives** directly from GitHub. This is much
+more efficient than cloning entire repositories.
+
+**Important:** GitHub installations require pre-packaged runtime archives (`.tar.gz` or `.zip` files) to be present in
+the repository. The system will NOT download entire repositories.
+
+### Requirements for GitHub Repositories
+
+To make your runtimes available via GitHub, you must:
+
+1. **Package each runtime** as a `.tar.gz` or `.zip` file
+2. **Commit and push** these archives to your GitHub repository
+3. **Use the correct naming**: `<runtime-name>.tar.gz` or `<runtime-name>.zip`
+
+Example structure:
 
 ```
 runtimes/
-├── README.md                                    # This file - Multi-architecture guide
-├── CONTAMINATION_WARNING.md                     # Host contamination analysis  
-├── PORTABLE_RUNTIME_PACKAGING.md               # Zero-contamination deployment guide
-│
-├── common/
-│   └── detect_system.sh                        # 🌐 NEW: Multi-architecture detection library
-│
-├── python-3.11-ml/
-│   ├── setup_python_3_11_ml.sh                # Legacy single-arch script
-│   ├── setup_python_3_11_ml_multiarch.sh      # 🌐 NEW: Multi-architecture setup
-│   └── deploy_to_host.sh                      # 🌐 NEW: Auto-detecting deployment
-│
-├── python-3.11/
-│   ├── setup_python_3_11.sh                   # Legacy single-arch script
-│   ├── setup_python_3_11_multiarch.sh         # 🌐 NEW: Multi-architecture setup
-│   └── deploy_to_host.sh                      # 🌐 NEW: Auto-detecting deployment
-│
-├── java-17/
-│   ├── setup_java_17.sh                       # Legacy single-arch script
-│   ├── setup_java_17_multiarch.sh             # 🌐 NEW: Multi-architecture setup
-│   └── deploy_to_host.sh                      # 🌐 NEW: Auto-detecting deployment
-│
-└── java-21/
-    ├── setup_java_21.sh                       # Legacy single-arch script
-    ├── setup_java_21_multiarch.sh             # 🌐 NEW: Multi-architecture setup
-    └── deploy_to_host.sh                      # 🌐 NEW: Auto-detecting deployment
+├── openjdk-21/           # Source files
+│   ├── setup.sh
+│   └── setup-*.sh
+├── openjdk-21.tar.gz    # Pre-packaged archive (REQUIRED for GitHub)
+├── python-3.11-ml/       # Source files
+│   ├── setup.sh
+│   └── setup-*.sh
+├── python-3.11-ml.tar.gz # Pre-packaged archive (REQUIRED for GitHub)
+└── README.md
 ```
 
-## 🎯 Multi-Architecture Runtime Overview
+### Error Messages
 
-| **Runtime**        | **Architectures**      | **Direct Install**    | **Packaged Install** | **Auto-Deploy** | **ML Support**  |
-|--------------------|------------------------|-----------------------|----------------------|-----------------|-----------------|
-| **python-3.11-ml** | x86_64, ARM64, ARM32   | ⚠️ ~200MB build tools | ✅ Clean              | ✅ SSH Auto      | Full/Most/Basic |
-| **python-3.11**    | x86_64, ARM64, ARM32   | ⚠️ ~100MB build tools | ✅ Clean              | ✅ SSH Auto      | Standard lib    |
-| **java-17**        | x86_64, ARM64, (ARM32) | ⚠️ wget/curl          | ✅ Clean              | ✅ SSH Auto      | N/A             |
-| **java-21**        | x86_64, ARM64, (ARM32) | ⚠️ wget/curl          | ✅ Clean              | ✅ SSH Auto      | N/A             |
+If a runtime is not found, users will see a clear error message:
 
-### 🌐 Distribution Support
+```
+❌ ERROR: Runtime 'nodejs-20' not found in repository
 
-- **Ubuntu/Debian**: Full support with APT package manager
-- **CentOS/RHEL/Amazon Linux**: Full support with YUM package manager
-- **Fedora**: Full support with DNF package manager
-- **openSUSE/SLES**: Full support with Zypper package manager
-- **Arch/Manjaro**: Full support with Pacman package manager
-- **Alpine**: Full support with APK package manager
+The runtime 'nodejs-20' is not available as a pre-packaged archive in:
+  Repository: owner/repo
+  Branch: main
+  Path: runtimes
 
-## 🛡️ Contamination Status
+Expected to find one of these files:
+  • runtimes/nodejs-20.tar.gz
+  • runtimes/nodejs-20.zip
+```
 
-### ⚠️ Scripts That Modify Host (Use Packaging for Production)
+## Creating New Runtimes
 
-- **`python-3.11-ml/setup_python_3_11_ml.sh`**: Installs `build-essential`, `python3-dev`, etc. (✅ **Decoupled interface
-  available**)
-- **`java-17/setup_java_17.sh`**: Installs `wget` and `curl` (✅ **Decoupled interface available**)
-- **`java-21/setup_java_21.sh`**: Installs `wget` and `curl` (✅ **Decoupled interface available**)
+### Runtime Structure
 
-**✅ Solution**: All scripts now support decoupled packaging for production deployments with zero contamination.
+Each runtime must have:
 
-## 📋 Multi-Architecture Usage Examples
+1. A main `setup.sh` script that detects the platform
+2. Platform-specific setup scripts (e.g., `setup-ubuntu-amd64.sh`)
+3. A self-contained installation that doesn't depend on host system packages
 
-### Auto-Detecting Deployment Examples
+### Example Runtime Directory
+
+```
+openjdk-21/
+├── setup.sh              # Main entry point
+├── setup-ubuntu-amd64.sh # Ubuntu AMD64 specific
+├── setup-ubuntu-arm64.sh # Ubuntu ARM64 specific  
+├── setup-rhel-amd64.sh   # RHEL/CentOS AMD64 specific
+├── setup-rhel-arm64.sh   # RHEL/CentOS ARM64 specific
+├── setup-amzn-amd64.sh   # Amazon Linux AMD64 specific
+└── setup-amzn-arm64.sh   # Amazon Linux ARM64 specific
+```
+
+### Main Setup Script Template
 
 ```bash
-# Deploy to x86_64 server
-./java-17/deploy_to_host.sh user@intel-server
-# Output: ✅ Architecture x86_64 fully supported for Java 17
-#         📦 Downloading Temurin x86_64 binaries...
+#!/bin/bash
+# Main setup script for runtime
 
-# Deploy to ARM64 server
-./python-3.11-ml/deploy_to_host.sh user@arm64-server  
-# Output: ✅ Architecture aarch64 supported for Python 3.11 ML
-#         📦 Installing most ML packages with ARM64 optimizations...
+set -e
 
-# Deploy to Amazon Linux
-./java-21/deploy_to_host.sh user@amazon-linux-host
-# Output: 🌐 Amazon Linux detected - using YUM package manager
-#         ✅ Architecture x86_64 fully supported for Java 21
+# Detect OS and architecture
+OS_ID=$(grep "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
+ARCH=$(uname -m)
+
+# Map architecture names
+case "$ARCH" in
+    x86_64) ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+esac
+
+# Determine setup script
+SETUP_SCRIPT="setup-${OS_ID}-${ARCH}.sh"
+
+# Execute platform-specific setup
+if [ -f "$SETUP_SCRIPT" ]; then
+    chmod +x "$SETUP_SCRIPT"
+    exec "./$SETUP_SCRIPT"
+else
+    echo "ERROR: Unsupported platform: ${OS_ID}-${ARCH}"
+    exit 1
+fi
 ```
 
-### After Installation
+## Packaging Runtimes for GitHub
+
+### Automated Packaging with Manifest Updates
+
+The **recommended approach** is to use the single build script that handles everything:
 
 ```bash
-# List available runtimes (shows architecture info)
-rnx runtime list
-
-# View architecture-specific runtime information
-rnx runtime info java:17
-rnx runtime info python-3.11-ml
-
-# Test runtimes with architecture detection
-rnx runtime test python-3.11-ml  
-rnx runtime test java:17
-rnx runtime test java:21
-
-# Use runtimes (optimized for your architecture)
-rnx run --runtime=python:3.11-ml python -c "import numpy; print(f'NumPy {numpy.__version__} on {numpy.__config__.get_info(\"cpu_baseline\")}')"
-rnx run --runtime=java:17 java --version
-rnx run --runtime=java:21 java --version
+cd /home/jay/joblet/runtimes
+./build-runtimes
 ```
 
-### Architecture-Specific Performance Benefits
+This comprehensive script:
+- 🔍 **Auto-discovers runtimes** by scanning for directories with `setup.sh`
+- 📦 **Packages all runtimes** as `.tar.gz` files
+- 📝 **Auto-generates runtime-manifest.json** with current metadata
+- ✅ **Validates JSON structure** for correctness
+- 📊 **Updates archive sizes** and timestamps automatically
+- 🎯 **Provides clear next steps** for git operations
 
-| **Architecture** | **Traditional**                  | **Runtime**  | **Speedup**         | **Optimization**               |
-|------------------|----------------------------------|--------------|---------------------|--------------------------------|
-| **x86_64**       | Python: 5-45 min (pip install)   | 2-3 seconds  | **100-300x faster** | Full optimization              |
-| **ARM64**        | Python: 10-60 min (compilation)  | 3-5 seconds  | **200-400x faster** | Native ARM64                   |
-| **ARM32**        | Python: 15-90 min (slow compile) | 5-10 seconds | **180-540x faster** | Compatibility mode             |
-| **All Archs**    | Java: 30-120 sec (JDK install)   | 2-3 seconds  | **15-40x faster**   | Architecture-specific binaries |
+### Alternative: Individual Runtime Packaging
 
-## 🔧 Multi-Architecture Troubleshooting
-
-### "runtime not found"
+For packaging individual runtimes only (without manifest updates):
 
 ```bash
-# Check if runtimes are installed with architecture info
-ls -la /opt/joblet/runtimes/
-rnx runtime list
-
-# Reinstall with auto-detection if needed
-sudo ./java-17/setup_java_17_multiarch.sh
-sudo ./python-3.11-ml/setup_python_3_11_ml_multiarch.sh
+./package-runtime.sh openjdk-21   # Individual runtime packaging
 ```
 
-### Architecture Compatibility Issues
+**Note**: After individual packaging, run `./build-runtimes` to update the manifest.
+
+
+### Runtime Manifest System
+
+The manifest system provides **rich metadata** before download:
+
+- **Platform compatibility checking** - Validates support before installation
+- **Resource requirements** - RAM, disk space, GPU requirements
+- **Detailed runtime info** - Executables, libraries, environment variables
+- **Usage examples** - Documentation and command examples
+
+### Publishing to GitHub
+
+After packaging (automatically includes manifest updates):
 
 ```bash
-# Check system architecture and compatibility
-./java-17/setup_java_17_multiarch.sh --help
-./python-3.11-ml/setup_python_3_11_ml_multiarch.sh --help
-
-# For ARM32 limitations
-# Java: May need manual compilation for ARM 32-bit
-# Python ML: Only basic packages available on ARM 32-bit
+git add runtimes/*.tar.gz runtimes/runtime-manifest.json
+git commit -m "Update pre-packaged runtimes and manifest"
+git push
 ```
 
-### Distribution-Specific Issues
+### Manifest-Based Installation
+
+Users can now see available runtimes before installing:
 
 ```bash
-# Amazon Linux: Ensure correct Python packages
-# CentOS/RHEL: May need EPEL repository for some ML packages  
-# Alpine: ML packages may require additional compilation time
-# Arch: Generally excellent support for all packages
+# List available runtimes from GitHub repository
+rnx runtime list --github-repo=owner/repo/tree/main/runtimes
+
+# Install with automatic platform validation
+rnx runtime install openjdk-21 --github-repo=owner/repo/tree/main/runtimes
 ```
 
-### Permission Issues
+### Important Notes
+
+1. **Always use `./build-runtimes`** for complete workflow automation
+2. **Manifest is auto-maintained** - no manual JSON editing required
+3. **Platform compatibility** is automatically validated during installation
+4. **Rich metadata** enables better user experience with detailed runtime info
+5. **Archive sizes** are automatically detected and updated in manifest
+6. **JSON validation** ensures manifest correctness before commits
+
+## Runtime Manifest System Architecture
+
+### Manifest Schema
+
+The runtime manifest is a JSON file that contains metadata about all available runtimes in a repository. It enables RNX to:
+
+- **Validate platform compatibility** before downloading
+- **Display rich metadata** to users  
+- **Check resource requirements**
+- **Provide usage examples and documentation**
+
+#### Top-Level Structure
+
+```json
+{
+  "version": "1.0.0",
+  "generated": "2025-08-31T15:10:00Z",
+  "repository": "joblet/joblet",
+  "base_url": "https://github.com/joblet/joblet/raw/main/runtimes",
+  "runtimes": {
+    /* Runtime definitions */
+  }
+}
+```
+
+**Top-Level Fields:**
+
+| Field        | Type   | Description                                    |
+|--------------|--------|------------------------------------------------|
+| `version`    | string | Manifest format version (currently "1.0.0")    |
+| `generated`  | string | ISO 8601 timestamp when manifest was generated |
+| `repository` | string | GitHub repository in "owner/repo" format       |
+| `base_url`   | string | Base URL for downloading runtime archives      |
+| `runtimes`   | object | Map of runtime name to runtime definition      |
+
+#### Runtime Definition
+
+Each runtime in the `runtimes` object has this structure:
+
+```json
+"runtime-name": {
+  "name": "runtime-name",
+  "display_name": "Human Readable Name", 
+  "version": "1.0.0",
+  "description": "Brief description of the runtime",
+  "category": "language-runtime",
+  "language": "java|python|javascript|etc",
+  "platforms": {
+    /* Platform support */
+  },
+  "requirements": {/* Resource requirements */},
+  "provides": {/* What the runtime provides */},
+  "documentation": {/* Usage documentation */},
+  "tags": ["tag1", "tag2"]
+}
+```
+
+**Runtime Fields:**
+
+| Field           | Type   | Required | Description                                             |
+|-----------------|--------|----------|---------------------------------------------------------|
+| `name`          | string | ✅        | Runtime identifier (must match object key)              |
+| `display_name`  | string | ✅        | Human-readable name for UI display                      |
+| `version`       | string | ✅        | Runtime version (semantic versioning recommended)       |
+| `description`   | string | ✅        | Brief description of the runtime and its purpose        |
+| `category`      | string | ✅        | Runtime category (e.g., "language-runtime", "database") |
+| `language`      | string | ✅        | Primary programming language or "unknown"               |
+| `platforms`     | object | ✅        | Platform compatibility definitions                      |
+| `requirements`  | object | ✅        | Resource requirements                                   |
+| `provides`      | object | ✅        | Executables, libraries, and environment provided        |
+| `documentation` | object | ✅        | Usage examples and documentation                        |
+| `tags`          | array  | ✅        | Searchable tags for categorization                      |
+
+#### Platform Support
+
+The `platforms` object defines which operating systems and architectures are supported:
+
+```json
+"platforms": {
+  "ubuntu-amd64": {
+    "supported": true,
+    "archive_url": "runtime-name.tar.gz",
+    "archive_size": 12345,
+    "checksum": "sha256:abcd1234..."
+  },
+  "ubuntu-arm64": { /* ... */ },
+  "rhel-amd64": { /* ... */ },
+  "rhel-arm64": { /* ... */ },
+  "amzn-amd64": { /* ... */ },
+  "amzn-arm64": { /* ... */ }
+}
+```
+
+**Platform Keys:**
+- `ubuntu-amd64` - Ubuntu/Debian on x86_64
+- `ubuntu-arm64` - Ubuntu/Debian on ARM64
+- `rhel-amd64` - RHEL/CentOS/Rocky on x86_64
+- `rhel-arm64` - RHEL/CentOS/Rocky on ARM64
+- `amzn-amd64` - Amazon Linux on x86_64
+- `amzn-arm64` - Amazon Linux on ARM64
+
+**Platform Fields:**
+
+| Field          | Type    | Required | Description                                      |
+|----------------|---------|----------|--------------------------------------------------|
+| `supported`    | boolean | ✅        | Whether this platform is supported               |
+| `archive_url`  | string  | ✅        | Filename of the runtime archive                  |
+| `archive_size` | number  | ✅        | Size of the archive in bytes                     |
+| `checksum`     | string  | ✅        | SHA256 checksum (can be "sha256:auto-generated") |
+
+#### Requirements
+
+Resource requirements for the runtime:
+
+```json
+"requirements": {
+  "min_ram_mb": 512,
+  "min_disk_mb": 100,
+  "gpu_required": false
+}
+```
+
+| Field          | Type    | Description                              |
+|----------------|---------|------------------------------------------|
+| `min_ram_mb`   | number  | Minimum RAM required in megabytes        |
+| `min_disk_mb`  | number  | Minimum disk space required in megabytes |
+| `gpu_required` | boolean | Whether GPU access is required           |
+
+#### Provides
+
+What the runtime provides to jobs:
+
+```json
+"provides": {
+  "executables": ["java", "javac", "jar"],
+  "libraries": ["numpy", "pandas"],
+  "environment_vars": {
+    "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+    "PATH": "/usr/lib/jvm/java-21-openjdk/bin:$PATH"
+  }
+}
+```
+
+| Field              | Type   | Description                                     |
+|--------------------|--------|-------------------------------------------------|
+| `executables`      | array  | List of executable commands provided            |
+| `libraries`        | array  | List of libraries/packages available (optional) |
+| `environment_vars` | object | Environment variables set by the runtime        |
+
+#### Documentation
+
+Usage information and examples:
+
+```json
+"documentation": {
+  "usage": "Use with: rnx run --runtime=openjdk-21 java MyApp.java",
+  "examples": [
+    "rnx run --runtime=openjdk-21 java -version",
+    "rnx run --runtime=openjdk-21 javac HelloWorld.java && java HelloWorld"
+  ]
+}
+```
+
+| Field      | Type   | Description              |
+|------------|--------|--------------------------|
+| `usage`    | string | Brief usage instructions |
+| `examples` | array  | List of example commands |
+
+#### Tags
+
+Searchable tags for runtime discovery:
+
+```json
+"tags": ["java", "jdk", "openjdk", "development", "compilation"]
+```
+
+Tags should be:
+- **Lowercase** for consistency
+- **Descriptive** of the runtime's purpose
+- **Include language names**, framework names, use cases
+- **Avoid duplicating** information already in other fields
+
+#### Complete Example Runtime
+
+```json
+"openjdk-21": {
+  "name": "openjdk-21",
+  "display_name": "OpenJDK 21",
+  "version": "21.0.1",
+  "description": "OpenJDK 21 with Java development tools and JVM runtime",
+  "category": "language-runtime",
+  "language": "java",
+  "platforms": {
+    "ubuntu-amd64": {
+      "supported": true,
+      "archive_url": "openjdk-21.tar.gz", 
+      "archive_size": 5928,
+      "checksum": "sha256:auto-generated"
+    }
+  },
+  "requirements": {
+    "min_ram_mb": 512,
+    "min_disk_mb": 100,
+    "gpu_required": false
+  },
+  "provides": {
+    "executables": ["java", "javac", "jar", "jarsigner"],
+    "environment_vars": {
+      "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+      "PATH": "/usr/lib/jvm/java-21-openjdk/bin:$PATH"
+    }
+  },
+  "documentation": {
+    "usage": "Use with: rnx run --runtime=openjdk-21 java MyApp.java",
+    "examples": [
+      "rnx run --runtime=openjdk-21 java -version",
+      "rnx run --runtime=openjdk-21 javac HelloWorld.java && java HelloWorld"
+    ]
+  },
+  "tags": ["java", "jdk", "openjdk", "development", "compilation"]
+}
+```
+
+#### Manifest Generation and Validation
+
+The manifest is automatically generated by `./build-runtimes`. Manual editing is not recommended as it will be overwritten.
+
+The manifest should always be valid JSON. You can validate it using:
 
 ```bash
-# Fix ownership after multi-arch installation
-sudo chown -R joblet:joblet /opt/joblet/runtimes/
+python3 -m json.tool runtime-manifest.json > /dev/null
 ```
 
-### Host Contamination Concerns
+### Installation Process with Manifest System
 
-- **Use portable packaging** for production (architecture-specific packages)
-- **Use auto-detecting deploy scripts** for development
-- **Read CONTAMINATION_WARNING.md** for full analysis
-- **Test in containers/VMs** if host purity is critical
+1. **Manifest Download**: RNX downloads `runtime-manifest.json` from GitHub
+2. **Runtime Validation**: Checks if requested runtime exists in manifest
+3. **Platform Detection**: Detects local OS and architecture (ubuntu-amd64, rhel-arm64, etc.)
+4. **Compatibility Check**: Validates runtime supports the detected platform
+5. **Resource Verification**: Checks minimum RAM/disk requirements
+6. **Archive Download**: Downloads the specific runtime archive from manifest URL
+7. **Platform-Specific Setup**: Executes the appropriate setup script
+8. **Isolated Installation**: Installs everything under `/opt/joblet/runtimes/<runtime-name>`
+9. **Configuration Generation**: Creates `runtime.yml` with mount points and environment variables
 
-## 📚 Multi-Architecture Documentation
+### Isolation Principles
 
-- **[CONTAMINATION_WARNING.md](./CONTAMINATION_WARNING.md)**: Analysis of host contamination issues
-- **[PORTABLE_RUNTIME_PACKAGING.md](./PORTABLE_RUNTIME_PACKAGING.md)**: Zero-contamination deployment guide
-- **[System Detection Library](./common/detect_system.sh)**: Multi-architecture detection system
-- **[Python Runtime](./python-3.11-ml/)**: ML packages with architecture-specific optimizations
-- **[Java Runtimes](./java-17/)**: OpenJDK with multi-architecture binary support
+Runtimes follow these principles:
 
-## 🎉 Multi-Architecture Summary
+- **Self-contained**: All dependencies included, no reliance on host packages
+- **Isolated**: Installed in dedicated directory structure
+- **Portable**: Can be moved between compatible systems
+- **Secure**: Read-only mounts except where write access is required
 
-- **🌐 Multi-Architecture**: Full support for x86_64, ARM64, and ARM32 architectures
-- **🌍 Multi-Distribution**: Ubuntu, Debian, CentOS, RHEL, Amazon Linux, Fedora, openSUSE, Arch, Alpine
-- **🚀 Auto-Detection**: Scripts automatically detect and optimize for target platform
-- **📦 Smart Packaging**: Architecture-specific packages with intelligent feature selection
-- **⚡ Performance**: 15-540x faster startup with platform-native optimizations
-- **🔒 Zero Contamination**: Portable packaging maintains clean production environments
-- **🎯 Mission Complete**: Full multi-architecture runtime system implemented
+### Runtime Configuration (runtime.yml)
 
-### 🏆 Key Improvements
+Each runtime generates a `runtime.yml` that specifies:
 
-1. **Auto-Detection**: `detect_system.sh` library identifies CPU architecture, OS, and distribution
-2. **Smart Setup**: Architecture-specific optimizations and package selection
-3. **Remote Deploy**: SSH-based deployment with pre-deployment compatibility checks
-4. **Amazon Linux**: Added support for Amazon Linux 2 and 2023
-5. **ARM Support**: Full ARM64 support, basic ARM32 compatibility
-6. **ML Intelligence**: Architecture-aware ML package installation (full/most/basic)
+- Mount points for binaries, libraries, and configuration
+- Environment variables (PATH, LD_LIBRARY_PATH, etc.)
+- Runtime metadata (name, version, description)
 
-**The multi-architecture runtime system transforms Joblet from a single-platform tool to a universal Linux runtime
-deployment system!** 🌐
+Example:
+
+```yaml
+name: openjdk-21
+version: "21.0.1"
+description: "OpenJDK 21 Runtime"
+
+mounts:
+  - source: "isolated/usr/bin"
+    target: "/usr/bin"
+    readonly: true
+  - source: "isolated/usr/lib/jvm"
+    target: "/usr/lib/jvm"
+    readonly: true
+
+environment:
+  JAVA_HOME: "/usr/lib/jvm/java-21-openjdk"
+  PATH: "/usr/lib/jvm/java-21-openjdk/bin:/usr/bin:/bin"
+```
+
+## Best Practices
+
+### Runtime Development
+
+1. **Version Control**: Tag releases when updating runtimes
+2. **Testing**: Test on all supported platforms before release
+3. **Documentation**: Document any special requirements or limitations
+4. **Security**: Never include secrets or sensitive data in runtimes
+5. **Efficiency**: Package only necessary files to minimize download size
+6. **Compatibility**: Ensure backward compatibility when updating
+
+### Manifest System
+
+1. **Always use `./build-runtimes`** for packaging to ensure manifest consistency
+2. **Validate locally** before committing: `python3 -m json.tool runtime-manifest.json`
+3. **Test both installation methods**: local and GitHub-based installations
+4. **Update platform support** when adding new OS/architecture combinations
+5. **Keep resource requirements accurate** for optimal user experience
+6. **Use descriptive tags** to help users discover relevant runtimes
+
+### Troubleshooting
+
+#### Manifest Not Found Error
+
+```
+❌ ERROR: Could not download runtime manifest
+```
+
+**Solutions:**
+1. Ensure `runtime-manifest.json` exists in your repository
+2. Verify the repository URL format: `owner/repo/tree/branch/path`
+3. Check if the file is committed and pushed to GitHub
+
+#### Platform Not Supported Error
+
+```
+❌ ERROR: Runtime 'openjdk-21' does not support platform 'ubuntu-arm64'
+```
+
+**Solutions:**
+1. Update the manifest to include the missing platform
+2. Create platform-specific setup scripts if needed  
+3. Run `./build-runtimes.py` to regenerate with updated platform support
+
+#### Archive Size Mismatch
+
+If archive sizes are incorrect in the manifest:
+
+```bash
+# Rebuild everything (recommended)
+./build-runtimes
+```
+
+#### JSON Validation Errors
+
+```bash
+# Validate JSON structure
+python3 -m json.tool runtime-manifest.json
+
+# Fix and regenerate if needed
+./build-runtimes
+```
+
+## Contributing
+
+To contribute a new runtime:
+
+1. Create the runtime directory structure
+2. Implement platform-specific setup scripts
+3. Test on all target platforms
+4. Package the runtime using `package-runtime.sh`
+5. Submit a pull request with both source files and packaged archive
+
+## Support
+
+For issues or questions about runtimes:
+
+- Check the [Joblet documentation](https://github.com/joblet/joblet)
+- Open an issue in the repository
+- Contact the maintainers
+
+---
+
+*Last updated: 2025*

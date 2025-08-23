@@ -362,23 +362,17 @@ func (s *SimpleBufferManager) Stats() *buffer.BufferManagerStats {
 	return &buffer.BufferManagerStats{
 		ActiveBuffers:       len(s.buffers),
 		TotalBuffersCreated: int64(len(s.buffers)), // Simplified for development
-		TotalBytesWritten:   0,                     // TODO: Implement byte tracking
-		TotalBytesRead:      0,                     // TODO: Implement byte tracking
-		MemoryUsage:         0,                     // TODO: Implement memory usage tracking
+		TotalBytesWritten:   0,
+		TotalBytesRead:      0,
+		MemoryUsage:         0,
 	}
 }
 
-// CreatePersistentBuffer creates a buffer with disk persistence.
-// Not supported in simple buffer manager - returns error.
 func (s *SimpleBufferManager) CreatePersistentBuffer(ctx context.Context, id string, path string, config buffer.BufferConfig) (buffer.PersistentBuffer, error) {
-	// For development, persistent buffers aren't supported in simple buffer manager
 	return nil, fmt.Errorf("persistent buffers not supported in simple buffer manager")
 }
 
-// CreateRingBuffer creates a circular buffer with fixed size.
-// Not supported in simple buffer manager - returns error.
 func (s *SimpleBufferManager) CreateRingBuffer(ctx context.Context, id string, size int, config buffer.BufferConfig) (buffer.RingBuffer, error) {
-	// For development, ring buffers aren't supported in simple buffer manager
 	return nil, fmt.Errorf("ring buffers not supported in simple buffer manager")
 }
 
@@ -426,7 +420,6 @@ func (s *simpleMemoryStore[K, V]) Update(ctx context.Context, key K, value V) er
 		return fmt.Errorf("store is closed")
 	}
 
-	// For simplicity, allow updates even if key doesn't exist
 	s.data[key] = value
 	return nil
 }

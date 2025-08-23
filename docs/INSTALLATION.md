@@ -2,9 +2,8 @@
 
 This guide provides detailed instructions for installing Joblet on various operating systems and architectures.
 
-> **🚀 Docker Alternative**: Joblet is a modern replacement for Docker and Docker Compose, providing superior
-> performance, security, and resource control through Linux namespaces and cgroups v2. Install Joblet directly on Linux
-> hosts for optimal performance - no containers required!
+> **🚀 Native Linux Execution**: Joblet provides superior performance, security, and resource control through Linux 
+> namespaces and cgroups v2. Install Joblet directly on Linux hosts for optimal performance with native process isolation!
 
 ## 📋 System Requirements
 
@@ -310,8 +309,7 @@ sudo journalctl -u joblet -f
 
 ### Local Development
 
-Joblet is designed as a **Docker and Kubernetes alternative** providing superior isolation, performance, and resource
-control through Linux namespaces and cgroups v2.
+Joblet provides superior isolation, performance, and resource control through Linux namespaces and cgroups v2.
 
 ```bash
 # Set up development environment on Linux
@@ -333,9 +331,9 @@ make test
 sudo make install
 ```
 
-### Why Not Docker/Kubernetes?
+### Native Process Isolation
 
-Joblet **replaces** containerization technologies by providing:
+Joblet provides native Linux process isolation with:
 
 - **Better Performance**: Direct Linux namespace execution (no container overhead)
 - **Superior Resource Control**: cgroups v2 with precise CPU, memory, and I/O limits
@@ -343,11 +341,11 @@ Joblet **replaces** containerization technologies by providing:
 - **Simplified Deployment**: Single binary installation vs container orchestration complexity
 - **Instant Startup**: 2-3 second job execution vs container pull/start overhead
 
-**Use Joblet Instead Of:**
+**Joblet Commands:**
 
-- `docker run` → `rnx run`
-- `docker-compose` → `rnx run --workflow=workflow.yaml`
-- Kubernetes Jobs → Joblet workflows with dependencies
+- `rnx run` - Execute isolated processes
+- `rnx run --workflow=workflow.yaml` - Run complex workflows
+- `rnx runtime install` - Install pre-built runtime environments
 
 ## ✅ Post-Installation Verification
 

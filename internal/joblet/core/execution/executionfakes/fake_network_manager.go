@@ -20,6 +20,19 @@ type FakeNetworkManager struct {
 	cleanupNetworkingReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ConfigureNetworkNamespaceStub        func(context.Context, string, int) error
+	configureNetworkNamespaceMutex       sync.RWMutex
+	configureNetworkNamespaceArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 int
+	}
+	configureNetworkNamespaceReturns struct {
+		result1 error
+	}
+	configureNetworkNamespaceReturnsOnCall map[int]struct {
+		result1 error
+	}
 	SetupNetworkingStub        func(context.Context, string, string) (*execution.NetworkAllocation, error)
 	setupNetworkingMutex       sync.RWMutex
 	setupNetworkingArgsForCall []struct {
@@ -97,6 +110,69 @@ func (fake *FakeNetworkManager) CleanupNetworkingReturnsOnCall(i int, result1 er
 		})
 	}
 	fake.cleanupNetworkingReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeNetworkManager) ConfigureNetworkNamespace(arg1 context.Context, arg2 string, arg3 int) error {
+	fake.configureNetworkNamespaceMutex.Lock()
+	ret, specificReturn := fake.configureNetworkNamespaceReturnsOnCall[len(fake.configureNetworkNamespaceArgsForCall)]
+	fake.configureNetworkNamespaceArgsForCall = append(fake.configureNetworkNamespaceArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 int
+	}{arg1, arg2, arg3})
+	stub := fake.ConfigureNetworkNamespaceStub
+	fakeReturns := fake.configureNetworkNamespaceReturns
+	fake.recordInvocation("ConfigureNetworkNamespace", []interface{}{arg1, arg2, arg3})
+	fake.configureNetworkNamespaceMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeNetworkManager) ConfigureNetworkNamespaceCallCount() int {
+	fake.configureNetworkNamespaceMutex.RLock()
+	defer fake.configureNetworkNamespaceMutex.RUnlock()
+	return len(fake.configureNetworkNamespaceArgsForCall)
+}
+
+func (fake *FakeNetworkManager) ConfigureNetworkNamespaceCalls(stub func(context.Context, string, int) error) {
+	fake.configureNetworkNamespaceMutex.Lock()
+	defer fake.configureNetworkNamespaceMutex.Unlock()
+	fake.ConfigureNetworkNamespaceStub = stub
+}
+
+func (fake *FakeNetworkManager) ConfigureNetworkNamespaceArgsForCall(i int) (context.Context, string, int) {
+	fake.configureNetworkNamespaceMutex.RLock()
+	defer fake.configureNetworkNamespaceMutex.RUnlock()
+	argsForCall := fake.configureNetworkNamespaceArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeNetworkManager) ConfigureNetworkNamespaceReturns(result1 error) {
+	fake.configureNetworkNamespaceMutex.Lock()
+	defer fake.configureNetworkNamespaceMutex.Unlock()
+	fake.ConfigureNetworkNamespaceStub = nil
+	fake.configureNetworkNamespaceReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeNetworkManager) ConfigureNetworkNamespaceReturnsOnCall(i int, result1 error) {
+	fake.configureNetworkNamespaceMutex.Lock()
+	defer fake.configureNetworkNamespaceMutex.Unlock()
+	fake.ConfigureNetworkNamespaceStub = nil
+	if fake.configureNetworkNamespaceReturnsOnCall == nil {
+		fake.configureNetworkNamespaceReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.configureNetworkNamespaceReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }

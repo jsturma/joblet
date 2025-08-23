@@ -131,18 +131,18 @@ func (r *Receiver) processFilesFromPipe(pipe io.Reader, workspacePath string) er
 				fileMode = 0644
 			}
 
-			file, er := r.platform.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, fileMode)
-			if er != nil {
-				return fmt.Errorf("failed to create file %s: %w", filePath, er)
+			file, err := r.platform.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, fileMode)
+			if err != nil {
+				return fmt.Errorf("failed to create file %s: %w", filePath, err)
 			}
 
 			// Copy file content with monitoring
 			ctx := context.Background()
-			written, e := r.copyWithMonitoring(ctx, file, pipe, size)
+			written, err := r.copyWithMonitoring(ctx, file, pipe, size)
 			file.Close()
 
-			if e != nil {
-				return fmt.Errorf("failed to write file content for %s: %w", filePath, e)
+			if err != nil {
+				return fmt.Errorf("failed to write file content for %s: %w", filePath, err)
 			}
 
 			if written != size {

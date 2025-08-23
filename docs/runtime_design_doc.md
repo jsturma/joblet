@@ -17,7 +17,7 @@ environments without contaminating the host system.
 
 ### 2. Version-Specific Support
 
-- Support multiple versions of the same language (e.g., `python:3.11+ml`, `python:3.12`)
+- Support multiple versions of the same language (e.g., `python-3.11-ml`, `python-3.12`)
 - Each runtime is completely independent
 - Version-specific directory structure prevents conflicts
 
@@ -94,8 +94,8 @@ Runtimes that provide complete language environments with interpreters/compilers
 
 **Examples:**
 
-- `python:3.11+ml` - Python 3.11 with NumPy, Pandas, Scikit-learn
-- `python:3.12` - Python 3.12 with modern features
+- `python-3.11-ml` - Python 3.11 with NumPy, Pandas, Scikit-learn
+- `python-3.12` - Python 3.12 with modern features
 - `java:17` - OpenJDK 17 LTS with Maven
 - `java:21` - OpenJDK 21 with Virtual Threads
 
@@ -103,7 +103,7 @@ Runtimes that provide complete language environments with interpreters/compilers
 
 ### Runtime Resolution
 
-1. Job specifies runtime via `--runtime=python:3.11+ml`
+1. Job specifies runtime via `--runtime=python-3.11-ml`
 2. Runtime manager resolves to `/opt/joblet/runtimes/python/python-3.11-ml/`
 3. Configuration loaded from `runtime.yml`
 4. Mount points prepared for job container

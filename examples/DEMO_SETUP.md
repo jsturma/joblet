@@ -52,7 +52,7 @@ cd python-ml/
 
 # Data Analysis Example
 cd python-3.11-ml/
-rnx run --runtime=python:3.11-ml --upload=example_data_analysis.py python example_data_analysis.py
+rnx run --runtime=python-3.11-ml --upload=example_data_analysis.py python example_data_analysis.py
 ```
 
 **Java Development:**

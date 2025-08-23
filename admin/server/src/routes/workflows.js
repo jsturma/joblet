@@ -194,7 +194,7 @@ router.post('/validate', async (req, res) => {
 // Execute workflow (must come BEFORE /:workflowId route)
 router.post('/execute', async (req, res) => {
     try {
-        const {filePath, createMissingVolumes = false} = req.body;
+        const {filePath, workflowName, createMissingVolumes = false} = req.body;
         const node = req.query.node;
 
         if (!filePath) {
@@ -252,7 +252,9 @@ router.post('/execute', async (req, res) => {
 
         try {
             // Execute the workflow directly from the file path
-            const output = await execRnx(['run', '--workflow', filePath], {node});
+            // If workflowName is provided, use the format file:workflowName
+            const workflowArg = workflowName ? `${filePath}:${workflowName}` : filePath;
+            const output = await execRnx(['run', '--workflow', workflowArg], {node});
 
             // Extract workflow UUID from output
             let workflowId = `workflow-${Date.now()}`;
@@ -278,6 +280,21 @@ router.post('/execute', async (req, res) => {
                 output: output
             });
         } catch (error) {
+            // Check if this is a "multiple workflows found" error
+            if (error.message && error.message.includes('multiple workflows found')) {
+                // Extract workflow names from the error message
+                const workflowMatch = error.message.match(/multiple workflows found: ([^.]+)/);
+                let availableWorkflows = [];
+                if (workflowMatch) {
+                    availableWorkflows = workflowMatch[1].split(', ');
+                }
+                return res.status(400).json({
+                    error: 'Multi-workflow files not supported',
+                    message: `This YAML file contains multiple workflows (${availableWorkflows.join(', ')}). Please use separate YAML files for each workflow, or specify a single workflow using the format: ${filePath}:workflow-name`,
+                    availableWorkflows,
+                    multiWorkflowFile: true
+                });
+            }
             throw error;
         }
     } catch (error) {
@@ -321,17 +338,46 @@ router.get('/:workflowId', async (req, res) => {
         }
 
         // Transform workflow data to match the UI's WorkflowJob interface
-        // First pass: create basic job objects
-        const jobsWithBasicInfo = (workflowData.jobs || []).map((job, index) => ({
-            // Core Job interface fields
-            id: job.jobUuid || job.id || `${job.name || 'job'}-${index}`,
-            command: 'unknown', // Not available in workflow status
-            args: [],
-            status: job.status || 'UNKNOWN',
-            startTime: job.startTime || workflowData.started_at ? new Date(workflowData.started_at.seconds * 1000).toISOString() : new Date().toISOString(),
-            endTime: job.endTime || (workflowData.completed_at ? new Date(workflowData.completed_at.seconds * 1000).toISOString() : undefined),
-            duration: 0, // Not available
-            exitCode: job.exitCode || undefined,
+        // First pass: create basic job objects with individual timing data
+        const jobsWithBasicInfo = await Promise.all((workflowData.jobs || []).map(async (job, index) => {
+            let jobTiming = {};
+            
+            // Fetch individual job details to get accurate timing information
+            if (job.id) {
+                try {
+                    const jobOutput = await execRnx(['status', job.id, '--json'], {node});
+                    const jobDetails = JSON.parse(jobOutput);
+                    jobTiming = {
+                        startTime: jobDetails.startTime || (jobDetails.start_time ? new Date(jobDetails.start_time).toISOString() : undefined),
+                        endTime: jobDetails.endTime || (jobDetails.end_time ? new Date(jobDetails.end_time).toISOString() : undefined),
+                        duration: jobDetails.duration || 0,
+                        exitCode: jobDetails.exitCode || jobDetails.exit_code,
+                        command: jobDetails.command || 'unknown',
+                        args: jobDetails.args || []
+                    };
+                } catch (jobError) {
+                    console.warn(`Failed to fetch timing for job ${job.id}:`, jobError.message);
+                    // Fallback to workflow timing
+                    jobTiming = {
+                        startTime: workflowData.started_at ? new Date(workflowData.started_at.seconds * 1000).toISOString() : new Date().toISOString(),
+                        endTime: workflowData.completed_at ? new Date(workflowData.completed_at.seconds * 1000).toISOString() : undefined,
+                        duration: 0,
+                        command: 'unknown',
+                        args: []
+                    };
+                }
+            }
+
+            return {
+                // Core Job interface fields
+                id: job.jobUuid || job.id || `${job.name || 'job'}-${index}`,
+                command: jobTiming.command || 'unknown',
+                args: jobTiming.args || [],
+                status: job.status || 'UNKNOWN',
+                startTime: jobTiming.startTime,
+                endTime: jobTiming.endTime,
+                duration: jobTiming.duration || 0,
+                exitCode: jobTiming.exitCode,
             maxCPU: 0,
             maxMemory: 0,
             maxIOBPS: 0,
@@ -347,13 +393,14 @@ router.get('/:workflowId', async (req, res) => {
             
             // WorkflowJob extended fields
             name: job.name || `Job ${index + 1}`,
-            rnxJobId: null,
+            rnxJobId: job.id || null,
             hasStarted: ['RUNNING', 'COMPLETED', 'FAILED', 'STOPPED'].includes(job.status),
             isWorkflowJob: true,
             workflowId: workflowData.uuid || workflowData.workflowUuid || workflowData.id,
             
             // Keep original dependencies for mapping
             originalDependencies: job.dependencies || []
+            };
         }));
 
         // Create name-to-ID mapping
@@ -384,8 +431,8 @@ router.get('/:workflowId', async (req, res) => {
 
         const transformedWorkflow = {
             ...workflowData,
-            id: workflowData.uuid || workflowData.workflowUuid || workflowData.id,
-            name: workflowData.workflow || `Workflow ${workflowData.uuid?.substring(0, 8) || workflowData.id}`,
+            uuid: workflowData.uuid || workflowData.workflowUuid || workflowData.id,
+            name: workflowData.workflow || `Workflow ${workflowData.uuid?.substring(0, 8) || workflowData.workflowUuid?.substring(0, 8) || 'Unknown'}`,
             jobs: transformedJobs
         };
 
@@ -402,95 +449,31 @@ router.get('/:workflowId/yaml', async (req, res) => {
         const {workflowId} = req.params;
         const node = req.query.node;
 
-        try {
-            // Use the new --detail flag to get the actual YAML content
-            const output = await execRnx(['status', '--workflow', workflowId, '--detail'], {node});
-            
-            // Extract YAML content from the output
-            const yamlContent = extractYamlFromDetailOutput(output);
-            
-            if (!yamlContent) {
-                return res.status(404).json({error: 'YAML content not available for this workflow'});
-            }
+        // Get workflow status with YAML content using --detail flag
+        const output = await execRnx(['status', '--workflow', '--detail', workflowId, '--json'], {node});
+        const workflowData = JSON.parse(output);
 
-            // Get basic workflow info for metadata
-            const jsonOutput = await execRnx(['status', '--workflow', workflowId, '--json'], {node});
-            const workflowData = JSON.parse(jsonOutput);
-            
-            res.json({
-                filePath: null, // Still no file path, but we have the original YAML
-                content: yamlContent,
-                lastModified: workflowData.created_at ? new Date(workflowData.created_at.seconds * 1000).toISOString() : new Date().toISOString(),
-                size: yamlContent.length,
-                isReconstructed: false,
-                note: "Original YAML content from workflow execution"
+        if (!workflowData.yaml_content) {
+            return res.status(404).json({
+                error: 'YAML content not found',
+                message: 'This workflow does not have YAML content available'
             });
-        } catch (statusError) {
-            return res.status(404).json({error: 'Workflow not found'});
         }
+
+        res.json({
+            content: workflowData.yaml_content,
+            note: 'Original workflow YAML',
+            lastModified: workflowData.created_at || new Date().toISOString(),
+            workflowId: workflowData.uuid || workflowId,
+            workflowName: workflowData.workflow
+        });
     } catch (error) {
-        console.error('Failed to get workflow YAML:', error);
-        res.status(500).json({error: error.message});
+        console.error(`Failed to get workflow YAML ${req.params.workflowId}:`, error);
+        res.status(500).json({
+            error: 'Failed to get workflow YAML content',
+            message: error.message
+        });
     }
 });
-
-// Helper function to extract YAML content from rnx status --detail output
-function extractYamlFromDetailOutput(output) {
-    try {
-        // Look for the YAML Content section in the output
-        const yamlStartMarker = 'YAML Content:';
-        const yamlEndMarker = 'Status:';
-        
-        const startIndex = output.indexOf(yamlStartMarker);
-        if (startIndex === -1) {
-            return null; // No YAML content found
-        }
-        
-        const endIndex = output.indexOf(yamlEndMarker, startIndex);
-        if (endIndex === -1) {
-            return null; // No end marker found
-        }
-        
-        // Extract the YAML content between the markers
-        let yamlSection = output.substring(startIndex + yamlStartMarker.length, endIndex);
-        
-        // Clean up the section
-        const lines = yamlSection.split('\n');
-        const cleanedLines = [];
-        let foundFirstLine = false;
-        
-        for (const line of lines) {
-            // Skip separator lines (===== or empty lines at the beginning)
-            if (!foundFirstLine) {
-                if (line.trim() === '' || line.trim().match(/^=+$/)) {
-                    continue;
-                }
-                foundFirstLine = true;
-            }
-            
-            // Stop if we hit another section or empty lines at the end
-            if (foundFirstLine && line.trim() === '' && cleanedLines.length > 0) {
-                // Check if this is trailing whitespace
-                const remainingLines = lines.slice(lines.indexOf(line) + 1);
-                const hasMoreContent = remainingLines.some(l => l.trim() !== '');
-                if (!hasMoreContent) {
-                    break;
-                }
-            }
-            
-            cleanedLines.push(line);
-        }
-        
-        // Remove trailing empty lines
-        while (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1].trim() === '') {
-            cleanedLines.pop();
-        }
-        
-        return cleanedLines.join('\n');
-    } catch (error) {
-        console.error('Error extracting YAML from detail output:', error);
-        return null;
-    }
-}
 
 export default router;

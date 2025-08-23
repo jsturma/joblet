@@ -175,9 +175,9 @@ func (sc *StreamContext) openPipeWithRetry(ctx context.Context) (*os.File, error
 		pipe, err := sc.platform.OpenFile(sc.PipePath, os.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err == nil {
 			// Successfully opened - now set to blocking mode for actual writes
-			if e := syscall.SetNonblock(int(pipe.Fd()), false); e != nil {
+			if err := syscall.SetNonblock(int(pipe.Fd()), false); err != nil {
 				pipe.Close()
-				return nil, fmt.Errorf("failed to set blocking mode: %w", e)
+				return nil, fmt.Errorf("failed to set blocking mode: %w", err)
 			}
 			log.Debug("pipe opened successfully")
 			return pipe, nil

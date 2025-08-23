@@ -229,7 +229,7 @@ func (wv *WorkflowValidator) validateRuntimesExist(workflow types.WorkflowYAML) 
 		if runtime.Available {
 			// Support both hyphen and colon format
 			availableRuntimes[runtime.Name] = true
-			// Normalize runtime name (server may store as "python-3.11-ml" but workflow uses "python:3.11-ml")
+			// Normalize runtime name (server may store as "python-3.11-ml" but workflow uses "python-3.11-ml")
 			if colonVersion := normalizeRuntimeName(runtime.Name); colonVersion != runtime.Name {
 				availableRuntimes[colonVersion] = true
 			}
@@ -283,7 +283,7 @@ func (wv *WorkflowValidator) validateJobDependencies(workflow types.WorkflowYAML
 }
 
 // normalizeRuntimeName converts between hyphen and colon format
-// e.g., "python-3.11-ml" <-> "python:3.11-ml"
+// e.g., "python-3.11-ml" <-> "python-3.11-ml"
 func normalizeRuntimeName(runtimeName string) string {
 	// If it contains a colon, convert to hyphen format
 	if len(runtimeName) > 0 {
@@ -477,11 +477,6 @@ func (wv *WorkflowValidator) isReservedEnvironmentVariable(name string) bool {
 		"HOSTNAME": true,
 		"LANG":     true,
 		"LC_ALL":   true,
-
-		// Docker/Container variables
-		"DOCKER_HOST":       true,
-		"DOCKER_TLS_VERIFY": true,
-		"DOCKER_CERT_PATH":  true,
 
 		// Joblet-specific variables (that might be set by the system)
 		"JOBLET_JOB_ID":      true,

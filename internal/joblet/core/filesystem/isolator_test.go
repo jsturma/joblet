@@ -27,9 +27,11 @@ func TestSetupLimitedWorkDir(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create job filesystem
-	cfg := config.FilesystemConfig{
-		BaseDir: tempDir,
-		TmpDir:  filepath.Join(tempDir, "tmp"),
+	cfg := &config.Config{
+		Filesystem: config.FilesystemConfig{
+			BaseDir: tempDir,
+			TmpDir:  filepath.Join(tempDir, "tmp"),
+		},
 	}
 
 	platform := platform.NewPlatform()
@@ -77,9 +79,11 @@ func TestJobFilesystemWithoutVolumes(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create job filesystem without volumes
-	cfg := config.FilesystemConfig{
-		BaseDir: tempDir,
-		TmpDir:  filepath.Join(tempDir, "tmp"),
+	cfg := &config.Config{
+		Filesystem: config.FilesystemConfig{
+			BaseDir: tempDir,
+			TmpDir:  filepath.Join(tempDir, "tmp"),
+		},
 	}
 
 	platform := platform.NewPlatform()

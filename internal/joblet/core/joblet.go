@@ -20,7 +20,6 @@ import (
 	"joblet/internal/joblet/core/upload"
 	"joblet/internal/joblet/core/validation"
 	"joblet/internal/joblet/domain"
-	"joblet/internal/joblet/runtime"
 	"joblet/internal/joblet/scheduler"
 	"joblet/pkg/config"
 	"joblet/pkg/logger"
@@ -58,6 +57,7 @@ type StartJobRequest struct {
 	Runtime           string
 	Environment       map[string]string
 	SecretEnvironment map[string]string
+	JobType           domain.JobType
 }
 
 func (r StartJobRequest) GetCommand() string                      { return r.Command }
@@ -69,6 +69,7 @@ func (r StartJobRequest) GetVolumes() []string                    { return r.Vol
 func (r StartJobRequest) GetRuntime() string                      { return r.Runtime }
 func (r StartJobRequest) GetEnvironment() map[string]string       { return r.Environment }
 func (r StartJobRequest) GetSecretEnvironment() map[string]string { return r.SecretEnvironment }
+func (r StartJobRequest) GetJobType() domain.JobType              { return r.JobType }
 
 // NewPlatformJoblet creates a new Linux platform joblet with specialized components
 func NewPlatformJoblet(store JobStore, cfg *config.Config, networkStoreAdapter adapters.NetworkStoreAdapter) interfaces.Joblet {
@@ -145,6 +146,7 @@ func (j *Joblet) StartJob(ctx context.Context, req interfaces.StartJobRequest) (
 		Runtime:           req.Runtime,
 		Environment:       req.Environment,
 		SecretEnvironment: req.SecretEnvironment,
+		JobType:           req.JobType, // Pass job type for isolation configuration
 	}
 
 	log := j.logger.WithFields(
@@ -208,7 +210,10 @@ func (j *Joblet) scheduleJob(ctx context.Context, job *domain.Job, req StartJobR
 	j.store.CreateNewJob(job)
 
 	if e := j.scheduler.AddJob(job); e != nil {
-		_ = j.cleanup.CleanupJob(job.Uuid)
+		// Skip cleanup for runtime build jobs even on scheduling failure
+		if !job.Type.IsRuntimeBuild() {
+			_ = j.cleanup.CleanupJob(job.Uuid)
+		}
 		return nil, fmt.Errorf("scheduling failed: %w", e)
 	}
 
@@ -278,7 +283,10 @@ func (j *Joblet) StopJob(ctx context.Context, req interfaces.StopJobRequest) err
 		if j.scheduler.RemoveJob(req.JobID) {
 			jb.Status = domain.StatusStopped
 			j.store.UpdateJob(jb)
-			_ = j.cleanup.CleanupJob(req.JobID)
+			// Skip cleanup for runtime build jobs even when stopped
+			if !jb.Type.IsRuntimeBuild() {
+				_ = j.cleanup.CleanupJob(req.JobID)
+			}
 			log.Info("scheduled job cancelled")
 			return nil
 		}
@@ -299,8 +307,17 @@ func (j *Joblet) StopJob(ctx context.Context, req interfaces.StopJobRequest) err
 		return nil
 	}
 
-	// Stop the process and cleanup
-	err := j.cleanup.CleanupJobWithProcess(ctx, req.JobID, jb.Pid)
+	// Stop the process and cleanup - but handle runtime builds specially
+	var err error
+	if jb.Type.IsRuntimeBuild() {
+		// For runtime builds: system cleanup only (cgroups, process) but preserve filesystem
+		log.Info("stopping runtime build job with partial cleanup - preserving artifacts in /opt/joblet/runtimes")
+		// Use a special cleanup path that preserves filesystem artifacts
+		err = j.cleanup.CleanupJobWithProcessSystemOnly(ctx, req.JobID, jb.Pid)
+	} else {
+		// For regular jobs: do full cleanup
+		err = j.cleanup.CleanupJobWithProcess(ctx, req.JobID, jb.Pid)
+	}
 
 	// Update state regardless of cleanup result
 	jb.Status = domain.StatusStopped
@@ -349,8 +366,15 @@ func (j *Joblet) DeleteJob(ctx context.Context, req interfaces.DeleteJobRequest)
 		return fmt.Errorf("job deletion failed: %w", err)
 	}
 
-	// Cleanup any remaining resources
-	_ = j.cleanup.CleanupJob(req.JobID)
+	// Cleanup any remaining resources - handle runtime builds specially
+	if jb.Type.IsRuntimeBuild() {
+		// For runtime builds: only clean system resources, preserve artifacts
+		_ = j.cleanup.CleanupJobSystemResourcesOnly(req.JobID)
+		log.Info("runtime build job deleted - system resources cleaned, artifacts preserved")
+	} else {
+		// For regular jobs: full cleanup
+		_ = j.cleanup.CleanupJob(req.JobID)
+	}
 
 	log.Info("job deleted successfully")
 	return nil
@@ -388,9 +412,20 @@ func (j *Joblet) monitorJob(ctx context.Context, cmd platform.Command, job *doma
 	// Update state
 	j.store.UpdateJob(job)
 
-	// Cleanup resources
-	if err := j.cleanup.CleanupJob(job.Uuid); err != nil {
-		log.Error("cleanup failed during monitoring", "error", err)
+	// Cleanup resources - but handle runtime build jobs specially
+	if job.Type.IsRuntimeBuild() {
+		// For runtime builds: clean system resources but preserve filesystem artifacts
+		if err := j.cleanup.CleanupJobSystemResourcesOnly(job.Uuid); err != nil {
+			log.Error("system resource cleanup failed for runtime build job", "error", err)
+		} else {
+			log.Info("runtime build job completed - system resources cleaned, artifacts preserved",
+				"jobType", job.Type, "runtimesPath", "/opt/joblet/runtimes")
+		}
+	} else {
+		// For regular jobs: full cleanup
+		if err := j.cleanup.CleanupJob(job.Uuid); err != nil {
+			log.Error("cleanup failed during monitoring", "error", err)
+		}
 	}
 
 	log.Info("job completed", "exitCode", exitCode)
@@ -411,9 +446,21 @@ func (j *Joblet) handleExecutionFailure(job *domain.Job) {
 	job.ExitCode = -1
 	job.EndTime = &[]time.Time{time.Now()}[0]
 	j.store.UpdateJob(job)
-	if err := j.cleanup.CleanupJob(job.Uuid); err != nil {
-		j.logger.Error("cleanup failed after execution failure",
-			"jobID", job.Uuid, "error", err)
+
+	// Handle cleanup for failed jobs - runtime builds get partial cleanup
+	if job.Type.IsRuntimeBuild() {
+		// For failed runtime builds: clean system resources but preserve partial artifacts
+		if err := j.cleanup.CleanupJobSystemResourcesOnly(job.Uuid); err != nil {
+			j.logger.Error("system resource cleanup failed for failed runtime build job", "error", err)
+		} else {
+			j.logger.Info("failed runtime build job - system resources cleaned, partial artifacts preserved",
+				"jobType", job.Type, "jobID", job.Uuid)
+		}
+	} else {
+		if err := j.cleanup.CleanupJob(job.Uuid); err != nil {
+			j.logger.Error("cleanup failed after execution failure",
+				"jobID", job.Uuid, "error", err)
+		}
 	}
 }
 
@@ -431,16 +478,16 @@ func (j *Joblet) getActiveJobIDs() map[string]bool {
 func initializeComponents(store JobStore, cfg *config.Config, platform platform.Platform, logger *logger.Logger, networkStore NetworkStore) *components {
 	// Create core resources
 	cgroupResource := resource.New(cfg.Cgroup)
-	filesystemIsolator := filesystem.NewIsolator(cfg.Filesystem, platform)
+	filesystemIsolator := filesystem.NewIsolator(cfg, platform)
 	jobIsolation := unprivileged.NewJobIsolation()
 
 	// Create managers
-	processManager := process.NewProcessManager(platform)
+	processManager := process.NewProcessManager(platform, cfg)
 	uploadManager := upload.NewManager(platform, logger)
 
 	// Create validation service
 	validator := validation.NewService(
-		validation.NewCommandValidator(platform),
+		validation.NewCommandValidator(platform, cfg),
 		validation.NewScheduleValidator(),
 		validation.NewResourceValidator(),
 	)
@@ -448,12 +495,6 @@ func initializeComponents(store JobStore, cfg *config.Config, platform platform.
 	// Create UUID generator for job identification
 	uuidGenerator := job.NewUUIDGenerator("job", "node")
 	jobBuilder := job.NewBuilder(cfg, uuidGenerator, validator.ResourceValidator())
-
-	// Create runtime manager if runtime support is enabled
-	var runtimeManager *runtime.Manager
-	if cfg.Runtime.Enabled {
-		runtimeManager = runtime.NewManager(cfg.Runtime.BasePath, platform)
-	}
 
 	// Create resource manager
 	resourceManager := &ResourceManager{
@@ -485,7 +526,6 @@ func initializeComponents(store JobStore, cfg *config.Config, platform platform.
 		cfg,
 		logger,
 		networkStore.(*NetworkStoreAdapter).GetUnderlyingStore(),
-		runtimeManager,
 	)
 
 	return &components{

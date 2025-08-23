@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -13,11 +14,28 @@ import (
 	"joblet/pkg/logger"
 )
 
+// VolumeManager interface for accessing volume information
+type VolumeManager interface {
+	ListVolumes() []*Volume
+	GetVolumeUsage(volumeName string) (used int64, available int64, err error)
+}
+
+// Volume represents volume information needed for monitoring
+type Volume struct {
+	Name      string
+	Type      string
+	Size      string
+	SizeBytes int64
+	Path      string
+}
+
 // DiskCollector collects disk metrics from /proc/mounts and /proc/diskstats
 type DiskCollector struct {
-	logger    *logger.Logger
-	lastStats map[string]*diskIOStats
-	lastTime  time.Time
+	logger         *logger.Logger
+	lastStats      map[string]*diskIOStats
+	lastTime       time.Time
+	volumeManager  VolumeManager
+	volumeBasePath string
 }
 
 type diskIOStats struct {
@@ -36,6 +54,16 @@ func NewDiskCollector() *DiskCollector {
 	return &DiskCollector{
 		logger:    logger.WithField("component", "disk-collector"),
 		lastStats: make(map[string]*diskIOStats),
+	}
+}
+
+// NewDiskCollectorWithVolumeManager creates a new disk metrics collector with volume management
+func NewDiskCollectorWithVolumeManager(volumeManager VolumeManager, volumeBasePath string) *DiskCollector {
+	return &DiskCollector{
+		logger:         logger.WithField("component", "disk-collector"),
+		lastStats:      make(map[string]*diskIOStats),
+		volumeManager:  volumeManager,
+		volumeBasePath: volumeBasePath,
 	}
 }
 
@@ -104,6 +132,16 @@ func (c *DiskCollector) Collect() ([]domain.DiskMetrics, error) {
 		}
 
 		metrics = append(metrics, diskMetric)
+	}
+
+	// Add joblet volumes if volume manager is available
+	if c.volumeManager != nil {
+		volumeMetrics, err := c.collectVolumeMetrics()
+		if err != nil {
+			c.logger.Warn("failed to collect volume metrics", "error", err)
+		} else {
+			metrics = append(metrics, volumeMetrics...)
+		}
 	}
 
 	// Store current stats for next calculation
@@ -238,4 +276,65 @@ func (c *DiskCollector) readDiskStats() (map[string]*diskIOStats, error) {
 	}
 
 	return stats, scanner.Err()
+}
+
+// collectVolumeMetrics collects metrics for joblet volumes
+func (c *DiskCollector) collectVolumeMetrics() ([]domain.DiskMetrics, error) {
+	volumes := c.volumeManager.ListVolumes()
+	var metrics []domain.DiskMetrics
+
+	for _, volume := range volumes {
+		dataDir := filepath.Join(volume.Path, "data")
+
+		// Check if volume directory exists
+		if _, err := os.Stat(dataDir); err != nil {
+			c.logger.Debug("skipping volume with missing data directory", "volume", volume.Name, "error", err)
+			continue
+		}
+
+		// Get filesystem stats for the volume
+		var stat syscall.Statfs_t
+		if err := syscall.Statfs(dataDir, &stat); err != nil {
+			c.logger.Debug("failed to stat volume filesystem", "volume", volume.Name, "error", err)
+			continue
+		}
+
+		totalBytes := stat.Blocks * uint64(stat.Bsize)
+		freeBytes := stat.Bavail * uint64(stat.Bsize)
+		usedBytes := totalBytes - freeBytes
+
+		usagePercent := 0.0
+		if totalBytes > 0 {
+			usagePercent = float64(usedBytes) / float64(totalBytes) * 100.0
+		}
+
+		// Create volume-specific mount point and device name
+		mountPoint := dataDir
+		device := volume.Name
+		filesystem := "joblet-volume"
+
+		// For memory volumes, mark as tmpfs
+		if volume.Type == "memory" {
+			filesystem = "tmpfs"
+			device = "tmpfs"
+		}
+
+		volumeMetric := domain.DiskMetrics{
+			MountPoint:   mountPoint,
+			Device:       device,
+			FileSystem:   filesystem,
+			TotalBytes:   totalBytes,
+			UsedBytes:    usedBytes,
+			FreeBytes:    freeBytes,
+			UsagePercent: usagePercent,
+			InodesTotal:  stat.Files,
+			InodesUsed:   stat.Files - stat.Ffree,
+			InodesFree:   stat.Ffree,
+		}
+
+		metrics = append(metrics, volumeMetric)
+		c.logger.Debug("collected volume metrics", "volume", volume.Name, "type", volume.Type, "usage", usagePercent)
+	}
+
+	return metrics, nil
 }

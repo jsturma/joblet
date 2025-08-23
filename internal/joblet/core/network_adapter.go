@@ -1,6 +1,9 @@
 package core
 
-import "joblet/internal/joblet/adapters"
+import (
+	"fmt"
+	"joblet/internal/joblet/adapters"
+)
 
 // NetworkStoreAdapter adapts adapters.NetworkStoreAdapter to work with core types
 type NetworkStoreAdapter struct {
@@ -41,6 +44,26 @@ func (nsa *NetworkStoreAdapter) AssignJobToNetwork(jobID, networkName string, al
 // RemoveJobFromNetwork removes a job from network
 func (nsa *NetworkStoreAdapter) RemoveJobFromNetwork(jobID string) error {
 	return nsa.store.RemoveJobFromNetwork(jobID)
+}
+
+// GetJobNetworkAllocation retrieves a job's network allocation
+func (nsa *NetworkStoreAdapter) GetJobNetworkAllocation(jobID string) (*JobNetworkAllocation, error) {
+	// Get allocation from underlying store
+	adapterAlloc, found := nsa.store.GetJobNetworkAllocation(jobID)
+	if !found {
+		return nil, fmt.Errorf("job network allocation not found: %s", jobID)
+	}
+
+	// Convert adapters.JobNetworkAllocation to core.JobNetworkAllocation
+	return &JobNetworkAllocation{
+		JobID:       adapterAlloc.JobID,
+		NetworkName: adapterAlloc.NetworkName,
+		IPAddress:   adapterAlloc.IPAddress,
+		MACAddress:  adapterAlloc.MACAddress,
+		Hostname:    adapterAlloc.Hostname,
+		Metadata:    adapterAlloc.Metadata,
+		AssignedAt:  adapterAlloc.AssignedAt,
+	}, nil
 }
 
 // GetUnderlyingStore returns the underlying adapter store for components that need it

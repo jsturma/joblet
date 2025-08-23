@@ -7,15 +7,18 @@ import (
 	"joblet/pkg/config"
 	"joblet/pkg/logger"
 	"joblet/pkg/platform"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Isolator struct {
 	platform platform.Platform
-	config   config.FilesystemConfig
+	config   *config.Config
 	logger   *logger.Logger
 }
 
@@ -23,7 +26,7 @@ type Isolator struct {
 // The isolator provides secure filesystem isolation for job execution using
 // chroot, bind mounts, and namespace isolation techniques.
 // Returns an Isolator instance ready to create isolated job filesystems.
-func NewIsolator(cfg config.FilesystemConfig, platform platform.Platform) *Isolator {
+func NewIsolator(cfg *config.Config, platform platform.Platform) *Isolator {
 	return &Isolator{
 		platform: platform,
 		config:   cfg,
@@ -42,8 +45,9 @@ type JobFilesystem struct {
 	Runtime       string      // Runtime specification
 	RuntimePath   string      // Path to runtime base directory
 	RuntimeConfig interface{} // Runtime configuration data
+	IsBuilder     bool        // True for runtime build jobs requiring full host filesystem access
 	platform      platform.Platform
-	config        config.FilesystemConfig
+	config        *config.Config
 	logger        *logger.Logger
 }
 
@@ -100,8 +104,8 @@ func (i *Isolator) CreateJobFilesystem(jobID string) (*JobFilesystem, error) {
 	log.Debug("creating isolated filesystem for job")
 
 	// Create job-specific directories
-	jobRootDir := filepath.Join(i.config.BaseDir, jobID)
-	jobTmpDir := strings.Replace(i.config.TmpDir, "{JOB_ID}", jobID, -1)
+	jobRootDir := filepath.Join(i.config.Filesystem.BaseDir, jobID)
+	jobTmpDir := strings.Replace(i.config.Filesystem.TmpDir, "{JOB_ID}", jobID, -1)
 	jobWorkDir := filepath.Join(jobRootDir, "work")
 
 	// Ensure we're in a job context (safety check)
@@ -135,6 +139,60 @@ func (i *Isolator) CreateJobFilesystem(jobID string) (*JobFilesystem, error) {
 	return filesystem, nil
 }
 
+// CreateBuilderFilesystem creates filesystem structure for runtime build jobs.
+// Builder jobs require access to the full host OS environment (minus /opt/joblet)
+// to provide compilation tools and package managers for building runtime environments.
+//
+// Sets up the directory structure needed for runtime builds:
+//   - Job root directory under configured base path (same as regular jobs)
+//   - Temporary directory with job ID substitution
+//   - Work directory for build files and execution
+//
+// The key difference from regular jobs is that builder jobs will mount the entire
+// host filesystem (excluding /opt/joblet to prevent recursion) instead of minimal binaries.
+//
+// Returns JobFilesystem instance configured for builder chroot operations.
+func (i *Isolator) CreateBuilderFilesystem(jobID string) (*JobFilesystem, error) {
+	log := i.logger.WithField("jobID", jobID)
+	log.Debug("creating builder filesystem for runtime build job")
+
+	// Create job-specific directories (same structure as regular jobs)
+	jobRootDir := filepath.Join(i.config.Filesystem.BaseDir, jobID)
+	jobTmpDir := strings.Replace(i.config.Filesystem.TmpDir, "{JOB_ID}", jobID, -1)
+	jobWorkDir := filepath.Join(jobRootDir, "work")
+
+	// Ensure we're in a job context (safety check)
+	if err := i.validateJobContext(); err != nil {
+		return nil, fmt.Errorf("builder filesystem safety check failed: %w", err)
+	}
+
+	// Create directory structure
+	dirs := []string{jobRootDir, jobTmpDir, jobWorkDir}
+	for _, dir := range dirs {
+		if err := i.platform.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	filesystem := &JobFilesystem{
+		JobID:     jobID,
+		RootDir:   jobRootDir,
+		TmpDir:    jobTmpDir,
+		WorkDir:   jobWorkDir,
+		platform:  i.platform,
+		config:    i.config,
+		logger:    log,
+		IsBuilder: true, // Mark as builder filesystem
+	}
+
+	log.Debug("builder filesystem structure created",
+		"rootDir", jobRootDir,
+		"tmpDir", jobTmpDir,
+		"workDir", jobWorkDir)
+
+	return filesystem, nil
+}
+
 // validateJobContext ensures the process is running in a safe job environment.
 // Performs critical safety checks to prevent filesystem isolation on the host:
 //   - Verifies JOB_ID environment variable is set
@@ -154,6 +212,58 @@ func (i *Isolator) validateJobContext() error {
 		return fmt.Errorf("not in isolated PID namespace - refusing filesystem isolation")
 	}
 
+	return nil
+}
+
+// createBuilderEssentialFiles creates network configuration files in builder chroot environment.
+// This runs AFTER chroot, so paths are relative to the chrooted root.
+// Sets up DNS resolution needed for package downloads during runtime installation.
+//
+// NOTE: Builder jobs use bridge networking (same as production jobs) but with enhanced DNS for reliability.
+func (f *JobFilesystem) createBuilderEssentialFiles() error {
+	f.logger.Debug("creating DNS configuration for builder chroot")
+
+	// Try to use the dedicated chroot resolv.conf if available, otherwise create one
+	chroot_resolv_path := "/opt/joblet/chroot-resolv.conf"
+	if content, err := f.platform.ReadFile(chroot_resolv_path); err == nil {
+		// Use the dedicated chroot resolv.conf from host
+		if err := f.platform.WriteFile("/etc/resolv.conf", content, 0644); err != nil {
+			return fmt.Errorf("failed to copy chroot resolv.conf: %w", err)
+		}
+		f.logger.Debug("using host-provided DNS configuration for builder")
+	} else {
+		// Fallback: Create /etc/resolv.conf with multiple public DNS servers for reliability
+		resolvConf := `# DNS configuration for Joblet builder chroot
+# Enhanced DNS for reliable package downloads during runtime installation
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+nameserver 208.67.222.222
+nameserver 208.67.220.220
+search .
+options ndots:0 timeout:3 attempts:3 rotate
+`
+		if err := f.platform.WriteFile("/etc/resolv.conf", []byte(resolvConf), 0644); err != nil {
+			return fmt.Errorf("failed to create resolv.conf for builder: %w", err)
+		}
+		f.logger.Debug("created enhanced DNS configuration for builder job")
+	}
+
+	// Create basic /etc/hosts (we're already chrooted)
+	hostsContent := `127.0.0.1   localhost
+::1         localhost ip6-localhost ip6-loopback
+fe00::0     ip6-localnet
+ff00::0     ip6-mcastprefix
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+`
+	if err := f.platform.WriteFile("/etc/hosts", []byte(hostsContent), 0644); err != nil {
+		return fmt.Errorf("failed to create hosts file in builder: %w", err)
+	}
+	f.logger.Debug("created /etc/hosts file")
+
+	f.logger.Debug("completed DNS configuration for builder chroot")
 	return nil
 }
 
@@ -240,10 +350,21 @@ func (f *JobFilesystem) Setup() error {
 		return fmt.Errorf("failed to create essential files: %w", err)
 	}
 
-	// Mount allowed read-only directories from host
+	// Mount allowed read-only directories from host FIRST (default minimal chroot)
 	if err := f.mountAllowedDirs(); err != nil {
 		return fmt.Errorf("failed to mount allowed directories: %w", err)
 	}
+
+	// Load runtime information from environment
+	f.loadRuntimeFromEnvironment()
+
+	// Mount runtime AFTER allowed directories to overlay runtime-specific files
+	// This allows runtime files to override/extend the default minimal chroot
+	f.logger.Debug("about to mount runtime", "runtime", f.Runtime)
+	if err := f.mountRuntime(); err != nil {
+		return fmt.Errorf("failed to mount runtime: %w", err)
+	}
+	f.logger.Debug("finished mounting runtime", "runtime", f.Runtime)
 
 	// Load volumes from environment if not already set
 	f.logger.Debug("checking volume setup", "jobID", f.JobID, "currentVolumes", f.Volumes, "volumeCount", len(f.Volumes))
@@ -253,9 +374,6 @@ func (f *JobFilesystem) Setup() error {
 	} else {
 		f.logger.Debug("volumes already set, skipping environment load", "jobID", f.JobID, "volumes", f.Volumes)
 	}
-
-	// Load runtime information from environment
-	f.loadRuntimeFromEnvironment()
 
 	// Mount volumes BEFORE chroot
 	f.logger.Debug("about to mount volumes", "jobID", f.JobID, "volumes", f.Volumes, "volumeCount", len(f.Volumes))
@@ -288,13 +406,6 @@ func (f *JobFilesystem) Setup() error {
 		}
 	}
 
-	// Mount runtime if specified BEFORE chroot
-	f.logger.Debug("about to mount runtime", "runtime", f.Runtime)
-	if err := f.mountRuntime(); err != nil {
-		return fmt.Errorf("failed to mount runtime: %w", err)
-	}
-	f.logger.Debug("finished mounting runtime", "runtime", f.Runtime)
-
 	// Mount pipes directory for uploads
 	if err := f.mountPipesDirectory(); err != nil {
 		// Log warning but don't fail - jobs without uploads should still work
@@ -318,6 +429,69 @@ func (f *JobFilesystem) Setup() error {
 	}
 
 	log.Debug("filesystem isolation setup completed successfully")
+	return nil
+}
+
+// SetupBuilder sets up filesystem isolation for runtime build jobs.
+// Builder jobs require access to the full host OS environment to provide
+// compilation tools and package managers. This method:
+//
+//  1. Validates running in job context (safety check)
+//  2. Creates basic directory structure
+//  3. Mounts entire host filesystem excluding /opt/joblet to prevent recursion
+//  4. Bind mounts /opt/joblet/runtimes as read-write for runtime installation
+//  5. Sets up isolated /tmp directory
+//  6. Performs chroot to builder environment
+//  7. Mounts essential filesystems (/proc, /dev)
+//
+// Returns error if any step fails - build job cannot proceed without proper isolation.
+func (f *JobFilesystem) SetupBuilder() error {
+	log := f.logger.WithField("operation", "builder-setup")
+	log.Debug("setting up builder filesystem isolation")
+
+	// Double-check we're in a job context
+	if err := f.validateInJobContext(); err != nil {
+		return fmt.Errorf("refusing to setup builder isolation: %w", err)
+	}
+
+	// Create basic directory structure
+	if err := f.createBuilderDirs(); err != nil {
+		return fmt.Errorf("failed to create builder directories: %w", err)
+	}
+
+	// Mount host filesystem excluding /opt/joblet
+	if err := f.mountHostFilesystem(); err != nil {
+		return fmt.Errorf("failed to mount host filesystem: %w", err)
+	}
+
+	// Bind mount runtimes directory as read-write
+	if err := f.mountRuntimesDirectory(); err != nil {
+		return fmt.Errorf("failed to mount runtimes directory: %w", err)
+	}
+
+	// Setup /tmp as isolated writable space
+	if err := f.setupTmpDir(); err != nil {
+		return fmt.Errorf("failed to setup tmp directory: %w", err)
+	}
+
+	// Finally, chroot to the builder environment
+	if err := f.performChroot(); err != nil {
+		return fmt.Errorf("chroot failed: %w", err)
+	}
+
+	// Create essential files (DNS configuration) in builder environment
+	// Only for builder jobs - regular jobs don't need internet access
+	if err := f.createBuilderEssentialFiles(); err != nil {
+		log.Warn("failed to create essential files in builder", "error", err)
+		// Continue - don't fail the job for DNS issues
+	}
+
+	// Mount essential read-only filesystems AFTER chroot
+	if err := f.mountEssentialFS(); err != nil {
+		return fmt.Errorf("failed to mount essential filesystems: %w", err)
+	}
+
+	log.Debug("builder filesystem isolation setup completed successfully")
 	return nil
 }
 
@@ -367,7 +541,7 @@ func (f *JobFilesystem) createEssentialDirs() error {
 // Continues with remaining mounts if individual mounts fail.
 func (f *JobFilesystem) mountAllowedDirs() error {
 	// Enhanced to create parent directories automatically
-	for _, allowedDir := range f.config.AllowedMounts {
+	for _, allowedDir := range f.config.Filesystem.AllowedMounts {
 		// Skip if the host directory doesn't exist
 		if _, err := f.platform.Stat(allowedDir); f.platform.IsNotExist(err) {
 			f.logger.Debug("skipping non-existent allowed directory", "dir", allowedDir)
@@ -384,10 +558,25 @@ func (f *JobFilesystem) mountAllowedDirs() error {
 			continue
 		}
 
-		// For leaf directories, create them too
-		if err := f.platform.MkdirAll(targetPath, 0755); err != nil {
-			f.logger.Warn("failed to create mount target directory", "target", targetPath, "error", err)
+		// Create target based on source type (file or directory)
+		sourceInfo, err := f.platform.Stat(allowedDir)
+		if err != nil {
+			f.logger.Warn("failed to stat allowed source", "source", allowedDir, "error", err)
 			continue
+		}
+
+		if sourceInfo.IsDir() {
+			// Source is directory - create target directory
+			if err := f.platform.MkdirAll(targetPath, 0755); err != nil {
+				f.logger.Warn("failed to create mount target directory", "target", targetPath, "error", err)
+				continue
+			}
+		} else {
+			// Source is file - create empty target file (parent already created above)
+			if err := f.platform.WriteFile(targetPath, []byte{}, 0644); err != nil {
+				f.logger.Warn("failed to create mount target file", "target", targetPath, "error", err)
+				continue
+			}
 		}
 
 		// Bind mount as read-only
@@ -455,7 +644,7 @@ func (f *JobFilesystem) performChroot() error {
 	}
 
 	// Change to workspace directory inside the chroot
-	workspaceDir := f.config.WorkspaceDir
+	workspaceDir := f.config.Filesystem.WorkspaceDir
 	if workspaceDir == "" {
 		workspaceDir = "/work" // fallback to default
 	}
@@ -626,7 +815,7 @@ func (f *JobFilesystem) mountPipesDirectory() error {
 	}
 
 	// Host pipes directory (where server creates the pipe)
-	hostPipesPath := fmt.Sprintf("%s/%s/pipes", f.config.BaseDir, jobID)
+	hostPipesPath := fmt.Sprintf("%s/%s/pipes", f.config.Filesystem.BaseDir, jobID)
 
 	// Check if host pipes directory exists
 	if _, err := f.platform.Stat(hostPipesPath); err != nil {
@@ -890,7 +1079,7 @@ func (f *JobFilesystem) mountRuntime() error {
 	runtimeManagerPath := f.platform.Getenv("RUNTIME_MANAGER_PATH")
 	if runtimeManagerPath == "" {
 		// Try default runtime path
-		runtimeManagerPath = "/opt/joblet/runtimes"
+		runtimeManagerPath = f.config.Runtime.BasePath
 	}
 
 	// Create runtime manager to resolve and mount runtime
@@ -919,15 +1108,9 @@ func (f *JobFilesystem) mountRuntimeWithManager(runtimeBasePath string) error {
 	}
 
 	// Parse runtime spec and find runtime directory
-	parts := strings.Split(f.Runtime, ":")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid runtime specification: %s", f.Runtime)
-	}
-
-	language := parts[0]
-	version := parts[1]
-	runtimeDirName := fmt.Sprintf("%s-%s", language, strings.ReplaceAll(version, "+", "-"))
-	runtimeDir := filepath.Join(runtimeBasePath, language, runtimeDirName)
+	// Runtime name directly maps to directory name (e.g., "openjdk-21" -> "/opt/joblet/runtimes/openjdk-21")
+	runtimeDirName := f.Runtime
+	runtimeDir := filepath.Join(runtimeBasePath, runtimeDirName)
 
 	// Load runtime.yml file
 	configPath := filepath.Join(runtimeDir, "runtime.yml")
@@ -936,63 +1119,10 @@ func (f *JobFilesystem) mountRuntimeWithManager(runtimeBasePath string) error {
 		return fmt.Errorf("failed to read runtime config: %w", err)
 	}
 
-	// Parse YAML configuration using a simple YAML parser
+	// Parse YAML configuration using standard YAML library
 	var config RuntimeConfig
-	lines := strings.Split(string(configData), "\n")
-	var currentMount *RuntimeMount
-	inMounts := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		if strings.HasPrefix(line, "mounts:") {
-			inMounts = true
-			continue
-		}
-
-		if inMounts {
-			if strings.Contains(line, "- source:") || strings.HasPrefix(line, "  - source:") {
-				// New mount entry starting with source directly
-				if currentMount != nil {
-					config.Mounts = append(config.Mounts, *currentMount)
-				}
-				currentMount = &RuntimeMount{}
-				// Parse source from the same line
-				parts := strings.SplitN(line, "source:", 2)
-				if len(parts) == 2 {
-					currentMount.Source = strings.TrimSpace(parts[1])
-					currentMount.Source = strings.Trim(currentMount.Source, "\"'")
-				}
-				continue
-			} else if currentMount != nil && strings.Contains(line, ":") {
-				// Mount property
-				trimmedLine := strings.TrimSpace(line)
-				if strings.HasPrefix(trimmedLine, "target:") {
-					currentMount.Target = strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
-					currentMount.Target = strings.Trim(currentMount.Target, "\"'")
-				} else if strings.HasPrefix(trimmedLine, "readonly:") {
-					currentMount.ReadOnly = strings.Contains(trimmedLine, "true")
-				} else if strings.HasPrefix(trimmedLine, "selective:") {
-					// Skip selective for now - placeholder for future implementation
-					_ = trimmedLine // Acknowledge that we're intentionally ignoring this
-				}
-			} else if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
-				// End of mounts section - line with no indentation
-				if currentMount != nil {
-					config.Mounts = append(config.Mounts, *currentMount)
-					currentMount = nil
-				}
-				inMounts = false
-			}
-		}
-	}
-
-	// Don't forget the last mount
-	if currentMount != nil {
-		config.Mounts = append(config.Mounts, *currentMount)
+	if err := yaml.Unmarshal(configData, &config); err != nil {
+		return fmt.Errorf("failed to parse runtime config: %w", err)
 	}
 
 	// If no mounts were parsed, this is an error - runtime.yml is malformed
@@ -1004,20 +1134,24 @@ func (f *JobFilesystem) mountRuntimeWithManager(runtimeBasePath string) error {
 		if err := f.platform.Mount(runtimeDir, targetPath, "", flags, ""); err != nil {
 			return fmt.Errorf("failed to mount runtime dir %s to %s: %w", runtimeDir, targetPath, err)
 		}
-		f.logger.Info("mounted runtime path", "source", runtimeDir, "target", targetPath, "readonly", false)
+		f.logger.Info("mounted runtime path", "target", targetPath)
 		return nil
 	}
 
 	// Mount each directory according to runtime config
 	f.logger.Debug("mounting runtime paths", "numMounts", len(config.Mounts), "rootDir", f.RootDir, "parsedMounts", config.Mounts)
+
+	// Phase 1: Create all mount point directories first (before any mounting)
+	// This prevents read-only mount issues where parent dirs can't be modified after being mounted
 	for _, mount := range config.Mounts {
 		sourcePath := filepath.Join(runtimeDir, mount.Source)
 		targetPath := filepath.Join(f.RootDir, strings.TrimPrefix(mount.Target, "/"))
 
-		f.logger.Debug("preparing to mount", "source", sourcePath, "target", targetPath, "mount", mount)
+		f.logger.Debug("preparing mount point", "source", sourcePath, "target", targetPath, "mount", mount)
 
 		// Check if source exists
-		if _, err := f.platform.Stat(sourcePath); err != nil {
+		sourceInfo, err := f.platform.Stat(sourcePath)
+		if err != nil {
 			if f.platform.IsNotExist(err) {
 				f.logger.Debug("skipping non-existent runtime source", "path", sourcePath)
 				continue
@@ -1025,9 +1159,77 @@ func (f *JobFilesystem) mountRuntimeWithManager(runtimeBasePath string) error {
 			return fmt.Errorf("failed to stat runtime source %s: %w", sourcePath, err)
 		}
 
-		// Create target directory
-		if err := f.platform.MkdirAll(targetPath, 0755); err != nil {
-			return fmt.Errorf("failed to create runtime target %s: %w", targetPath, err)
+		// Skip empty directories to avoid mount issues
+		if sourceInfo.IsDir() {
+			entries, err := os.ReadDir(sourcePath)
+			if err != nil {
+				return fmt.Errorf("failed to read runtime source directory %s: %w", sourcePath, err)
+			}
+			if len(entries) == 0 {
+				f.logger.Debug("skipping empty runtime source directory", "path", sourcePath)
+				continue
+			}
+		}
+
+		// Create target based on source type (file or directory)
+		// sourceInfo already obtained above
+
+		if sourceInfo.IsDir() {
+			// Source is directory - check if target exists, if not try to create it
+			if _, statErr := f.platform.Stat(targetPath); statErr != nil {
+				// Target doesn't exist, try to create it
+				if err := f.platform.MkdirAll(targetPath, 0755); err != nil {
+					f.logger.Warn("failed to create runtime target directory, will skip mount", "target", targetPath, "error", err)
+					continue // Skip this mount instead of failing
+				}
+				f.logger.Debug("created target directory for runtime mount", "target", targetPath)
+			} else {
+				f.logger.Debug("target directory already exists, will bind mount over it", "target", targetPath)
+			}
+		} else {
+			// Source is file - create parent directory and touch target file
+			parentDir := filepath.Dir(targetPath)
+			if err := f.platform.MkdirAll(parentDir, 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory for runtime target %s: %w", parentDir, err)
+			}
+
+			// Create empty target file
+			if err := f.platform.WriteFile(targetPath, []byte{}, 0755); err != nil {
+				return fmt.Errorf("failed to create runtime target file %s: %w", targetPath, err)
+			}
+			f.logger.Debug("created target file for runtime mount", "target", targetPath)
+		}
+	}
+
+	// Phase 2: Perform all mounts after directories are created
+	for _, mount := range config.Mounts {
+		sourcePath := filepath.Join(runtimeDir, mount.Source)
+		targetPath := filepath.Join(f.RootDir, strings.TrimPrefix(mount.Target, "/"))
+
+		// Skip if source doesn't exist or is empty (already checked in phase 1)
+		sourceInfo, err := f.platform.Stat(sourcePath)
+		if err != nil {
+			if f.platform.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("failed to stat runtime source %s: %w", sourcePath, err)
+		}
+
+		// Skip empty directories (same logic as phase 1)
+		if sourceInfo.IsDir() {
+			entries, err := os.ReadDir(sourcePath)
+			if err != nil {
+				return fmt.Errorf("failed to read runtime source directory %s: %w", sourcePath, err)
+			}
+			if len(entries) == 0 {
+				continue
+			}
+		}
+
+		// Check if target directory exists before mounting
+		if _, statErr := f.platform.Stat(targetPath); statErr != nil {
+			f.logger.Warn("skipping runtime mount because target directory doesn't exist", "target", targetPath)
+			continue
 		}
 
 		// Bind mount
@@ -1044,8 +1246,177 @@ func (f *JobFilesystem) mountRuntimeWithManager(runtimeBasePath string) error {
 			}
 		}
 
-		f.logger.Info("mounted runtime path", "source", sourcePath, "target", targetPath, "readonly", mount.ReadOnly)
+		f.logger.Info("mounted runtime path", "target", targetPath, "readonly", mount.ReadOnly)
 	}
 
+	return nil
+}
+
+// createBuilderDirs creates the basic directory structure for builder chroot.
+// Creates essential directories and mount points for the full host filesystem.
+// Adapts to different Linux distributions by detecting existing directories.
+func (f *JobFilesystem) createBuilderDirs() error {
+	log := f.logger.WithField("operation", "create-builder-dirs")
+
+	// Core directories present on all Linux distributions (FHS standard)
+	coreBuilderDirs := []string{
+		"bin", "sbin", "lib", "usr", "etc", "var", "home", "root",
+		"proc", "dev", "sys", "tmp", "work", "opt",
+	}
+
+	// Additional directories that may exist on modern distributions
+	optionalBuilderDirs := []string{
+		"lib64", // 64-bit library directory (RHEL, Ubuntu x86_64, Amazon Linux)
+		"lib32", // 32-bit compatibility libraries (some Ubuntu, RHEL)
+		"run",   // Runtime data directory (systemd-based distributions)
+		"srv",   // Service data directory (FHS standard)
+		"media", // Removable media mount points
+		"mnt",   // Temporary mount points
+		"boot",  // Boot loader files (rarely needed for builds)
+	}
+
+	// Create core directories (always needed)
+	for _, dir := range coreBuilderDirs {
+		dirPath := filepath.Join(f.RootDir, dir)
+		if err := f.platform.MkdirAll(dirPath, 0755); err != nil {
+			log.Warn("failed to create core builder directory", "dir", dir, "error", err)
+			// Continue with other directories
+		}
+	}
+
+	// Create optional directories only if they exist on the host system
+	for _, dir := range optionalBuilderDirs {
+		hostPath := "/" + dir
+		if _, err := f.platform.Stat(hostPath); err == nil {
+			// Directory exists on host, create it in builder chroot
+			dirPath := filepath.Join(f.RootDir, dir)
+			if err := f.platform.MkdirAll(dirPath, 0755); err != nil {
+				log.Warn("failed to create optional builder directory", "dir", dir, "error", err)
+			} else {
+				log.Debug("created optional builder directory", "dir", dir)
+			}
+		} else {
+			log.Debug("skipping optional directory not present on host", "dir", dir)
+		}
+	}
+
+	log.Debug("created adaptive builder directory structure for distribution")
+	return nil
+}
+
+// mountHostFilesystem mounts the entire host filesystem excluding /opt/joblet.
+// This provides the full OS environment needed for compilation and builds.
+func (f *JobFilesystem) mountHostFilesystem() error {
+	log := f.logger.WithField("operation", "mount-host-filesystem")
+
+	// Read host root directory
+	hostEntries, err := f.platform.ReadDir("/")
+	if err != nil {
+		return fmt.Errorf("failed to read host root directory: %w", err)
+	}
+
+	for _, entry := range hostEntries {
+		dirName := entry.Name()
+		hostPath := "/" + dirName
+		targetPath := filepath.Join(f.RootDir, dirName)
+
+		// Skip special filesystems and /opt/joblet to prevent recursion
+		switch dirName {
+		case "proc", "sys", "dev":
+			log.Debug("skipping special filesystem", "dir", dirName)
+			continue
+		case "opt":
+			// Special handling for /opt - mount everything except /opt/joblet
+			if err := f.mountOptDirectory(hostPath, targetPath); err != nil {
+				log.Warn("failed to mount /opt directory", "error", err)
+			}
+			continue
+		case "tmp":
+			// Handle tmp specially - it will be isolated
+			log.Debug("skipping /tmp - will be isolated", "dir", dirName)
+			continue
+		}
+
+		// Create target directory
+		if err := f.platform.MkdirAll(targetPath, 0755); err != nil {
+			log.Warn("failed to create target directory", "target", targetPath, "error", err)
+			continue
+		}
+
+		// Bind mount host directory
+		if err := f.platform.Mount(hostPath, targetPath, "", uintptr(syscall.MS_BIND), ""); err != nil {
+			log.Warn("failed to bind mount host directory", "host", hostPath, "target", targetPath, "error", err)
+			continue
+		}
+
+		log.Debug("mounted host directory", "host", hostPath, "target", targetPath)
+	}
+
+	return nil
+}
+
+// mountOptDirectory mounts /opt directory excluding /opt/joblet to prevent recursion
+func (f *JobFilesystem) mountOptDirectory(hostOptPath, targetOptPath string) error {
+	log := f.logger.WithField("operation", "mount-opt-directory")
+
+	// Create /opt target directory
+	if err := f.platform.MkdirAll(targetOptPath, 0755); err != nil {
+		return fmt.Errorf("failed to create /opt target directory: %w", err)
+	}
+
+	// Read /opt directory contents
+	optEntries, err := f.platform.ReadDir(hostOptPath)
+	if err != nil {
+		return fmt.Errorf("failed to read /opt directory: %w", err)
+	}
+
+	for _, entry := range optEntries {
+		dirName := entry.Name()
+
+		// Skip joblet directory to prevent recursion
+		if dirName == "joblet" {
+			log.Debug("skipping /opt/joblet to prevent recursion")
+			continue
+		}
+
+		hostPath := filepath.Join(hostOptPath, dirName)
+		targetPath := filepath.Join(targetOptPath, dirName)
+
+		// Create target directory
+		if err := f.platform.MkdirAll(targetPath, 0755); err != nil {
+			log.Warn("failed to create /opt target", "target", targetPath, "error", err)
+			continue
+		}
+
+		// Bind mount
+		if err := f.platform.Mount(hostPath, targetPath, "", uintptr(syscall.MS_BIND), ""); err != nil {
+			log.Warn("failed to bind mount /opt subdirectory", "host", hostPath, "target", targetPath, "error", err)
+			continue
+		}
+
+		log.Debug("mounted /opt subdirectory", "host", hostPath, "target", targetPath)
+	}
+
+	return nil
+}
+
+// mountRuntimesDirectory bind mounts /opt/joblet/runtimes as read-write for builds
+func (f *JobFilesystem) mountRuntimesDirectory() error {
+	log := f.logger.WithField("operation", "mount-runtimes-directory")
+
+	hostRuntimesPath := f.config.Runtime.BasePath
+
+	// Create /opt/joblet/runtimes directory in builder chroot
+	targetRuntimesPath := filepath.Join(f.RootDir, "opt", "joblet", "runtimes")
+	if err := f.platform.MkdirAll(targetRuntimesPath, 0755); err != nil {
+		return fmt.Errorf("failed to create runtimes target directory: %w", err)
+	}
+
+	// Bind mount as read-write for runtime installation
+	if err := f.platform.Mount(hostRuntimesPath, targetRuntimesPath, "", uintptr(syscall.MS_BIND), ""); err != nil {
+		return fmt.Errorf("failed to bind mount runtimes directory: %w", err)
+	}
+
+	log.Debug("mounted runtimes directory", "host", hostRuntimesPath, "target", targetRuntimesPath)
 	return nil
 }

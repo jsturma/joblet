@@ -16,7 +16,7 @@ jobs:
       RANDOM_SEED: "42"
       ML_FRAMEWORK: "scikit-learn"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     resources:
       max_memory: 512
 
@@ -33,7 +33,7 @@ jobs:
       TEST_SPLIT: "0.15"
       MAX_FEATURES: "50"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - setup-experiment: "COMPLETED"
     resources:
@@ -52,7 +52,7 @@ jobs:
       TEXT_VECTORIZATION: "tfidf"
       N_GRAM_RANGE: "1,2"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - preprocess-data: "COMPLETED"
     resources:
@@ -71,7 +71,7 @@ jobs:
       TIMEOUT_MINUTES: "60"
       EARLY_STOPPING: "true"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - feature-engineering: "COMPLETED"
     resources:
@@ -90,7 +90,7 @@ jobs:
       CHECKPOINT_FREQUENCY: "5"
       MODEL_FORMAT: "pickle"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - hyperparameter-tuning: "COMPLETED"
     resources:
@@ -109,7 +109,7 @@ jobs:
       BIAS_ANALYSIS: "true"
       FAIRNESS_METRICS: "demographic_parity,equalized_odds"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - train-model: "COMPLETED"
     resources:
@@ -128,7 +128,7 @@ jobs:
       A_B_TEST_REQUIRED: "true"
       SHADOW_MODE_DURATION: "7"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - evaluate-model: "COMPLETED"
     resources:
@@ -147,7 +147,7 @@ jobs:
       MODEL_VERSION: "3.1.0"
       REPLICAS: "3"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - validate-model: "COMPLETED"
     resources:
@@ -164,7 +164,7 @@ jobs:
       EXPERIMENT_TRACKING_URL: "https://mlflow.company.com"
       STAKEHOLDER_EMAILS: "data-science@company.com,product@company.com"
     volumes: [ "ml-data", "ml-models" ]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - deploy-model: "COMPLETED"
     resources:

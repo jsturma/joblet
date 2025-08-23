@@ -5,37 +5,44 @@ import (
 )
 
 // RuntimeConfig represents a runtime configuration loaded from runtime.yml
+// Only includes fields that are actually implemented and used
 type RuntimeConfig struct {
-	Name           string                `yaml:"name" json:"name"`
-	Version        string                `yaml:"version" json:"version"`
-	Description    string                `yaml:"description" json:"description"`
-	Init           string                `yaml:"init,omitempty" json:"init,omitempty"`
-	Mounts         []MountSpec           `yaml:"mounts" json:"mounts"`
-	Environment    map[string]string     `yaml:"environment" json:"environment"`
-	PackageManager *PackageManagerConfig `yaml:"package_manager,omitempty" json:"package_manager,omitempty"`
-	Requirements   RuntimeRequirements   `yaml:"requirements" json:"requirements"`
-	Packages       []string              `yaml:"packages,omitempty" json:"packages,omitempty"`
+	Name        string            `yaml:"name" json:"name"`
+	Language    string            `yaml:"language" json:"language"`
+	Version     string            `yaml:"version" json:"version"`
+	Description string            `yaml:"description" json:"description"`
+	Mounts      []MountSpec       `yaml:"mounts" json:"mounts"`
+	Environment map[string]string `yaml:"environment" json:"environment"`
+
+	// Keep only implemented features
+	Requirements RuntimeRequirements `yaml:"requirements" json:"requirements"`
+	Packages     []string            `yaml:"packages,omitempty" json:"packages,omitempty"`
+
+	// Removed unused fields:
+	// - Init string - not used anywhere in codebase
+	// - PackageManager *PackageManagerConfig - defined but never implemented
 }
 
 // MountSpec defines how runtime directories should be mounted
 type MountSpec struct {
-	Source    string   `yaml:"source" json:"source"` // Relative to runtime directory
-	Target    string   `yaml:"target" json:"target"` // Target in job chroot
-	ReadOnly  bool     `yaml:"readonly" json:"readonly"`
-	Selective []string `yaml:"selective,omitempty" json:"selective,omitempty"` // Specific files to mount
+	Source   string `yaml:"source" json:"source"` // Relative to runtime directory
+	Target   string `yaml:"target" json:"target"` // Target in job chroot
+	ReadOnly bool   `yaml:"readonly" json:"readonly"`
+
+	// Removed unused fields:
+	// - Selective []string - placeholder, not implemented (was ignored in parsing)
 }
 
-// PackageManagerConfig defines package manager integration
-type PackageManagerConfig struct {
-	Type               string `yaml:"type" json:"type"` // pip, npm, maven, etc.
-	CacheVolume        string `yaml:"cache_volume,omitempty" json:"cache_volume,omitempty"`
-	UserPackagesVolume string `yaml:"user_packages_volume,omitempty" json:"user_packages_volume,omitempty"`
-}
+// PackageManagerConfig removed - was defined but never implemented
+// If package manager integration is needed in the future, re-add this type
 
 // RuntimeRequirements defines system requirements for a runtime
 type RuntimeRequirements struct {
 	Architectures []string `yaml:"architectures" json:"architectures"`
-	GPU           bool     `yaml:"gpu,omitempty" json:"gpu,omitempty"`
+
+	// Removed unused fields:
+	// - GPU bool - only validated, no actual GPU mounting implementation
+	// If GPU support is needed, re-add this field and implement mounting logic
 }
 
 // RuntimeSpec represents a parsed runtime specification from the CLI

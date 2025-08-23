@@ -16,6 +16,7 @@ type NetworkStore interface {
 	ReleaseIP(networkName, ipAddress string) error
 	AssignJobToNetwork(jobID, networkName string, allocation *JobNetworkAllocation) error
 	RemoveJobFromNetwork(jobID string) error
+	GetJobNetworkAllocation(jobID string) (*JobNetworkAllocation, error)
 }
 
 // VolumeStore is an alias for the volume storage interface

@@ -188,8 +188,8 @@ type VolumesConfig struct {
 
 // RuntimeConfig holds runtime system configuration
 type RuntimeConfig struct {
-	Enabled  bool   `yaml:"enabled" json:"enabled"`
-	BasePath string `yaml:"base_path" json:"base_path"`
+	BasePath    string   `yaml:"base_path" json:"base_path"`
+	CommonPaths []string `yaml:"common_paths" json:"common_paths"`
 }
 
 // DefaultConfig provides default configuration values
@@ -307,8 +307,14 @@ var DefaultConfig = Config{
 		DefaultDiskQuotaBytes: 1048576, // 1MB default
 	},
 	Runtime: RuntimeConfig{
-		Enabled:  false, // Disabled by default, enable when runtimes are installed
 		BasePath: "/opt/joblet/runtimes",
+		CommonPaths: []string{
+			"/usr/local/bin",
+			"/usr/local/lib",
+			"/usr/lib/jvm",
+			"/usr/local/node",
+			"/usr/local/go",
+		},
 	},
 }
 

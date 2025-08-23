@@ -1,5 +1,5 @@
 import {WebSocketServer} from 'ws';
-import {handleLogStream, handleWorkflowStatusStream, handleMonitorStream} from './handlers.js';
+import {handleLogStream, handleWorkflowStatusStream, handleMonitorStream, handleRuntimeInstallStream} from './handlers.js';
 
 export function setupWebSocket(server) {
     const wss = new WebSocketServer({server});
@@ -22,6 +22,11 @@ export function setupWebSocket(server) {
             // Monitor streaming
             const node = searchParams.get('node');
             handleMonitorStream(ws, node);
+        } else if (pathname.startsWith('/ws/runtime-install/')) {
+            // Runtime installation streaming
+            const buildJobId = pathname.replace('/ws/runtime-install/', '');
+            const node = searchParams.get('node');
+            handleRuntimeInstallStream(ws, buildJobId, node);
         } else {
             ws.close(1000, 'Unknown WebSocket endpoint');
         }

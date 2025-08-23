@@ -1,12 +1,14 @@
 import {useEffect, useRef, useState} from 'react';
-import {Link} from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {useJobs} from '../hooks/useJobs';
 import {useLogStream} from '../hooks/useLogStream';
 import {apiService} from '../services/apiService';
 import {Job} from '../types/job';
-import {ChevronLeft, ChevronRight, FileText, Play, Plus, Square, X} from 'lucide-react';
+import {ChevronLeft, ChevronRight, FileText, Play, Plus, Square, Trash2, X} from 'lucide-react';
+import {SimpleJobBuilder} from '../components/JobBuilder/SimpleJobBuilder';
 
 const Jobs: React.FC = () => {
+    const { t } = useTranslation();
     const {
         loading,
         error,
@@ -16,15 +18,31 @@ const Jobs: React.FC = () => {
         totalPages,
         paginatedJobs,
         setCurrentPage,
-        setPageSize
+        setPageSize,
+        stopJob,
+        deleteJob,
+        refreshJobs
     } = useJobs();
     const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'logs' | 'details'>('logs');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [jobLoading, setJobLoading] = useState<boolean>(false);
+    const [stoppingJobId, setStoppingJobId] = useState<string | null>(null);
+    const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
     const [autoScroll, setAutoScroll] = useState<boolean>(true);
+    const [showCreateJob, setShowCreateJob] = useState<boolean>(false);
     const {logs, connected, error: logError, clearLogs} = useLogStream(selectedJobId);
     const logContainerRef = useRef<HTMLDivElement>(null);
+
+    const handleJobCreated = () => {
+        setShowCreateJob(false);
+        // Immediately refresh the jobs list to show the new job
+        refreshJobs();
+    };
+
+    const handleCloseCreateJob = () => {
+        setShowCreateJob(false);
+    };
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -83,12 +101,72 @@ const Jobs: React.FC = () => {
         }
     };
 
+    const handleStopJob = async (jobId: string) => {
+        if (!confirm('Are you sure you want to stop this running job?')) {
+            return;
+        }
+        
+        setStoppingJobId(jobId);
+        try {
+            await stopJob(jobId);
+        } catch (error) {
+            console.error('Failed to stop job:', error);
+            alert('Failed to stop job: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            setStoppingJobId(null);
+        }
+    };
+
+    const handleDeleteJob = async (jobId: string) => {
+        if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+            return;
+        }
+        
+        setDeletingJobId(jobId);
+        try {
+            await deleteJob(jobId);
+        } catch (error) {
+            console.error('Failed to delete job:', error);
+            alert('Failed to delete job: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            setDeletingJobId(null);
+        }
+    };
+
     const handleCloseModal = () => {
         setSelectedJobId(null);
         setSelectedJob(null);
         setActiveTab('logs');
         clearLogs();
     };
+
+    // Handle escape key to close modal
+    useEffect(() => {
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && selectedJobId) {
+                handleCloseModal();
+            }
+        };
+
+        document.addEventListener('keydown', handleEscapeKey);
+        return () => {
+            document.removeEventListener('keydown', handleEscapeKey);
+        };
+    }, [selectedJobId]);
+
+    // Handle escape key to close create job dialog
+    useEffect(() => {
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && showCreateJob) {
+                handleCloseCreateJob();
+            }
+        };
+
+        document.addEventListener('keydown', handleEscapeKey);
+        return () => {
+            document.removeEventListener('keydown', handleEscapeKey);
+        };
+    }, [showCreateJob]);
 
     // Auto-scroll to bottom when new logs arrive
     useEffect(() => {
@@ -110,13 +188,13 @@ const Jobs: React.FC = () => {
                         </div>
                     </div>
                     <div>
-                        <Link
-                            to="/jobs/create"
+                        <button
+                            onClick={() => setShowCreateJob(true)}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                         >
                             <Plus className="h-4 w-4 mr-2"/>
-                            New Job
-                        </Link>
+                            {t('jobs.newJob')}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -124,13 +202,13 @@ const Jobs: React.FC = () => {
             {loading ? (
                 <div className="bg-gray-800 rounded-lg shadow">
                     <div className="p-6">
-                        <p className="text-white">Loading jobs...</p>
+                        <p className="text-white">{t('jobs.loadingJobs')}</p>
                     </div>
                 </div>
             ) : error ? (
                 <div className="bg-gray-800 rounded-lg shadow">
                     <div className="p-6">
-                        <p className="text-red-500">Error: {error}</p>
+                        <p className="text-red-500">{t('common.error')}: {error}</p>
                     </div>
                 </div>
             ) : (
@@ -138,7 +216,7 @@ const Jobs: React.FC = () => {
                     <div className="px-6 py-4 border-b border-gray-200">
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-medium text-white">
-                                All Jobs ({totalJobs})
+                                {t('jobs.title')} ({totalJobs})
                             </h3>
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
@@ -165,7 +243,7 @@ const Jobs: React.FC = () => {
 
                     {totalJobs === 0 ? (
                         <div className="p-6 text-center">
-                            <p className="text-gray-500">No jobs found</p>
+                            <p className="text-gray-500">{t('jobs.noJobs')}</p>
                             <p className="text-sm text-gray-400 mt-1">Create your first job to get started</p>
                         </div>
                     ) : (
@@ -232,13 +310,28 @@ const Jobs: React.FC = () => {
                                                         <FileText className="h-4 w-4"/>
                                                     </button>
                                                     {job.status === 'RUNNING' && (
-                                                        <button className="text-red-600 hover:text-red-900">
+                                                        <button 
+                                                            onClick={() => handleStopJob(job.id)}
+                                                            disabled={stoppingJobId === job.id}
+                                                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title={stoppingJobId === job.id ? "Stopping..." : "Stop Job"}
+                                                        >
                                                             <Square className="h-4 w-4"/>
                                                         </button>
                                                     )}
                                                     {(job.status === 'QUEUED' || job.status === 'PENDING') && (
                                                         <button className="text-blue-600 hover:text-blue-300">
                                                             <Play className="h-4 w-4"/>
+                                                        </button>
+                                                    )}
+                                                    {(job.status === 'COMPLETED' || job.status === 'FAILED' || job.status === 'STOPPED') && (
+                                                        <button 
+                                                            onClick={() => handleDeleteJob(job.id)}
+                                                            disabled={deletingJobId === job.id}
+                                                            className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title={deletingJobId === job.id ? "Deleting..." : "Delete Job"}
+                                                        >
+                                                            <Trash2 className="h-4 w-4"/>
                                                         </button>
                                                     )}
                                                 </div>
@@ -317,7 +410,7 @@ const Jobs: React.FC = () => {
             {selectedJobId && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
                     <div
-                        className="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+                        className="relative top-16 mx-auto p-5 border w-11/12 max-w-[90vw] min-h-[80vh] shadow-lg rounded-md bg-white dark:bg-gray-800">
                         <div className="flex items-center justify-between pb-3 border-b">
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                                 Job Details - {selectedJobId}
@@ -366,7 +459,7 @@ const Jobs: React.FC = () => {
                                                 <div
                                                     className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                                                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                    {connected ? 'Connected' : 'Disconnected'}
+                                                    {connected ? t('jobs.connected') : t('jobs.disconnected')}
                                                 </span>
                                             </div>
                                             <label
@@ -391,20 +484,26 @@ const Jobs: React.FC = () => {
                                     {logError && (
                                         <div
                                             className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded">
-                                            Error: {logError}
+                                            {t('common.error')}: {logError}
                                         </div>
                                     )}
 
                                     <div
                                         ref={logContainerRef}
-                                        className="bg-black text-green-400 p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm"
+                                        className="bg-black text-green-400 p-4 rounded-lg h-[70vh] overflow-y-auto font-mono text-sm"
                                     >
                                         {logs.length === 0 ? (
                                             <div className="text-gray-500">No logs available yet...</div>
                                         ) : (
                                             logs.map((log, index) => (
-                                                <div key={index} className="mb-1 whitespace-pre-wrap">
-                                                    {log}
+                                                <div key={index} className={`mb-1 whitespace-pre-wrap ${
+                                                    log.type === 'system' ? 'text-gray-400 opacity-80' :
+                                                    log.type === 'info' ? 'text-gray-200' :
+                                                    log.type === 'error' ? 'text-red-400' :
+                                                    log.type === 'connection' ? 'text-blue-400' :
+                                                    'text-green-400'
+                                                }`}>
+                                                    {log.message}
                                                 </div>
                                             ))
                                         )}
@@ -419,7 +518,7 @@ const Jobs: React.FC = () => {
                                         <div className="flex items-center justify-center py-8">
                                             <div
                                                 className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                                            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading job details...</span>
+                                            <span className="ml-3 text-gray-600 dark:text-gray-400">{t('jobs.loadingJobDetails')}</span>
                                         </div>
                                     ) : selectedJob ? (
                                         <>
@@ -463,6 +562,23 @@ const Jobs: React.FC = () => {
                                                         </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.exitCode ?? 'N/A'}</dd>
                                                     </div>
+                                                    {selectedJob.scheduledTime && (
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Scheduled
+                                                                Time
+                                                            </dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                                                                {new Date(selectedJob.scheduledTime).toLocaleString()}
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                                    {(selectedJob.status === 'QUEUED' || selectedJob.status === 'PENDING') && (
+                                                                        <span className="text-blue-600 dark:text-blue-400">
+                                                                            {t('jobs.waitingToRun')}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </dd>
+                                                        </div>
+                                                    )}
                                                 </dl>
                                             </div>
 
@@ -612,6 +728,30 @@ const Jobs: React.FC = () => {
                                     )}
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Job Dialog */}
+            {showCreateJob && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between p-6 border-b border-gray-600">
+                            <h3 className="text-lg font-medium text-gray-200">{t('jobs.createNew')}</h3>
+                            <button
+                                onClick={handleCloseCreateJob}
+                                className="text-gray-400 hover:text-gray-300"
+                            >
+                                <X className="h-5 w-5"/>
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+                            <SimpleJobBuilder
+                                onJobCreated={handleJobCreated}
+                                onClose={handleCloseCreateJob}
+                                showHeader={false}
+                            />
                         </div>
                     </div>
                 </div>

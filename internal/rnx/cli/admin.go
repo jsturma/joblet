@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"joblet/internal/rnx/common"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,32 +108,48 @@ Possible solutions:
 		return fmt.Errorf("admin server package.json not found at %s", packageJsonPath)
 	}
 
-	fmt.Printf("🚀 Starting Joblet Admin Server...\n")
-	fmt.Printf("📂 Server directory: %s\n", adminServerDir)
-	fmt.Printf("🌐 Address: http://%s:%d\n", bindAddress, port)
-	fmt.Printf("⏹️  Press Ctrl+C to stop\n\n")
-
-	// Try to open browser automatically (like Kiali does)
-	url := fmt.Sprintf("http://localhost:%d", port)
-	go func() {
-		// Wait a moment for server to start
-		time.Sleep(2 * time.Second)
-
-		var openCmd *exec.Cmd
-		switch runtime.GOOS {
-		case "darwin":
-			openCmd = exec.Command("open", url)
-		case "linux":
-			openCmd = exec.Command("xdg-open", url)
-		case "windows":
-			openCmd = exec.Command("cmd", "/c", "start", url)
+	if common.JSONOutput {
+		serverInfo := map[string]interface{}{
+			"status":         "starting",
+			"directory":      adminServerDir,
+			"bind_address":   bindAddress,
+			"port":           port,
+			"url":            fmt.Sprintf("http://%s:%d", bindAddress, port),
+			"browser_opened": false,
 		}
-
-		if openCmd != nil {
-			_ = openCmd.Run() // Ignore errors - browser opening is optional
-			fmt.Printf("🌐 Browser opened at %s\n", url)
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(serverInfo); err != nil {
+			return fmt.Errorf("failed to output JSON: %v", err)
 		}
-	}()
+	} else {
+		fmt.Printf("🚀 Starting Joblet Admin Server...\n")
+		fmt.Printf("📂 Server directory: %s\n", adminServerDir)
+		fmt.Printf("🌐 Address: http://%s:%d\n", bindAddress, port)
+		fmt.Printf("⏹️  Press Ctrl+C to stop\n\n")
+
+		// Try to open browser automatically (like Kiali does)
+		url := fmt.Sprintf("http://localhost:%d", port)
+		go func() {
+			// Wait a moment for server to start
+			time.Sleep(2 * time.Second)
+
+			var openCmd *exec.Cmd
+			switch runtime.GOOS {
+			case "darwin":
+				openCmd = exec.Command("open", url)
+			case "linux":
+				openCmd = exec.Command("xdg-open", url)
+			case "windows":
+				openCmd = exec.Command("cmd", "/c", "start", url)
+			}
+
+			if openCmd != nil {
+				_ = openCmd.Run() // Ignore errors - browser opening is optional
+				fmt.Printf("🌐 Browser opened at %s\n", url)
+			}
+		}()
+	}
 
 	// Set environment variables
 	env := os.Environ()

@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react';
+import { useTranslation } from 'react-i18next';
 import {useWorkflows} from '../hooks/useWorkflows';
 import WorkflowList from '../components/Workflow/WorkflowList';
 import WorkflowDetail from '../components/Workflow/WorkflowDetail';
@@ -6,6 +7,7 @@ import {ArrowLeft, FileText, Folder, Plus, X} from 'lucide-react';
 import {apiService} from '../services/apiService';
 
 const Workflows: React.FC = () => {
+    const { t } = useTranslation();
     const {
         paginatedWorkflows,
         loading,
@@ -72,9 +74,24 @@ const Workflows: React.FC = () => {
         setSelectedWorkflowId(workflowId);
     };
 
-    const handleBack = () => {
-        setSelectedWorkflowId(null);
-    };
+
+    // Handle escape key to close create workflow modal only
+    useEffect(() => {
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                if (createWorkflowModal.show && !createWorkflowModal.creating) {
+                    // Close create workflow modal if open and not creating
+                    resetWorkflowForm();
+                }
+                // Don't handle escape for workflow details - let WorkflowDetail component handle its own modals
+            }
+        };
+
+        document.addEventListener('keydown', handleEscapeKey);
+        return () => {
+            document.removeEventListener('keydown', handleEscapeKey);
+        };
+    }, [createWorkflowModal.show, createWorkflowModal.creating]);
 
     const browseDirectory = async (path?: string) => {
         setDirectoryBrowser(prev => ({...prev, loading: true, error: ''}));
@@ -132,7 +149,7 @@ const Workflows: React.FC = () => {
         setCreateWorkflowModal(prev => ({...prev, creating: true}));
 
         try {
-            await apiService.executeWorkflow(selectedFile, createVolumes);
+            await apiService.executeWorkflow(selectedFile, undefined, createVolumes);
             setCreateWorkflowModal({show: false, creating: false});
             setSelectedFile(null);
             setWorkflowValidation({
@@ -147,6 +164,10 @@ const Workflows: React.FC = () => {
         } catch (error) {
             console.error('Failed to create workflow:', error);
             setCreateWorkflowModal(prev => ({...prev, creating: false}));
+            
+            // Display error message to user
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            alert(`Failed to create workflow:\n\n${errorMessage}`);
         }
     };
 
@@ -184,7 +205,6 @@ const Workflows: React.FC = () => {
         return (
             <WorkflowDetail
                 workflowId={selectedWorkflowId}
-                onBack={handleBack}
                 onRefresh={() => {}} // No-op since auto-refresh is enabled
             />
         );
@@ -218,13 +238,13 @@ const Workflows: React.FC = () => {
             {loading ? (
                 <div className="bg-gray-800 rounded-lg shadow">
                     <div className="p-6">
-                        <p className="text-white">Loading workflows...</p>
+                        <p className="text-white">{t('workflows.loadingWorkflows')}</p>
                     </div>
                 </div>
             ) : error ? (
                 <div className="bg-gray-800 rounded-lg shadow">
                     <div className="p-6">
-                        <p className="text-red-500">Error: {error}</p>
+                        <p className="text-red-500">{t('common.error')}: {error}</p>
                     </div>
                 </div>
             ) : (
@@ -285,7 +305,7 @@ const Workflows: React.FC = () => {
                                     <div className="flex items-center justify-center py-8">
                                         <div
                                             className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                                        <span className="ml-3 text-gray-300">Loading directory...</span>
+                                        <span className="ml-3 text-gray-300">{t('workflows.loadingDirectory')}</span>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -422,7 +442,7 @@ const Workflows: React.FC = () => {
                                                         className="p-3 bg-red-800 bg-opacity-50 border border-red-600 rounded">
                                                         <div className="flex items-center space-x-2">
                                                             <span
-                                                                className="text-red-300 font-medium">Validation Error:</span>
+                                                                className="text-red-300 font-medium">{t('workflows.validationError')}:</span>
                                                         </div>
                                                         <div className="mt-1 text-sm text-red-200">
                                                             {workflowValidation.error}

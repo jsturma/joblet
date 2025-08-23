@@ -161,12 +161,11 @@ func (c *NetworkCollector) shouldSkipInterface(interfaceName string) bool {
 
 	// Skip common virtual interfaces that are typically not interesting
 	skipPrefixes := []string{
-		"veth",   // Docker/container virtual ethernet
-		"br-",    // Docker bridges
-		"docker", // Docker interfaces
-		"virbr",  // libvirt bridges
-		"tap",    // TAP interfaces
-		"tun",    // TUN interfaces
+		"veth",  // Container virtual ethernet
+		"br-",   // Network bridges
+		"virbr", // libvirt bridges
+		"tap",   // TAP interfaces
+		"tun",   // TUN interfaces
 	}
 
 	for _, prefix := range skipPrefixes {

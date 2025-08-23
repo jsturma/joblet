@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,211 +13,77 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Resolver handles runtime resolution and configuration loading
+// Resolver provides basic runtime listing functionality for CLI commands
+// This replaces the complex Manager/Resolver that was unused by job execution
 type Resolver struct {
 	runtimesPath string
 	platform     platform.Platform
 	logger       *logger.Logger
 }
 
-// NewResolver creates a new runtime resolver
+// NewResolver creates a new simple runtime resolver (maintains API compatibility)
 func NewResolver(runtimesPath string, platform platform.Platform) *Resolver {
 	return &Resolver{
 		runtimesPath: runtimesPath,
 		platform:     platform,
-		logger:       logger.New().WithField("component", "runtime-resolver"),
+		logger:       logger.New().WithField("component", "simple-runtime-resolver"),
 	}
 }
 
-// ResolveRuntime resolves a runtime specification to a runtime configuration
-func (r *Resolver) ResolveRuntime(ctx context.Context, spec string) (*RuntimeConfig, error) {
-	// Check context cancellation
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-	if spec == "" {
-		return nil, nil // No runtime specified
+// ListRuntimes lists all available runtimes by scanning directories
+func (r *Resolver) ListRuntimes() ([]*RuntimeInfo, error) {
+	var runtimes []*RuntimeInfo
+
+	// Check if runtimes directory exists
+	if !r.platform.DirExists(r.runtimesPath) {
+		return runtimes, nil
 	}
 
-	parsedSpec := r.parseRuntimeSpec(spec)
-
-	// Find matching runtime directory
-	runtimeDir, err := r.findRuntimeDirectory(parsedSpec)
+	// List runtime directories (flat structure: /opt/joblet/runtimes/openjdk-21)
+	entries, err := r.platform.ReadDir(r.runtimesPath)
 	if err != nil {
-		return nil, fmt.Errorf("runtime not found: %w", err)
+		return nil, fmt.Errorf("failed to read runtimes directory: %w", err)
 	}
 
-	// Load runtime configuration
-	configPath := filepath.Join(runtimeDir, "runtime.yml")
-	config, err := r.loadRuntimeConfig(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load runtime config: %w", err)
-	}
-
-	// Validate system compatibility
-	if err := r.validateRuntime(config); err != nil {
-		return nil, fmt.Errorf("runtime validation failed: %w", err)
-	}
-
-	return config, nil
-}
-
-// parseRuntimeSpec parses a runtime specification string
-// Supports two formats:
-// 1. Traditional format: language:version[+tag1][+tag2]... (e.g., "python:3.11", "python:3.11+ml+gpu")
-// 2. Runtime name format: language-version-tag1-tag2 (e.g., "python-3.11-ml")
-func (r *Resolver) parseRuntimeSpec(spec string) *RuntimeSpec {
-	// Traditional format with colon separator
-	if strings.Contains(spec, ":") {
-		parts := strings.Split(spec, ":")
-		if len(parts) != 2 {
-			return &RuntimeSpec{
-				Language: spec,
-				Version:  "latest",
-				Tags:     []string{},
-			}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
 		}
 
-		language := parts[0]
-		versionAndTags := strings.Split(parts[1], "+")
+		runtimePath := filepath.Join(r.runtimesPath, entry.Name())
+		configPath := filepath.Join(runtimePath, "runtime.yml")
 
-		version := versionAndTags[0]
-		var tags []string
-		if len(versionAndTags) > 1 {
-			tags = versionAndTags[1:]
+		// Load runtime config
+		config, err := r.loadRuntimeConfig(configPath)
+		if err != nil {
+			r.logger.Debug("skipping runtime without valid config", "path", runtimePath, "error", err)
+			continue
 		}
 
-		return &RuntimeSpec{
-			Language: language,
-			Version:  version,
-			Tags:     tags,
+		// Get directory size
+		size, _ := r.getDirectorySize(runtimePath)
+
+		// Get language/type from runtime.yml (could be language, framework, or any runtime type)
+		runtimeType := config.Language
+		if runtimeType == "" {
+			// Fallback: use first part of directory name as runtime type identifier
+			runtimeType = r.extractTypeFromName(entry.Name())
 		}
-	}
 
-	// Runtime name format: parse language-version-tags
-	return r.parseRuntimeName(spec)
-}
-
-// parseRuntimeName parses runtime name format (e.g., "python-3.11-ml")
-func (r *Resolver) parseRuntimeName(spec string) *RuntimeSpec {
-	parts := strings.Split(spec, "-")
-	if len(parts) < 2 {
-		// If no hyphens, treat entire string as language with default version
-		return &RuntimeSpec{
-			Language: spec,
-			Version:  "latest",
-			Tags:     []string{},
+		info := &RuntimeInfo{
+			Name:        config.Name,
+			Language:    runtimeType, // Note: "Language" field is kept for API compatibility but represents any runtime type
+			Version:     config.Version,
+			Description: config.Description,
+			Path:        runtimePath,
+			Size:        size,
+			Available:   true,
 		}
+
+		runtimes = append(runtimes, info)
 	}
 
-	// First part is language
-	language := parts[0]
-
-	// Try to identify version part (usually numeric like "3.11", "17", "1.20")
-	versionIdx := -1
-	for i := 1; i < len(parts); i++ {
-		part := parts[i]
-		// Check if this part looks like a version (contains digits and dots)
-		if r.isVersionLike(part) {
-			versionIdx = i
-			break
-		}
-	}
-
-	var version string
-	var tags []string
-
-	if versionIdx >= 0 {
-		// Found version part
-		version = parts[versionIdx]
-		// Everything before version (except language) is part of language
-		if versionIdx > 1 {
-			language = strings.Join(parts[0:versionIdx], "-")
-		}
-		// Everything after version is tags
-		if versionIdx+1 < len(parts) {
-			tags = parts[versionIdx+1:]
-		}
-	} else {
-		// No clear version found, last part is version, rest are tags
-		version = parts[len(parts)-1]
-		if len(parts) > 2 {
-			tags = parts[1 : len(parts)-1]
-		}
-	}
-
-	return &RuntimeSpec{
-		Language: language,
-		Version:  version,
-		Tags:     tags,
-	}
-}
-
-// isVersionLike checks if a string looks like a version number
-func (r *Resolver) isVersionLike(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-
-	// Must contain at least one digit
-	hasDigit := false
-	for _, char := range s {
-		if char >= '0' && char <= '9' {
-			hasDigit = true
-		} else if char != '.' {
-			// If it contains anything other than digits and dots, it's probably not a version
-			return false
-		}
-	}
-
-	return hasDigit
-}
-
-// findRuntimeDirectory finds the directory for a runtime specification
-func (r *Resolver) findRuntimeDirectory(spec *RuntimeSpec) (string, error) {
-	// Build potential directory names
-	baseName := fmt.Sprintf("%s-%s", spec.Language, spec.Version)
-
-	// Check with tags
-	if len(spec.Tags) > 0 {
-		fullName := fmt.Sprintf("%s-%s", baseName, strings.Join(spec.Tags, "-"))
-		fullPath := filepath.Join(r.runtimesPath, spec.Language, fullName)
-		if r.platform.DirExists(fullPath) {
-			return fullPath, nil
-		}
-	}
-
-	// Check without tags
-	basePath := filepath.Join(r.runtimesPath, spec.Language, baseName)
-	if r.platform.DirExists(basePath) {
-		return basePath, nil
-	}
-
-	// Try version-only directory (e.g., "openjdk-17" for "java:17")
-	versionPath := filepath.Join(r.runtimesPath, spec.Language, fmt.Sprintf("%s-%s", getBaseLanguageName(spec.Language), spec.Version))
-	if r.platform.DirExists(versionPath) {
-		return versionPath, nil
-	}
-
-	return "", fmt.Errorf("runtime directory not found for %s:%s", spec.Language, spec.Version)
-}
-
-// getBaseLanguageName returns the base name for common language runtimes
-func getBaseLanguageName(language string) string {
-	switch language {
-	case "java":
-		return "openjdk"
-	case "node":
-		return "node"
-	case "python":
-		return "python"
-	case "go":
-		return "go"
-	default:
-		return language
-	}
+	return runtimes, nil
 }
 
 // loadRuntimeConfig loads a runtime configuration from a YAML file
@@ -233,18 +98,204 @@ func (r *Resolver) loadRuntimeConfig(configPath string) (*RuntimeConfig, error) 
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	// Set absolute paths for mounts
-	runtimeDir := filepath.Dir(configPath)
-	for i := range config.Mounts {
-		if !filepath.IsAbs(config.Mounts[i].Source) {
-			config.Mounts[i].Source = filepath.Join(runtimeDir, config.Mounts[i].Source)
-		}
-	}
-
 	return &config, nil
 }
 
-// validateRuntime validates runtime compatibility with the system
+// extractTypeFromName extracts runtime type from directory name (generic approach)
+func (r *Resolver) extractTypeFromName(runtimeName string) string {
+	// Generic approach: extract the first part before the dash as the runtime type
+	// This could be a language, framework, system, or any kind of runtime environment
+	// The actual type will be read from runtime.yml's "language" field (which is a misnomer - it's really "type")
+	parts := strings.Split(runtimeName, "-")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+
+	return runtimeName
+}
+
+// getDirectorySize calculates the total size of a directory
+func (r *Resolver) getDirectorySize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	return size, err
+}
+
+// ResolveRuntime resolves a runtime spec to config (for runtime info command)
+// This is a simplified version that just loads the config directly
+func (r *Resolver) ResolveRuntime(runtimeSpec string) (*RuntimeConfig, error) {
+	if runtimeSpec == "" {
+		return nil, nil
+	}
+
+	// Find the runtime directory
+	runtimeDir, err := r.findRuntimeDirectory(runtimeSpec)
+	if err != nil {
+		return nil, fmt.Errorf("runtime not found: %w", err)
+	}
+
+	// Load runtime configuration
+	configPath := filepath.Join(runtimeDir, "runtime.yml")
+	config, err := r.loadRuntimeConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load runtime config: %w", err)
+	}
+
+	// Basic validation
+	if err := r.validateRuntime(config); err != nil {
+		return nil, fmt.Errorf("runtime validation failed: %w", err)
+	}
+
+	return config, nil
+}
+
+// findRuntimeDirectory finds the directory for a runtime specification (fully generic)
+func (r *Resolver) findRuntimeDirectory(spec string) (string, error) {
+	// Scan all runtime directories and check their runtime.yml files
+	entries, err := r.platform.ReadDir(r.runtimesPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read runtimes directory: %w", err)
+	}
+
+	// First pass: try exact name match
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		runtimePath := filepath.Join(r.runtimesPath, entry.Name())
+		configPath := filepath.Join(runtimePath, "runtime.yml")
+
+		// Load runtime config to check if it matches the spec
+		config, err := r.loadRuntimeConfig(configPath)
+		if err != nil {
+			continue // Skip directories without valid runtime.yml
+		}
+
+		// Check if the runtime name matches exactly
+		if config.Name == spec {
+			return runtimePath, nil
+		}
+	}
+
+	// Second pass: try parsed spec matching for more complex queries
+	parsedSpec := r.parseRuntimeSpec(spec)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		runtimePath := filepath.Join(r.runtimesPath, entry.Name())
+		configPath := filepath.Join(runtimePath, "runtime.yml")
+
+		// Load runtime config to check if it matches the spec
+		config, err := r.loadRuntimeConfig(configPath)
+		if err != nil {
+			continue // Skip directories without valid runtime.yml
+		}
+
+		// Check if this runtime matches the requested spec
+		if r.runtimeMatches(config, parsedSpec) {
+			return runtimePath, nil
+		}
+	}
+
+	return "", fmt.Errorf("runtime not found for spec %s", spec)
+}
+
+// runtimeMatches checks if a runtime config matches a runtime specification
+func (r *Resolver) runtimeMatches(config *RuntimeConfig, spec *RuntimeSpec) bool {
+	// Match by runtime type/category (if specified in spec)
+	// Note: "Language" field is a misnomer - it represents any runtime type (language, framework, system, etc.)
+	if spec.Language != "" && config.Language != "" {
+		if spec.Language != config.Language {
+			return false
+		}
+	}
+
+	// Match by version (if specified in spec)
+	if spec.Version != "" && spec.Version != "unknown" && spec.Version != "latest" {
+		if config.Version != spec.Version {
+			return false
+		}
+	}
+
+	// For now, we don't match by tags since runtime.yml doesn't have a tags field
+	// This could be extended in the future if needed
+
+	return true
+}
+
+// parseRuntimeSpec parses a runtime specification string
+func (r *Resolver) parseRuntimeSpec(spec string) *RuntimeSpec {
+	// Handle colon-based specs (e.g., "python:3.11+ml+gpu")
+	if strings.Contains(spec, ":") {
+		parts := strings.Split(spec, ":")
+		if len(parts) == 2 {
+			language := parts[0]
+			versionAndTags := strings.Split(parts[1], "+")
+			version := versionAndTags[0]
+			var tags []string
+			if len(versionAndTags) > 1 {
+				tags = versionAndTags[1:]
+			}
+			return &RuntimeSpec{
+				Language: language,
+				Version:  version,
+				Tags:     tags,
+			}
+		}
+	}
+
+	// Handle dash-based specs with plus-separated tags (e.g., "python-3.11-ml+gpu")
+	if strings.Contains(spec, "+") {
+		parts := strings.Split(spec, "+")
+		mainSpec := parts[0]
+		tags := parts[1:]
+
+		// Parse the main spec (e.g., "python-3.11-ml")
+		dashParts := strings.Split(mainSpec, "-")
+		if len(dashParts) >= 3 {
+			language := dashParts[0]
+			version := dashParts[1]
+			// Add remaining dash parts as additional tags
+			additionalTags := dashParts[2:]
+			allTags := append(additionalTags, tags...)
+			return &RuntimeSpec{
+				Language: language,
+				Version:  version,
+				Tags:     allTags,
+			}
+		}
+	}
+
+	// Handle simple dash-based specs without plus (e.g., "python-3.11")
+	dashParts := strings.Split(spec, "-")
+	if len(dashParts) == 2 {
+		return &RuntimeSpec{
+			Language: dashParts[0],
+			Version:  dashParts[1],
+			Tags:     nil,
+		}
+	}
+
+	// Treat as runtime name directly
+	return &RuntimeSpec{
+		Language: r.extractTypeFromName(spec),
+		Version:  "unknown",
+		Tags:     []string{},
+	}
+}
+
+// validateRuntime performs basic runtime validation
 func (r *Resolver) validateRuntime(config *RuntimeConfig) error {
 	// Check architecture compatibility
 	if len(config.Requirements.Architectures) > 0 {
@@ -262,132 +313,5 @@ func (r *Resolver) validateRuntime(config *RuntimeConfig) error {
 		}
 	}
 
-	// Check GPU requirements
-	if config.Requirements.GPU {
-		// Check for NVIDIA GPU presence
-		if !r.checkGPUAvailable() {
-			r.logger.Warn("runtime requires GPU but none detected")
-		}
-	}
-
-	// Validate mount points exist
-	for _, mount := range config.Mounts {
-		if !r.platform.DirExists(mount.Source) && !r.platform.FileExists(mount.Source) {
-			return fmt.Errorf("mount source does not exist: %s", mount.Source)
-		}
-	}
-
 	return nil
-}
-
-// checkGPUAvailable checks if a GPU is available on the system
-func (r *Resolver) checkGPUAvailable() bool {
-	// Check for NVIDIA GPU devices
-	nvidiaDevices := []string{"/dev/nvidia0", "/dev/nvidiactl", "/dev/nvidia-uvm"}
-	for _, device := range nvidiaDevices {
-		if _, err := os.Stat(device); err == nil {
-			return true
-		}
-	}
-
-	// Check for AMD GPU devices
-	amdDevices := []string{"/dev/dri/card0", "/dev/kfd"}
-	amdCount := 0
-	for _, device := range amdDevices {
-		if _, err := os.Stat(device); err == nil {
-			amdCount++
-		}
-	}
-	if amdCount > 0 {
-		return true
-	}
-
-	// Check for nvidia-smi command
-	if cmd := r.platform.CommandContext(nil, "nvidia-smi", "--list-gpus"); cmd.Run() == nil {
-		return true
-	}
-
-	// Check for rocm-smi command (AMD)
-	if cmd := r.platform.CommandContext(nil, "rocm-smi", "--showid"); cmd.Run() == nil {
-		return true
-	}
-
-	return false
-}
-
-// ListRuntimes lists all available runtimes
-func (r *Resolver) ListRuntimes() ([]*RuntimeInfo, error) {
-	var runtimes []*RuntimeInfo
-
-	// Check if runtimes directory exists
-	if !r.platform.DirExists(r.runtimesPath) {
-		return runtimes, nil
-	}
-
-	// List language directories
-	languages, err := r.platform.ReadDir(r.runtimesPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read runtimes directory: %w", err)
-	}
-
-	for _, langDir := range languages {
-		if !langDir.IsDir() {
-			continue
-		}
-
-		langPath := filepath.Join(r.runtimesPath, langDir.Name())
-		versions, err := r.platform.ReadDir(langPath)
-		if err != nil {
-			r.logger.Warn("failed to read language directory", "path", langPath, "error", err)
-			continue
-		}
-
-		for _, versionDir := range versions {
-			if !versionDir.IsDir() {
-				continue
-			}
-
-			versionPath := filepath.Join(langPath, versionDir.Name())
-			configPath := filepath.Join(versionPath, "runtime.yml")
-
-			// Load runtime config
-			config, err := r.loadRuntimeConfig(configPath)
-			if err != nil {
-				r.logger.Debug("skipping runtime without valid config", "path", versionPath)
-				continue
-			}
-
-			// Get directory size
-			size, _ := r.getDirectorySize(versionPath)
-
-			info := &RuntimeInfo{
-				Name:        config.Name,
-				Language:    langDir.Name(),
-				Version:     config.Version,
-				Description: config.Description,
-				Path:        versionPath,
-				Size:        size,
-				Available:   true,
-			}
-
-			runtimes = append(runtimes, info)
-		}
-	}
-
-	return runtimes, nil
-}
-
-// getDirectorySize calculates the total size of a directory
-func (r *Resolver) getDirectorySize(path string) (int64, error) {
-	var size int64
-	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			size += info.Size()
-		}
-		return nil
-	})
-	return size, err
 }

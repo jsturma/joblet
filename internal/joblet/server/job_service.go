@@ -19,14 +19,14 @@ import (
 // JobServiceServer uses the new request object pattern and improved interfaces
 type JobServiceServer struct {
 	pb.UnimplementedJobServiceServer
-	auth     auth2.GrpcAuthorization
+	auth     auth2.GRPCAuthorization
 	jobStore adapters.JobStoreAdapter // Uses the new adapter interface
 	joblet   interfaces.Joblet        // Uses the new interface
 	logger   *logger.Logger
 }
 
 // NewJobServiceServer creates a new job service that uses request objects
-func NewJobServiceServer(auth auth2.GrpcAuthorization, jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet) *JobServiceServer {
+func NewJobServiceServer(auth auth2.GRPCAuthorization, jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet) *JobServiceServer {
 	return &JobServiceServer{
 		auth:     auth,
 		jobStore: jobStore,
@@ -279,6 +279,20 @@ func (s *JobServiceServer) convertToJobRequest(req *pb.RunJobRequest) (*interfac
 			"totalSize", totalSize)
 	}
 
+	// Determine job type from environment variables
+	jobType := domain.JobTypeStandard // Default to standard production jobs
+	s.logger.Info("CHECKING ENVIRONMENT FOR JOB TYPE", "environment", req.Environment)
+	if req.Environment != nil {
+		if envJobType, exists := req.Environment["JOB_TYPE"]; exists && envJobType == "runtime-build" {
+			jobType = domain.JobTypeRuntimeBuild
+			s.logger.Info("DETECTED RUNTIME BUILD JOB FROM ENVIRONMENT", "envJobType", envJobType)
+		} else {
+			s.logger.Info("NO RUNTIME BUILD DETECTED, USING STANDARD", "JOB_TYPE_exists", req.Environment["JOB_TYPE"])
+		}
+	} else {
+		s.logger.Info("NO ENVIRONMENT PROVIDED, USING STANDARD JOB TYPE")
+	}
+
 	// Create the request object with validation
 	jobRequest := &interfaces.StartJobRequest{
 		Command: req.Command,
@@ -296,6 +310,7 @@ func (s *JobServiceServer) convertToJobRequest(req *pb.RunJobRequest) (*interfac
 		Runtime:           req.Runtime,
 		Environment:       req.Environment,       // Regular environment variables (logged)
 		SecretEnvironment: req.SecretEnvironment, // Secret environment variables (not logged)
+		JobType:           jobType,               // Set job type for isolation configuration
 	}
 
 	// Validate the request
@@ -355,7 +370,7 @@ func (s *JobServiceServer) validateRuntime(runtimeSpec string) error {
 	}
 
 	// Support both formats:
-	// 1. Traditional format: language:version or language:version+tags (e.g., "python:3.11+ml")
+	// 1. Traditional format: language:version or language:version+tags (e.g., "python-3.11-ml")
 	// 2. Runtime name format: language-version-tags (e.g., "python-3.11-ml")
 
 	if strings.Contains(runtimeSpec, ":") {

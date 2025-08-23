@@ -127,7 +127,7 @@ func NewVolumeName(name string) (VolumeName, error) {
 		return VolumeName{}, fmt.Errorf("volume name cannot be empty")
 	}
 
-	// Validate volume name format (Docker-like)
+	// Validate volume name format (container-like)
 	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`, name); !matched {
 		return VolumeName{}, fmt.Errorf("invalid volume name format: %s", name)
 	}
@@ -161,7 +161,7 @@ func NewRuntimeSpec(spec string) (RuntimeSpec, error) {
 		return RuntimeSpec{}, nil // Empty runtime is valid (use default)
 	}
 
-	// Basic validation for runtime format like "python:3.11+ml"
+	// Basic validation for runtime format like "python-3.11-ml"
 	if len(spec) > 256 {
 		return RuntimeSpec{}, fmt.Errorf("runtime spec too long: %s", spec)
 	}
@@ -184,7 +184,7 @@ func (r RuntimeSpec) IsEmpty() bool {
 	return r.value == ""
 }
 
-// Language extracts the language part from runtime spec (e.g., "python" from "python:3.11+ml")
+// Language extracts the language part from runtime spec (e.g., "python" from "python-3.11-ml")
 func (r RuntimeSpec) Language() string {
 	if r.IsEmpty() {
 		return ""
@@ -194,7 +194,7 @@ func (r RuntimeSpec) Language() string {
 	return parts[0]
 }
 
-// Version extracts the version part from runtime spec (e.g., "3.11+ml" from "python:3.11+ml")
+// Version extracts the version part from runtime spec (e.g., "3.11-ml" from "python-3.11-ml")
 func (r RuntimeSpec) Version() string {
 	if r.IsEmpty() {
 		return ""

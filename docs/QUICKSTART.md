@@ -127,6 +127,42 @@ This limits the job to:
 - 512 MB memory
 - 10 MB/s I/O bandwidth
 
+## 🚀 Using Runtime Environments
+
+Runtime environments provide pre-built, isolated environments for instant access to programming languages:
+
+### Install Available Runtimes
+
+```bash
+# Install Python with ML packages (475MB, instant startup)
+rnx runtime install python-3.11-ml
+
+# Install Java OpenJDK 21 (292MB, instant startup)  
+rnx runtime install openjdk:21
+
+# List installed runtimes
+rnx runtime list
+```
+
+### Use Runtimes
+
+```bash
+# Python with ML packages - no installation delay!
+rnx run --runtime=python-3.11-ml python3 -c "import pandas, numpy; print('ML ready!')"
+
+# Java compilation and execution
+rnx run --runtime=openjdk:21 --upload=HelloWorld.java javac HelloWorld.java
+rnx run --runtime=openjdk:21 java HelloWorld
+
+# Check runtime information
+rnx runtime info python-3.11-ml
+```
+
+**Benefits:**
+- ⚡ **Instant startup**: 2-3 seconds vs 5-45 minutes traditional package installation
+- 🔒 **Isolated**: No host contamination, complete dependency isolation
+- 📦 **Pre-configured**: All packages and tools ready to use
+
 ## 💾 Using Volumes
 
 Create persistent storage:
@@ -185,6 +221,44 @@ rnx run --schedule="5min" echo "Scheduled job executed!"
 # Run at specific time
 rnx run --schedule="2025-08-03T15:00:00" echo "Scheduled for 3 PM"
 ```
+
+## 🏗️ Runtime Systems
+
+Joblet provides pre-built runtime environments for instant job execution:
+
+### Install a Runtime
+
+```bash
+# Install Java 21 runtime (automatically uses builder isolation)
+rnx runtime install openjdk-21
+
+# Install Python ML runtime with data science packages
+rnx runtime install python-3.11-ml
+```
+
+**What happens during installation:**
+1. Uses **RuntimeService** → automatically applies builder chroot
+2. Downloads and installs runtime in isolated builder environment
+3. **Cleanup phase** creates isolated runtime structure
+4. Runtime ready for secure production use
+
+### Using Runtimes
+
+```bash
+# Run Java application with isolated runtime
+rnx run --runtime=openjdk-21 java -version
+
+# Run Python ML script with pre-installed packages
+rnx run --runtime=python-3.11-ml python3 -c "import pandas, numpy; print('ML ready!')"
+
+# List available runtimes
+rnx runtime list
+```
+
+**Security Benefits:**
+- Production jobs use **isolated runtime copies** (no host OS access)
+- Runtime files copied to `/opt/joblet/runtimes/{runtime}/isolated/`
+- Complete filesystem isolation between runtime building and production use
 
 ## 🔍 Monitoring
 

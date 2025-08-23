@@ -19,52 +19,58 @@ router.get('/system-info', async (req, res) => {
         // Transform the data to match the frontend DetailedSystemInfo interface
         const systemInfo = {
             hostInfo: {
-                hostname: monitorData.host?.hostname,
-                platform: monitorData.host?.os,
-                arch: monitorData.host?.architecture,
-                release: monitorData.host?.kernelVersion,
-                uptime: monitorData.host?.uptime,
-                cloudProvider: monitorData.cloud?.provider,
-                instanceType: monitorData.cloud?.instanceType,
-                region: monitorData.cloud?.region
+                hostname: monitorData.hostInfo?.hostname,
+                platform: monitorData.hostInfo?.platform,
+                arch: monitorData.hostInfo?.arch,
+                release: monitorData.hostInfo?.release,
+                uptime: monitorData.hostInfo?.uptime,
+                cloudProvider: monitorData.hostInfo?.cloudProvider,
+                instanceType: monitorData.hostInfo?.instanceType,
+                region: monitorData.hostInfo?.region
             },
             cpuInfo: {
-                cores: monitorData.cpu?.cores,
-                model: 'N/A', // Not provided by monitor status
-                frequency: null, // Not provided by monitor status
-                usage: monitorData.cpu?.usagePercent,
-                loadAverage: monitorData.cpu?.loadAverage,
-                perCoreUsage: monitorData.cpu?.perCoreUsage,
-                temperature: null // Not provided by monitor status
+                cores: monitorData.cpuInfo?.cores,
+                threads: monitorData.cpuInfo?.threads,
+                model: monitorData.cpuInfo?.model,
+                frequency: monitorData.cpuInfo?.frequency,
+                usage: monitorData.cpuInfo?.usage,
+                loadAverage: monitorData.cpuInfo?.loadAverage,
+                perCoreUsage: monitorData.cpuInfo?.perCoreUsage,
+                temperature: monitorData.cpuInfo?.temperature
             },
             memoryInfo: {
-                total: monitorData.memory?.totalBytes,
-                used: monitorData.memory?.usedBytes,
-                available: monitorData.memory?.availableBytes,
-                percent: monitorData.memory?.usagePercent,
-                buffers: monitorData.memory?.bufferedBytes,
-                cached: monitorData.memory?.cachedBytes,
-                swap: {
-                    total: monitorData.swap?.totalBytes || 0,
-                    used: monitorData.swap?.usedBytes || 0,
-                    percent: monitorData.swap?.usagePercent || 0
-                }
+                total: monitorData.memoryInfo?.total,
+                used: monitorData.memoryInfo?.used,
+                available: monitorData.memoryInfo?.available,
+                percent: monitorData.memoryInfo?.percent,
+                buffers: monitorData.memoryInfo?.buffers,
+                cached: monitorData.memoryInfo?.cached,
+                swap: monitorData.memoryInfo?.swap
             },
-            diskInfo: monitorData.disks?.map(disk => ({
-                device: disk.device,
-                mountpoint: disk.mountPoint,
-                filesystem: disk.filesystem,
-                size: disk.totalBytes,
-                used: disk.usedBytes,
-                available: disk.freeBytes,
-                percent: disk.usagePercent
-            })) || [],
-            networkInfo: [], // Not provided by monitor status
-            processInfo: {
-                totalProcesses: monitorData.processes?.totalProcesses || 0,
-                totalThreads: monitorData.processes?.totalThreads || 0,
-                runningProcesses: 0, // Not provided by monitor status
-                sleepingProcesses: 0 // Not provided by monitor status
+            disksInfo: {
+                disks: monitorData.disksInfo?.disks?.map(disk => ({
+                    name: disk.name,
+                    mountpoint: disk.mountpoint,
+                    filesystem: disk.filesystem,
+                    size: disk.size,
+                    used: disk.used,
+                    available: disk.available,
+                    percent: disk.percent,
+                    readBps: disk.readBps,
+                    writeBps: disk.writeBps,
+                    iops: disk.iops
+                })) || [],
+                totalSpace: monitorData.disksInfo?.totalSpace,
+                usedSpace: monitorData.disksInfo?.usedSpace
+            },
+            networkInfo: {
+                interfaces: monitorData.networkInfo?.interfaces || [],
+                totalRxBytes: monitorData.networkInfo?.totalRxBytes,
+                totalTxBytes: monitorData.networkInfo?.totalTxBytes
+            },
+            processesInfo: {
+                processes: monitorData.processesInfo?.processes || [],
+                totalProcesses: monitorData.processesInfo?.totalProcesses
             }
         };
 
@@ -276,6 +282,58 @@ router.get('/runtimes', async (req, res) => {
     }
 });
 
+// Install runtime
+router.post('/runtimes/install', async (req, res) => {
+    try {
+        const {name, force} = req.body;
+        const node = req.query.node;
+        
+        if (!name) {
+            return res.status(400).json({error: 'Runtime name is required'});
+        }
+        
+        const args = ['runtime', 'install', name, '--github-repo=ehsaniara/joblet/tree/main/runtimes'];
+        if (force) {
+            args.push('--force');
+        }
+        
+        const output = await execRnx(args, {node});
+        
+        // Extract build job ID from output
+        let buildJobId = null;
+        const lines = output.split('\n');
+        for (const line of lines) {
+            if (line.includes('Build Job:')) {
+                buildJobId = line.split('Build Job:')[1]?.trim();
+                break;
+            }
+        }
+        
+        res.json({
+            success: true, 
+            output: output,
+            buildJobId: buildJobId
+        });
+    } catch (error) {
+        console.error('Failed to install runtime:', error);
+        res.status(500).json({error: error.message});
+    }
+});
+
+// Remove runtime
+router.delete('/runtimes/:runtimeName', async (req, res) => {
+    try {
+        const {runtimeName} = req.params;
+        const node = req.query.node;
+        
+        const output = await execRnx(['runtime', 'remove', runtimeName], {node});
+        res.json({success: true, output});
+    } catch (error) {
+        console.error('Failed to remove runtime:', error);
+        res.status(500).json({error: error.message});
+    }
+});
+
 // Get monitor data (legacy endpoint)
 router.get('/monitor', async (req, res) => {
     try {
@@ -286,6 +344,110 @@ router.get('/monitor', async (req, res) => {
     } catch (error) {
         console.error('Failed to get monitor data:', error);
         res.status(500).json({error: error.message});
+    }
+});
+
+// RNX native GitHub runtime listing with caching
+let githubRuntimesCache = null;
+let githubCacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+router.get('/github/runtimes', async (req, res) => {
+    try {
+        // Check if we have valid cached data
+        const now = Date.now();
+        if (githubRuntimesCache && (now - githubCacheTimestamp < CACHE_DURATION)) {
+            return res.json(githubRuntimesCache);
+        }
+
+        // Use RNX native GitHub runtime listing
+        const node = req.query.node;
+        const output = await execRnx(['runtime', 'list', '--github-repo=ehsaniara/joblet/tree/main/runtimes', '--json'], {node});
+        
+        // Extract JSON from the output (skip status messages)
+        const lines = output.split('\n');
+        let jsonStart = -1;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim().startsWith('[')) {
+                jsonStart = i;
+                break;
+            }
+        }
+        
+        const jsonOutput = jsonStart >= 0 ? lines.slice(jsonStart).join('\n') : output;
+        const runtimeData = JSON.parse(jsonOutput);
+        
+        // Transform RNX runtime data to match UI expectations
+        const runtimesWithPlatforms = runtimeData.map(runtime => {
+            // Extract platform list from the platforms object
+            const platforms = Object.keys(runtime.platforms || {})
+                .filter(platform => runtime.platforms[platform].supported)
+                .map(platform => platform.replace('-', '/'))
+                .sort();
+            
+            return {
+                name: runtime.name,
+                type: 'directory',
+                html_url: `https://github.com/ehsaniara/joblet/tree/main/runtimes/${runtime.name}`,
+                platforms: platforms,
+                displayName: runtime.display_name || runtime.name,
+                description: runtime.description,
+                category: runtime.category,
+                language: runtime.language,
+                version: runtime.version,
+                requirements: runtime.requirements,
+                provides: runtime.provides,
+                tags: runtime.tags
+            };
+        });
+        
+        // Cache the result
+        githubRuntimesCache = runtimesWithPlatforms;
+        githubCacheTimestamp = now;
+        
+        res.json(runtimesWithPlatforms);
+    } catch (error) {
+        console.error('Failed to fetch GitHub runtimes via RNX:', error);
+        
+        // Return fallback static data when RNX GitHub listing is unavailable
+        const fallbackRuntimes = [
+            {
+                name: 'graalvmjdk-21',
+                type: 'directory',
+                html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/graalvmjdk-21',
+                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64'],
+                displayName: 'GraalVM JDK 21',
+                description: 'GraalVM Community Edition JDK 21 with native-image support',
+                category: 'language-runtime',
+                language: 'java'
+            },
+            {
+                name: 'openjdk-21',
+                type: 'directory',
+                html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/openjdk-21',
+                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64'],
+                displayName: 'OpenJDK 21',
+                description: 'OpenJDK 21 with Java development tools',
+                category: 'language-runtime',
+                language: 'java'
+            },
+            {
+                name: 'python-3.11-ml',
+                type: 'directory',
+                html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/python-3.11-ml',
+                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64'],
+                displayName: 'Python 3.11 ML',
+                description: 'Python 3.11 with machine learning libraries',
+                category: 'language-runtime',
+                language: 'python'
+            }
+        ];
+        
+        // Cache the fallback data
+        githubRuntimesCache = fallbackRuntimes;
+        githubCacheTimestamp = Date.now();
+        
+        res.json(fallbackRuntimes);
     }
 });
 

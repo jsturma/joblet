@@ -1,13 +1,13 @@
 # Joblet: Enterprise-Grade Job Execution Platform
 
-> **A Docker Alternative Built for Production Workloads**
+> **A Lightweight Container Alternative Built for Production Workloads**
 >
 > Joblet is a native Linux job execution platform that provides secure process isolation, comprehensive resource
-> management, and enterprise-ready orchestration without the overhead of containers.
+> management, and enterprise-ready orchestration without the overhead of traditional container solutions.
 
 ## 🚀 Why Joblet?
 
-### **Docker Alternative for Modern Infrastructure**
+### **Lightweight Container Alternative for Modern Infrastructure**
 
 Unlike traditional containerization solutions, Joblet leverages Linux namespaces and cgroups directly, providing:
 
@@ -29,7 +29,7 @@ Unlike traditional containerization solutions, Joblet leverages Linux namespaces
 - **🖥️ Cross-Platform CLI**: Works seamlessly on Linux, macOS, and Windows
 - **🎨 Modern Web UI**: React-based interface for visual workflow management
 - **📱 Real-Time Logs**: Live log streaming with filtering and search
-- **🛠️ Runtime System**: Pre-built environments (Python ML, Java 17/21, Go)
+- **🛠️ Runtime System**: Pre-built environments (Python ML 475MB, OpenJDK 21 292MB)
 
 ## 🎨 Visual Interface
 
@@ -46,9 +46,9 @@ Unlike traditional containerization solutions, Joblet leverages Linux namespaces
 ### **CI/CD & DevOps**
 
 ```bash
-# Replace Docker in CI pipelines
-rnx run --runtime=python:3.11-ml pytest tests/
-rnx run --runtime=java:21 mvn clean install
+# Replace containers in CI pipelines
+rnx run --runtime=python-3.11-ml pytest tests/
+rnx run --runtime=openjdk:21 --upload=pom.xml --upload=src/ mvn clean install
 ```
 
 ### **Data Engineering & Analytics**
@@ -57,7 +57,7 @@ rnx run --runtime=java:21 mvn clean install
 # Isolated data processing with resource limits
 rnx run --max-memory=8192 --max-cpu=400 \
         --volume=data-lake \
-        --runtime=python:3.11-ml \
+        --runtime=python-3.11-ml \
         python process_big_data.py
 ```
 
@@ -66,8 +66,8 @@ rnx run --max-memory=8192 --max-cpu=400 \
 ```bash
 # Network-isolated service testing
 rnx network create test-env --cidr=10.10.0.0/24
-rnx run --network=test-env --runtime=java:17 ./service-a
-rnx run --network=test-env --runtime=python:3.11 ./service-b
+rnx run --network=test-env --runtime=openjdk:21 ./service-a
+rnx run --network=test-env --runtime=python-3.11-ml ./service-b
 ```
 
 ### **Workflow Orchestration**
@@ -78,7 +78,7 @@ jobs:
   data-extraction:
     command: "python3"
     args: ["extract.py"]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     resources:
       max_memory: 2048
       max_cpu: 100
@@ -86,7 +86,7 @@ jobs:
   model-training:
     command: "python3" 
     args: ["train.py"]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     requires:
       - data-extraction: "COMPLETED"
     resources:
@@ -114,7 +114,7 @@ rnx status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
 ```bash
 # Resource-bounded health checks with timeout
 rnx run --max-cpu=10 --max-memory=64 \
-        --runtime=python:3.11 \
+        --runtime=python-3.11 \
         python health_check.py
 
 # Isolated incident response tooling
@@ -127,21 +127,21 @@ rnx run --network=isolated \
 
 ```bash
 # Multi-agent system with isolation
-rnx run --max-memory=4096 --runtime=python:3.11-ml \
+rnx run --max-memory=4096 --runtime=python-3.11-ml \
         python agent_coordinator.py
 
-rnx run --max-memory=2048 --runtime=python:3.11-ml \
+rnx run --max-memory=2048 --runtime=python-3.11-ml \
         --network=agent-net \
         python data_processing_agent.py
 
-rnx run --max-memory=1024 --runtime=python:3.11-ml \
+rnx run --max-memory=1024 --runtime=python-3.11-ml \
         --network=agent-net \
         python monitoring_agent.py
 ```
 
 ## 📊 Performance Advantages
 
-| Feature             | Docker                  | Joblet                         |
+| Feature             | Traditional Containers  | Joblet                         |
 |---------------------|-------------------------|--------------------------------|
 | **Startup Time**    | 2-5 seconds             | 50-200ms                       |
 | **Memory Overhead** | 50-100MB per container  | 5-10MB per job                 |
@@ -204,6 +204,8 @@ rnx run --max-memory=1024 --runtime=python:3.11-ml \
 - [**API Reference**](./API.md) - Complete gRPC API documentation
 - [**Architecture**](./DESIGN.md) - System design and architecture deep-dive
 - [**Storage Guide**](./STORAGE.md) - Data persistence and storage management
+- [**Security Analysis**](./ISOLATION_SECURITY_ANALYSIS.md) - Service-based isolation security analysis
+- [**Runtime Cleanup**](./RUNTIME_ISOLATION_CLEANUP.md) - Runtime isolation cleanup design and implementation
 
 ## 🚀 Quick Start Example
 
@@ -220,12 +222,56 @@ jobs:
   analyze:
     command: "python3"
     args: ["analyze.py", "--data", "/data/input.csv"]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     volumes: ["data-volume"]
 EOF
 
 # Execute the workflow
 rnx run --workflow=ml-pipeline.yaml
+```
+
+## 🎮 Quick Command Reference
+
+### Job Execution
+```bash
+# Run basic commands
+rnx run echo "Hello World"
+rnx run --runtime=python-3.11-ml python script.py
+rnx run --runtime=openjdk-21 java MyApp
+
+# Resource limits
+rnx run --max-memory=2048 --max-cpu=200 intensive-task
+```
+
+### Runtime Management
+```bash
+# List available runtimes (languages, databases, services)
+rnx runtime list
+
+# Get runtime information
+rnx runtime info python-3.11-ml
+
+# Install runtimes
+rnx runtime install python-3.11-ml
+rnx runtime install openjdk-21
+
+# Remove runtimes
+rnx runtime remove python-3.11-ml
+
+# Test runtime functionality
+rnx runtime test openjdk-21
+```
+
+### Network & Storage
+```bash
+# Create isolated networks
+rnx network create my-network --cidr=10.0.0.0/24
+
+# Create persistent volumes
+rnx volume create data-vol --size=10GB
+
+# Use in jobs
+rnx run --network=my-network --volume=data-vol app
 ```
 
 ## 🎯 Value Proposition

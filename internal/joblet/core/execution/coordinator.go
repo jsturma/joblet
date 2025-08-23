@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"joblet/pkg/logger"
 	"joblet/pkg/platform"
@@ -38,10 +39,16 @@ func NewExecutionCoordinator(
 // StartJob implements JobExecutor interface
 func (ec *ExecutionCoordinator) StartJob(ctx context.Context, opts *StartProcessOptions) (platform.Command, error) {
 	log := ec.logger.WithField("jobID", opts.Job.Uuid)
-	log.Debug("coordinating job start", "hasUploads", len(opts.Uploads) > 0)
+	log.Debug("coordinating job start", "hasUploads", len(opts.Uploads) > 0, "jobType", opts.Job.GetType())
 
-	// 1. Create isolation environment
-	_, err := ec.isolationManager.CreateIsolatedEnvironment(opts.Job.Uuid)
+	// 1. Create isolation environment based on job type
+	var err error
+	if opts.Job.IsRuntimeBuild() {
+		log.Info("creating builder environment for runtime build job")
+		_, err = ec.isolationManager.CreateBuilderEnvironment(opts.Job.Uuid)
+	} else {
+		_, err = ec.isolationManager.CreateIsolatedEnvironment(opts.Job.Uuid)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create isolated environment: %w", err)
 	}
@@ -57,41 +64,44 @@ func (ec *ExecutionCoordinator) StartJob(ctx context.Context, opts *StartProcess
 
 	// 3. Setup networking
 	var networkAlloc *NetworkAllocation
+	log.Debug("checking job network configuration", "network", opts.Job.Network, "isEmpty", opts.Job.Network == "")
 	if opts.Job.Network != "" {
+		log.Info("setting up networking for job", "network", opts.Job.Network)
 		networkAlloc, err = ec.networkManager.SetupNetworking(ctx, opts.Job.Uuid, opts.Job.Network)
 		if err != nil {
 			ec.cleanup(opts.Job.Uuid, workspaceDir)
 			return nil, fmt.Errorf("failed to setup networking: %w", err)
 		}
+		log.Info("networking setup completed", "allocation", networkAlloc != nil)
+	} else {
+		log.Info("no networking configured for job")
 	}
 
 	// 4. Build environment
 	environment := ec.environmentManager.BuildEnvironment(opts.Job, "execute")
 
-	// 5. Set init path to joblet binary for proper two-stage execution
-	// The joblet binary runs in init mode and then exec's to the actual command
+	// 5. Always use joblet binary as init for unified pub/sub logging
+	// The joblet binary runs in init mode, sets up runtime environment, then exec's to the actual command
+	// This ensures all jobs (runtime and default) use the same logging mechanism
 	initPath := "/opt/joblet/joblet"
-	if opts.Job.Runtime != "" {
-		// For jobs with runtime, use the runtime's init path
-		runtimeInitPath, err := ec.environmentManager.GetRuntimeInitPath(ctx, opts.Job.Runtime)
-		if err != nil {
-			ec.cleanup(opts.Job.Uuid, workspaceDir)
-			if networkAlloc != nil {
-				if cleanupErr := ec.networkManager.CleanupNetworking(ctx, opts.Job.Uuid); cleanupErr != nil {
-					log.Warn("failed to cleanup networking during runtime init path resolution failure", "error", cleanupErr)
-				}
-			}
-			return nil, fmt.Errorf("failed to resolve runtime init path: %w", err)
-		}
-		initPath = runtimeInitPath
-		log.Debug("using runtime init path", "initPath", initPath, "runtime", opts.Job.Runtime)
-	}
-	log.Debug("using joblet binary as init for namespace isolation", "initPath", initPath)
+	log.Debug("using joblet binary as init for namespace isolation and unified logging", "initPath", initPath)
 
-	// 6. Launch process
+	// 6. Create network ready file for coordination if networking is enabled
+	var networkReadyFile string
+	if networkAlloc != nil && networkAlloc.Network != "none" {
+		// Create a signal file for network coordination
+		networkReadyFile = fmt.Sprintf("/tmp/joblet-network-ready-%s", opts.Job.Uuid)
+
+		// Add NETWORK_READY_FILE to environment
+		environment = append(environment, fmt.Sprintf("NETWORK_READY_FILE=%s", networkReadyFile))
+		log.Debug("created network ready file path", "file", networkReadyFile)
+	}
+
+	// 7. Launch process
 	launchConfig := &LaunchConfig{
 		InitPath:    initPath, // Use resolved absolute path
 		JobID:       opts.Job.Uuid,
+		JobType:     opts.Job.Type, // Pass job type for isolation configuration
 		Command:     opts.Job.Command,
 		Args:        opts.Job.Args,
 		Environment: environment,
@@ -107,6 +117,27 @@ func (ec *ExecutionCoordinator) StartJob(ctx context.Context, opts *StartProcess
 			}
 		}
 		return nil, fmt.Errorf("failed to launch process: %w", err)
+	}
+
+	// Phase 2: Configure network namespace now that we have the PID
+	if networkAlloc != nil && networkAlloc.Network != "none" {
+		log.Info("configuring network namespace with process PID", "pid", result.PID)
+		if err := ec.networkManager.ConfigureNetworkNamespace(ctx, opts.Job.Uuid, result.PID); err != nil {
+			log.Error("failed to configure network namespace", "error", err)
+			// Continue execution - network issues shouldn't kill the job entirely
+		} else {
+			log.Info("network namespace configured successfully")
+		}
+
+		// Signal network ready to job process by creating the signal file
+		if networkReadyFile != "" {
+			log.Debug("signaling network ready to job process", "file", networkReadyFile)
+			if err := os.WriteFile(networkReadyFile, []byte("ready"), 0644); err != nil {
+				log.Error("failed to create network ready signal file", "error", err)
+			} else {
+				log.Debug("network ready signal file created successfully")
+			}
+		}
 	}
 
 	log.Info("job started successfully", "pid", result.PID)

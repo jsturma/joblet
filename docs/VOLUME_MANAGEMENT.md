@@ -26,7 +26,7 @@ Joblet volumes provide persistent and temporary storage for jobs, enabling:
 ### Key Features
 
 - **Two volume types**: Filesystem (persistent) and Memory (temporary)
-- **Size limits**: Configurable size constraints
+- **Size limits**: Configurable size constraints with enforcement
 - **Isolation**: Each job sees only its assigned volumes
 - **Mount location**: Volumes mounted at `/volumes/<name>`
 - **Performance**: Memory volumes for high-speed I/O
@@ -40,10 +40,10 @@ Persistent disk-based storage that survives job restarts and system reboots.
 **Characteristics:**
 
 - Data persists indefinitely
-- Backed by disk storage (ext4 by default)
+- Backed by loop devices with size enforcement (falls back to directories if loop setup fails)
 - Suitable for databases, file storage, results
 - Subject to disk I/O performance
-- Can be backed up
+- Can be manually backed up via job commands
 
 **Use cases:**
 
@@ -60,10 +60,10 @@ Temporary RAM-based storage (tmpfs) cleared when the volume is removed.
 **Characteristics:**
 
 - Extremely fast read/write
-- Data lost on system restart
+- Data lost on system restart or volume removal
 - Limited by available RAM
 - No disk I/O bottleneck
-- Cannot be backed up
+- Size-limited tmpfs mounts
 
 **Use cases:**
 
@@ -95,8 +95,9 @@ rnx volume create storage --size=5GB
 rnx volume create small --size=100MB      # Megabytes
 rnx volume create medium --size=5GB       # Gigabytes
 rnx volume create large --size=1TB        # Terabytes
+rnx volume create tiny --size=50KB        # Kilobytes
 
-# Precise sizes
+# Precise sizes in bytes
 rnx volume create exact --size=1073741824  # Bytes (1GB)
 ```
 
@@ -118,7 +119,7 @@ rnx volume create Dataset2024 --size=10GB
 # Invalid names (will fail)
 rnx volume create 123data --size=1GB      # Starts with number
 rnx volume create my.data --size=1GB      # Contains period
-rnx volume create my data --size=1GB      # Contains space
+rnx volume create "my data" --size=1GB    # Contains space
 ```
 
 ## Using Volumes in Jobs
@@ -149,7 +150,7 @@ rnx run --volume=results bash -c '
   date >> /volumes/results/output.txt
 '
 
-# Read from volume
+# Read from volume in separate job
 rnx run --volume=results cat /volumes/results/output.txt
 
 # Copy files to volume
@@ -190,14 +191,13 @@ rnx volume list
 # mydata        1GB     filesystem   2025-08-03 10:00:00
 # cache         512MB   memory       2025-08-03 10:05:00
 
-# JSON output for scripting
+# JSON output
 rnx volume list --json
-
-# Filter by type (requires parsing)
-rnx volume list --json | jq '.[] | select(.type == "memory")'
 ```
 
 ### Checking Volume Usage
+
+Since there's no built-in usage monitoring, use job commands to check volume usage:
 
 ```bash
 # Check space usage in filesystem volume
@@ -217,16 +217,8 @@ rnx run --volume=logs \
 # Remove single volume
 rnx volume remove mydata
 
-# Remove with confirmation
-echo "y" | rnx volume remove important-data
-
-# Force remove (if implemented)
-rnx volume remove temp-cache --force
-
-# Remove all volumes matching pattern
-rnx volume list --json | \
-  jq -r '.[] | select(.name | startswith("temp-")) | .name' | \
-  xargs -I {} rnx volume remove {}
+# Note: Volume must not be in use by any active jobs
+# If removal fails due to active jobs, stop the jobs first
 ```
 
 ## Data Persistence
@@ -245,17 +237,21 @@ rnx run \
   --max-memory=16384 \
   python3 train.py --checkpoint-dir=/volumes/ml-checkpoints
 
-# 3. Resume training from checkpoint
+# 3. Resume training from checkpoint in separate job
 rnx run \
   --volume=ml-checkpoints \
   --upload=train.py \
   python3 train.py --resume=/volumes/ml-checkpoints/latest.pth
 
-# 4. Export final model
-rnx run \
+# 4. Export final model (download logs to get file)
+JOB_ID=$(rnx run \
   --volume=ml-checkpoints \
-  cp /volumes/ml-checkpoints/best_model.pth /work/
-rnx log <job-id> > model.pth
+  --json \
+  bash -c 'cat /volumes/ml-checkpoints/best_model.pth' | jq -r .id)
+
+# Wait for job completion then download
+sleep 5
+rnx log $JOB_ID > model.pth
 ```
 
 ### Data Sharing Between Jobs
@@ -269,7 +265,7 @@ with open('/volumes/shared-data/status.json', 'w') as f:
     json.dump(data, f)
 "
 
-# Job 2: Read shared data
+# Job 2: Read shared data (runs after Job 1 completes)
 rnx run --volume=shared-data python3 -c "
 import json
 with open('/volumes/shared-data/status.json', 'r') as f:
@@ -278,10 +274,12 @@ print(f'Status: {data[\"status\"]}, Count: {data[\"count\"]}')
 "
 ```
 
-### Backup and Restore
+### Manual Backup and Restore
+
+Joblet doesn't have built-in backup commands, but you can implement backup workflows using job commands:
 
 ```bash
-# Backup volume data
+# Create backup job
 BACKUP_JOB=$(rnx run --json \
   --volume=important-data \
   tar -czf /work/backup.tar.gz -C /volumes/important-data . \
@@ -290,7 +288,7 @@ BACKUP_JOB=$(rnx run --json \
 # Wait for completion
 sleep 5
 
-# Download backup
+# Download backup by getting job logs
 rnx log $BACKUP_JOB > important-data-backup.tar.gz
 
 # Restore to new volume
@@ -304,6 +302,8 @@ rnx run \
 ## Performance Considerations
 
 ### Filesystem Volume Performance
+
+Test volume performance using job commands:
 
 ```bash
 # Test write performance
@@ -319,22 +319,17 @@ rnx run --volume=perf-test dd \
   of=/dev/null \
   bs=1M
 
-# Random I/O test
-rnx run --volume=perf-test fio \
-  --name=random-rw \
-  --ioengine=posixaio \
-  --rw=randrw \
-  --bs=4k \
-  --numjobs=4 \
-  --size=1g \
-  --runtime=30 \
-  --directory=/volumes/perf-test
+# Check volume mount and filesystem type
+rnx run --volume=perf-test bash -c '
+  mount | grep /volumes/perf-test
+  df -T /volumes/perf-test
+'
 ```
 
 ### Memory Volume Performance
 
 ```bash
-# Memory volumes are much faster
+# Memory volumes are much faster for I/O operations
 rnx run --volume=mem-cache --max-memory=2048 python3 -c "
 import time
 import os
@@ -362,19 +357,24 @@ print(f'Read: {500/read_time:.2f} MB/s')
 # Use memory volumes for temporary data
 rnx volume create temp-work --size=2GB --type=memory
 
-# Process large dataset with staging
+# Process large dataset with staging pattern
 rnx run \
   --volume=source-data \
   --volume=temp-work \
   --volume=results \
-  python3 -c "
-# Read from persistent storage
-# Process in memory volume
-# Write results to persistent storage
-"
+  bash -c '
+    # Copy input to fast memory volume
+    cp /volumes/source-data/* /volumes/temp-work/
+    
+    # Process in memory
+    process_data.py --input=/volumes/temp-work --output=/volumes/results
+    
+    # Clean up temporary files
+    rm /volumes/temp-work/*
+  '
 
-# Clean up temporary files regularly
-rnx run --volume=logs bash -c '
+# Regular cleanup using job scheduling
+rnx run --schedule="168h" --volume=logs bash -c '
   find /volumes/logs -name "*.tmp" -mtime +7 -delete
   find /volumes/logs -name "*.log" -mtime +30 -delete
 '
@@ -385,20 +385,23 @@ rnx run --volume=logs bash -c '
 ### 1. Volume Sizing
 
 ```bash
-# Start small and grow as needed
+# Start with reasonable sizes and monitor usage
 rnx volume create test-vol --size=1GB
 
-# Monitor usage
+# Monitor usage regularly
 rnx run --volume=test-vol df -h /volumes/test-vol
 
-# Create new larger volume if needed
+# Create larger volume if needed (no resize capability)
 rnx volume create test-vol-large --size=10GB
 
-# Migrate data
+# Migrate data manually
 rnx run \
   --volume=test-vol \
   --volume=test-vol-large \
   cp -r /volumes/test-vol/* /volumes/test-vol-large/
+
+# Remove old volume after migration
+rnx volume remove test-vol
 ```
 
 ### 2. Naming Strategy
@@ -418,7 +421,7 @@ rnx volume create prod-backups --size=100GB
 ### 3. Data Organization
 
 ```bash
-# Create directory structure
+# Create directory structure in jobs
 rnx run --volume=project-data bash -c '
   mkdir -p /volumes/project-data/{input,output,temp,logs}
   mkdir -p /volumes/project-data/archives/$(date +%Y/%m)
@@ -433,22 +436,20 @@ rnx run --volume=ml-data bash -c '
 ### 4. Cleanup Strategy
 
 ```bash
-# Regular cleanup job
+# Create cleanup script
 cat > cleanup.sh << 'EOF'
 #!/bin/bash
 # Remove old temporary files
-find /volumes/temp-data -mtime +7 -delete
+find /volumes/temp-data -name "*.tmp" -mtime +7 -delete
 
-# Compress old logs
-find /volumes/logs -name "*.log" -mtime +30 | while read log; do
-  gzip "$log"
-done
+# Compress old logs  
+find /volumes/logs -name "*.log" -mtime +30 -exec gzip {} \;
 
 # Remove empty directories
 find /volumes/data -type d -empty -delete
 EOF
 
-# Schedule weekly cleanup
+# Schedule regular cleanup (requires job scheduling)
 rnx run \
   --schedule="168h" \
   --volume=temp-data \
@@ -458,11 +459,10 @@ rnx run \
   bash cleanup.sh
 ```
 
-### 5. Security
+### 5. Security and Data Protection
 
 ```bash
-# Sensitive data handling
-# Create volume for secrets
+# Handle sensitive data with encryption in jobs
 rnx volume create secrets --size=100MB
 
 # Store encrypted data
@@ -487,7 +487,7 @@ rnx run --volume=secrets --env=ENCRYPTION_KEY=xxx bash -c '
 ```bash
 # Error: "failed to create volume: operation not permitted"
 # Solution: Check server has proper permissions
-# Ensure joblet runs with necessary privileges
+# Ensure joblet runs with necessary privileges for loop device setup
 ```
 
 **2. Volume Not Found**
@@ -508,44 +508,94 @@ rnx volume create mydata --size=1GB
 # Check volume usage
 rnx run --volume=full-vol df -h /volumes/full-vol
 
-# Clean up or create larger volume
+# Create larger volume (no resize capability)
 rnx volume create full-vol-v2 --size=20GB
+
+# Migrate data
+rnx run --volume=full-vol --volume=full-vol-v2 \
+  cp -r /volumes/full-vol/* /volumes/full-vol-v2/
+
+# Remove old volume
+rnx volume remove full-vol
 ```
 
 **4. Permission Denied**
 
 ```bash
 # Error: "Permission denied"
-# Volumes are owned by job user (usually 'nobody')
-# Fix by using appropriate permissions
-rnx run --volume=data chmod -R 777 /volumes/data
+# Volumes are owned by job user
+# Fix permissions within job
+rnx run --volume=data bash -c '
+  # Check current permissions
+  ls -la /volumes/data
+  
+  # Fix if needed (be careful with chmod 777)
+  chmod -R 755 /volumes/data
+'
 ```
 
 **5. Memory Volume Full**
 
 ```bash
-# Memory volumes limited by available RAM
-# Check system memory
-rnx monitor status
+# Memory volumes limited by available RAM and specified size
+# Check system memory and volume size
+rnx run --volume=mem-vol df -h /volumes/mem-vol
 
-# Use smaller memory volume or filesystem volume
-rnx volume create cache --size=512MB --type=memory
+# Use smaller memory volume or switch to filesystem volume
+rnx volume create cache-small --size=256MB --type=memory
+```
+
+**6. Volume Removal Blocked**
+
+```bash
+# Error: Volume is in use by active jobs
+# List running jobs
+rnx list
+
+# Stop jobs using the volume
+rnx stop <job-id>
+
+# Then remove volume
+rnx volume remove mydata
 ```
 
 ### Debugging Tips
 
 ```bash
-# Check volume mount
+# Check volume mount status
 rnx run --volume=debug-vol mount | grep volumes
 
-# Verify volume permissions
+# Verify volume permissions and ownership
 rnx run --volume=debug-vol ls -la /volumes/
 
 # Test write access
-rnx run --volume=debug-vol touch /volumes/debug-vol/test.txt
+rnx run --volume=debug-vol bash -c '
+  touch /volumes/debug-vol/test.txt
+  echo "Write test successful"
+  rm /volumes/debug-vol/test.txt
+'
 
-# Check filesystem type (filesystem volumes)
+# Check filesystem type (for filesystem volumes)
 rnx run --volume=debug-vol stat -f /volumes/debug-vol
+
+# For memory volumes, verify tmpfs mount
+rnx run --volume=mem-vol mount | grep tmpfs
+```
+
+### Volume State and Recovery
+
+```bash
+# Check volume metadata (stored in volume directory)
+rnx run --volume=debug-vol bash -c '
+  if [ -f /volumes/debug-vol/.joblet_volume_meta.json ]; then
+    cat /volumes/debug-vol/.joblet_volume_meta.json
+  else
+    echo "No volume metadata found"
+  fi
+'
+
+# Verify volume size limits
+rnx run --volume=debug-vol df -h /volumes/debug-vol
 ```
 
 ## Examples
@@ -562,14 +612,15 @@ rnx run \
   --env=POSTGRES_PASSWORD=secret \
   --env=PGDATA=/volumes/postgres-data \
   --network=db-network \
-  postgres:latest
+  --runtime=postgres:latest \
+  postgres
 ```
 
 ### Build Cache
 
 ```bash
-# Create build cache volume
-rnx volume create build-cache --size=10GB --type=memory
+# Create build cache volume (memory for speed)
+rnx volume create build-cache --size=2GB --type=memory
 
 # Use for faster builds
 rnx run \
@@ -577,7 +628,11 @@ rnx run \
   --upload-dir=./src \
   --env=MAVEN_CACHE_DIR=/volumes/build-cache/maven \
   --runtime=java:17 \
-  bash -c "mvn install && mvn package"
+  bash -c "
+    mkdir -p /volumes/build-cache/maven
+    mvn -Dmaven.repo.local=/volumes/build-cache/maven install
+    mvn -Dmaven.repo.local=/volumes/build-cache/maven package
+  "
 ```
 
 ### Data Pipeline
@@ -588,24 +643,41 @@ rnx volume create raw-data --size=100GB
 rnx volume create processed-data --size=50GB
 rnx volume create final-results --size=10GB
 
-# Stage 1: Ingest
-rnx run --volume=raw-data ingest_data.sh
+# Stage 1: Ingest data
+rnx run --volume=raw-data --upload=ingest_data.sh bash ingest_data.sh
 
-# Stage 2: Process
+# Stage 2: Process (runs after stage 1)
 rnx run \
   --volume=raw-data \
   --volume=processed-data \
-  process_data.py
+  --upload=process_data.py \
+  python3 process_data.py
 
-# Stage 3: Analysis
+# Stage 3: Analysis (runs after stage 2)
 rnx run \
   --volume=processed-data \
   --volume=final-results \
-  analyze_results.py
+  --upload=analyze_results.py \
+  python3 analyze_results.py
 ```
+
+## Limitations
+
+### Current Limitations
+
+- **No volume resizing**: Create new volume and migrate data manually
+- **No built-in backup**: Implement backup workflows using job commands  
+- **No volume info command**: Use `rnx volume list` for volume information
+- **No force removal**: Volume removal blocked if jobs are using it
+- **No usage monitoring**: Check usage via job commands using `df` and `du`
+
+### Planned Features
+
+Check the project roadmap for upcoming volume management features.
 
 ## See Also
 
 - [Job Execution Guide](./JOB_EXECUTION.md)
-- [Network Management](./NETWORK_MANAGEMENT.md)
+- [Network Management](./NETWORK_MANAGEMENT.md)  
 - [Configuration Guide](./CONFIGURATION.md)
+- [Volume Test Suite](../tests/e2e/volume/)

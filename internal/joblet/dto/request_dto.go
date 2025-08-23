@@ -27,7 +27,7 @@ type StartJobRequestDTO struct {
 	Volumes []string `json:"volumes,omitempty"` // volume names to mount
 
 	// Runtime specification
-	Runtime string `json:"runtime,omitempty"` // runtime specification (e.g., "python:3.11+ml")
+	Runtime string `json:"runtime,omitempty"` // runtime specification (e.g., "python-3.11-ml")
 
 	// Environment variables
 	Environment       map[string]string `json:"environment,omitempty"`        // Regular environment variables

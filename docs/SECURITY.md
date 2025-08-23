@@ -42,6 +42,9 @@ Joblet implements multi-layered security:
 
 - **mTLS**: Mutual TLS with certificate-based authentication
 - **RBAC**: Role-based access control (admin/viewer)
+- **Service-Based Isolation**: Automatic job routing based on API service
+- **Dual Chroot System**: Production isolation (minimal) vs builder isolation (controlled)
+- **Runtime Cleanup**: Self-contained runtime isolation preventing host filesystem exposure
 - **Process Isolation**: Linux namespaces and cgroups
 - **Network Isolation**: Custom networks and traffic control
 - **Filesystem Isolation**: Chroot and per-job workspaces
@@ -254,9 +257,55 @@ authorization:
 
 ## Process Isolation
 
+### Service-Based Isolation Architecture
+
+Joblet implements automatic isolation based on which API service initiates jobs:
+
+```bash
+# Production Jobs (JobService API) - Minimal Chroot
+rnx run echo "Hello World"           # Uses minimal chroot isolation
+rnx run --runtime=java:21 java App  # Secure runtime mounting
+
+# Runtime Build Jobs (RuntimeService API) - Builder Chroot  
+rnx runtime install java:21         # Uses builder chroot with host OS access
+```
+
+**Isolation Routing:**
+```
+JobService API          RuntimeService API
+     │                       │
+     ▼                       ▼
+JobType: "standard"     JobType: "runtime-build"
+     │                       │
+     ▼                       ▼
+Minimal Chroot          Builder Chroot
+- Production isolation  - Controlled host access
+- Secure runtime mounts - Runtime building tools
+- No package managers   - Temporary modifications
+```
+
+### Dual Chroot System
+
+#### Production Jobs (Minimal Chroot)
+```bash
+# Minimal filesystem access
+rnx run ls /                    # Limited directories
+rnx run which apt              # Command not found
+rnx run ls /opt/joblet         # No access to joblet internals
+```
+
+#### Runtime Builds (Builder Chroot)  
+```bash
+# Controlled host OS access (ONLY during runtime building)
+# - Full host filesystem (read-only)
+# - Package managers available 
+# - /opt/joblet/runtimes writable
+# - Automatic cleanup creates isolated runtime structure
+```
+
 ### Linux Namespaces
 
-Joblet uses multiple namespaces for isolation:
+Both job types use identical namespace isolation:
 
 ```bash
 # PID namespace - process isolation
@@ -276,6 +325,35 @@ rnx run hostname  # Job-specific hostname
 
 # Cgroup namespace - resource visibility
 rnx run cat /proc/cgroups  # Limited cgroup view
+```
+
+### Runtime Isolation Security
+
+Joblet prevents host filesystem exposure through runtime cleanup:
+
+```bash
+# BEFORE cleanup (INSECURE): Runtime mounts point to host OS paths
+# runtime.yml contained:
+# - source: "usr/lib/jvm/java-21-openjdk-amd64"  # HOST PATH!
+
+# AFTER cleanup (SECURE): Runtime mounts point to isolated copies  
+# runtime.yml contains:
+# - source: "isolated/usr/lib/jvm/java-21-openjdk-amd64"  # ISOLATED COPY
+
+# Production jobs using runtimes are completely isolated
+rnx run --runtime=java:21 find /usr -type f | head -5
+# Only shows isolated runtime files, not host OS files
+```
+
+**Runtime Directory Structure:**
+```
+/opt/joblet/runtimes/java/openjdk-21/
+├── isolated/                    # Self-contained runtime files
+│   ├── usr/lib/jvm/            # Copied from host during build
+│   ├── usr/bin/                # Runtime binaries (isolated)  
+│   └── etc/ssl/certs/          # Certificates (isolated)
+├── runtime.yml                 # Uses isolated/ paths only
+└── runtime.yml.original        # Backup for audit
 ```
 
 ### Security Context

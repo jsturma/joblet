@@ -105,12 +105,14 @@ type IOMetrics struct {
 
 // ProcessMetrics contains process-related statistics
 type ProcessMetrics struct {
-	TotalProcesses   int           `json:"total_processes"`
-	RunningProcesses int           `json:"running_processes"`
-	ZombieProcesses  int           `json:"zombie_processes"`
-	TotalThreads     int           `json:"total_threads"`
-	TopByCPU         []ProcessInfo `json:"top_by_cpu"`
-	TopByMemory      []ProcessInfo `json:"top_by_memory"`
+	TotalProcesses    int           `json:"total_processes"`
+	RunningProcesses  int           `json:"running_processes"`
+	SleepingProcesses int           `json:"sleeping_processes"`
+	StoppedProcesses  int           `json:"stopped_processes"`
+	ZombieProcesses   int           `json:"zombie_processes"`
+	TotalThreads      int           `json:"total_threads"`
+	TopByCPU          []ProcessInfo `json:"top_by_cpu"`
+	TopByMemory       []ProcessInfo `json:"top_by_memory"`
 }
 
 // ProcessInfo contains information about a single process

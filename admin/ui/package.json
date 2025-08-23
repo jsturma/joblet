@@ -18,12 +18,16 @@
     "pre-push": "npm run build"
   },
   "dependencies": {
+    "clsx": "^1.2.1",
+    "i18next": "^25.4.2",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "lucide-react": "^0.263.1",
+    "mermaid": "^11.10.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^15.7.3",
     "react-router-dom": "^6.8.0",
-    "recharts": "^2.5.0",
-    "lucide-react": "^0.263.1",
-    "clsx": "^1.2.1"
+    "recharts": "^2.5.0"
   },
   "devDependencies": {
     "@types/node": "^18.15.0",

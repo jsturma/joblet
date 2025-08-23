@@ -11,6 +11,7 @@ Comprehensive troubleshooting guide for common Joblet issues, error messages, an
 - [Resource and Performance](#resource-and-performance)
 - [Volume Problems](#volume-problems)
 - [Network Issues](#network-issues)
+- [Runtime and Isolation Issues](#runtime-and-isolation-issues)
 - [Certificate and Security](#certificate-and-security)
 - [Log Analysis](#log-analysis)
 - [Getting Help](#getting-help)
@@ -629,6 +630,199 @@ sudo systemctl restart joblet
 sudo journalctl -u joblet | tail -100
 ```
 
+## Runtime and Isolation Issues
+
+### Runtime Installation Problems
+
+**Problem: Runtime installation fails**
+
+```bash
+# Check build job status
+rnx runtime install openjdk:21
+# ERROR: Runtime build failed
+
+# Check build job logs  
+rnx status <build-job-uuid>
+rnx log <build-job-uuid>
+```
+
+**Solutions:**
+```bash
+# 1. Check if previous build exists
+ls -la /opt/joblet/runtimes/openjdk/
+
+# 2. Force rebuild if needed
+rnx runtime install openjdk:21 --force
+
+# 3. Check disk space for runtime building
+df -h /opt/joblet/runtimes/
+
+# 4. Verify network access for downloads
+ping archive.ubuntu.com
+```
+
+### Runtime Cleanup Issues
+
+**Problem: Runtime cleanup fails, production jobs have host OS access**
+
+```bash
+# Check if runtime has isolated structure
+ls -la /opt/joblet/runtimes/java/openjdk-21/
+# Should see 'isolated/' directory
+
+# Check runtime.yml for isolated paths
+cat /opt/joblet/runtimes/java/openjdk-21/runtime.yml
+# Mounts should use "isolated/" prefix
+```
+
+**Solutions:**
+```bash
+# 1. Manually trigger cleanup (if implemented)
+joblet cleanup-runtime /opt/joblet/runtimes/java/openjdk-21
+
+# 2. Verify runtime.yml uses isolated paths
+grep "source:" /opt/joblet/runtimes/java/openjdk-21/runtime.yml
+# Should show: source: "isolated/usr/lib/jvm/..."
+
+# 3. Rebuild runtime if cleanup failed
+rm -rf /opt/joblet/runtimes/java/openjdk-21
+rnx runtime install java:21
+```
+
+### Service-Based Isolation Problems
+
+**Problem: Jobs not using correct isolation level**
+
+```bash
+# Check job type in environment
+rnx run env | grep JOB_TYPE
+# Should show: JOB_TYPE=standard (for production jobs)
+
+# Check if runtime builds use builder chroot
+rnx runtime install test:1.0
+# Should automatically use builder chroot
+```
+
+**Solutions:**
+```bash
+# 1. Verify service routing configuration
+cat /opt/joblet/config/joblet-config.yml | grep -A 10 isolation
+
+# 2. Check job logs for isolation setup
+rnx log <job-uuid> | grep -i "isolation\|chroot"
+
+# 3. Restart server if configuration changed
+sudo systemctl restart joblet
+```
+
+### OpenJDK Runtime Issues
+
+**Problem: Java runtime fails with "no such file or directory"**
+
+```bash
+rnx run --runtime=openjdk:21 java -version
+# Error: exec failed: no such file or directory
+```
+
+**Root Causes and Solutions:**
+1. **Missing dynamic linker**: Java binaries need `/lib64/ld-linux-x86-64.so.2`
+2. **Missing shared libraries**: JVM requires `libjli.so`, `libstdc++.so.6`
+3. **Incorrect library paths**: Runtime must be configured for isolated environment
+
+```bash
+# Check if runtime includes all necessary components
+rnx runtime info openjdk:21
+# Should show ~292MB with 192 files
+
+# Verify Java works in runtime
+rnx run --runtime=openjdk:21 java -version
+# Should output: openjdk version "21.0.8"
+
+# Test compilation works
+echo 'public class Test { public static void main(String[] args) { System.out.println("Hello!"); }}' > Test.java
+rnx run --runtime=openjdk:21 --upload=Test.java javac Test.java
+rnx run --runtime=openjdk:21 java Test
+```
+
+**Problem: Java compilation fails with security configuration errors**
+
+```bash
+rnx run --runtime=openjdk:21 --upload=Test.java javac Test.java
+# Exception: Error loading java.security file
+```
+
+**Solution:** Runtime setup includes complete Java configuration:
+```bash
+# Runtime should include conf/security directory
+# This is automatically handled by the system-based setup approach
+```
+
+**Problem: Runtime shows very small size (1-2KB)**
+
+```bash
+rnx runtime list
+# openjdk:21    21    1.1KB    # This indicates setup failure
+```
+
+**Solution:** Use system-based setup approach:
+```bash
+# Remove failed runtime and reinstall
+rnx runtime remove openjdk:21 --force
+rnx runtime install openjdk:21
+
+# Verify proper size
+rnx runtime list
+# Should show: openjdk:21    21    292.0MB    OpenJDK runtime with system packages
+```
+
+### Runtime Security Validation
+
+**Problem: Want to verify runtime isolation**
+
+```bash
+# Test that production job cannot access host filesystem
+rnx run --runtime=openjdk:21 find /usr -name "*.so" | wc -l
+# Should show limited results (only isolated runtime files)
+
+# Test that runtime job cannot access joblet internals
+rnx run --runtime=openjdk:21 ls /opt/joblet/
+# Should fail or show very limited access
+
+# Verify runtime files are copies, not host mounts
+rnx run --runtime=openjdk:21 ls -la /usr/lib/jvm/
+# Should show Java installation but isolated from host
+```
+
+### Runtime Performance Issues
+
+**Problem: Runtime installation takes too long**
+
+```bash
+# Check runtime build progress
+rnx status <build-job-uuid> --follow
+
+# Monitor resource usage during build
+rnx monitor
+
+# Check if cleanup phase is hanging
+tail -f /var/log/joblet/server.log | grep -i cleanup
+```
+
+**Solutions:**
+```bash
+# 1. Increase build timeout in configuration
+# Edit /opt/joblet/config/joblet-config.yml
+runtime:
+  builder:
+    timeout: "7200s"  # 2 hours instead of 1
+
+# 2. Monitor cleanup phase specifically
+rnx log <build-job-uuid> | grep -A 20 -B 5 "cleanup phase"
+
+# 3. Check disk I/O during copy operations
+iostat -x 1 5
+```
+
 ## Getting Help
 
 ### Information to Collect
@@ -735,4 +929,8 @@ Any other relevant information
 | Out of memory | Increase memory limit or optimize usage |
 | Volume issues | Check disk space, permissions, naming |
 | Network problems | Verify CIDR ranges, check isolation |
+| Runtime install fails | Check network, disk space, force rebuild |
+| Runtime cleanup fails | Verify isolated/ directory, rebuild runtime |
+| Wrong isolation level | Check job type environment, restart server |
+| Host OS access in runtime | Verify runtime.yml uses isolated paths |
 | Performance issues | Adjust resource limits, monitor usage |

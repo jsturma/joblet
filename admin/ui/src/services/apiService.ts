@@ -98,14 +98,22 @@ class APIService {
         });
     }
 
-    async executeWorkflow(filePath: string, createMissingVolumes = false): Promise<{
+    async executeWorkflow(filePath: string, workflowName?: string, createMissingVolumes = false): Promise<{
         workflowId: string;
         status: string;
-        message: string
+        message: string;
+        availableWorkflows?: string[];
+        requiresWorkflowSelection?: boolean;
     }> {
-        return this.request<{ workflowId: string; status: string; message: string }>('/workflows/execute', {
+        return this.request<{ 
+            workflowId: string; 
+            status: string; 
+            message: string;
+            availableWorkflows?: string[];
+            requiresWorkflowSelection?: boolean;
+        }>('/workflows/execute', {
             method: 'POST',
-            body: JSON.stringify({filePath, createMissingVolumes}),
+            body: JSON.stringify({filePath, workflowName, createMissingVolumes}),
         });
     }
 
@@ -124,6 +132,12 @@ class APIService {
         await this.request(`/jobs/${jobId}/stop`, {
             method: 'POST',
             body: JSON.stringify({node: this.currentNode}),
+        });
+    }
+
+    async deleteJob(jobId: string): Promise<void> {
+        await this.request(`/jobs/${jobId}?node=${this.currentNode}`, {
+            method: 'DELETE',
         });
     }
 

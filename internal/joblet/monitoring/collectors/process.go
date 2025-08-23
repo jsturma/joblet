@@ -66,15 +66,32 @@ func (c *ProcessCollector) Collect() (*domain.ProcessMetrics, error) {
 	// Count process states
 	totalProcesses := len(processes)
 	runningProcesses := 0
+	sleepingProcesses := 0
+	stoppedProcesses := 0
 	zombieProcesses := 0
 	totalThreads := 0
 
 	for _, proc := range processes {
-		switch proc.Status {
-		case "R": // Running
-			runningProcesses++
-		case "Z": // Zombie
-			zombieProcesses++
+		// Process state can have additional characters (e.g., "R+", "Ss", "S+")
+		// We only care about the first character for the basic state
+		if len(proc.Status) > 0 {
+			baseState := proc.Status[0:1]
+			switch baseState {
+			case "R": // Running (includes R, R+, etc.)
+				runningProcesses++
+			case "S": // Sleeping - interruptible sleep (includes S, Ss, S+, etc.)
+				sleepingProcesses++
+			case "D": // Uninterruptible sleep (disk sleep)
+				sleepingProcesses++
+			case "T": // Stopped (by job control signal)
+				stoppedProcesses++
+			case "t": // Stopped (by debugger during tracing)
+				stoppedProcesses++
+			case "Z": // Zombie (includes Z, Z+, etc.)
+				zombieProcesses++
+			case "I": // Idle kernel thread
+				sleepingProcesses++ // Count idle as sleeping for practical purposes
+			}
 		}
 		totalThreads += int(proc.numThreads)
 	}
@@ -91,12 +108,14 @@ func (c *ProcessCollector) Collect() (*domain.ProcessMetrics, error) {
 	topByMemory := c.getTopProcesses(processes, 10)
 
 	metrics := &domain.ProcessMetrics{
-		TotalProcesses:   totalProcesses,
-		RunningProcesses: runningProcesses,
-		ZombieProcesses:  zombieProcesses,
-		TotalThreads:     totalThreads,
-		TopByCPU:         topByCPU,
-		TopByMemory:      topByMemory,
+		TotalProcesses:    totalProcesses,
+		RunningProcesses:  runningProcesses,
+		SleepingProcesses: sleepingProcesses,
+		StoppedProcesses:  stoppedProcesses,
+		ZombieProcesses:   zombieProcesses,
+		TotalThreads:      totalThreads,
+		TopByCPU:          topByCPU,
+		TopByMemory:       topByMemory,
 	}
 
 	// Store current stats for next calculation

@@ -8,10 +8,10 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server.js",
-    "start:refactored": "node src/server.js",
-    "dev": "node --watch server.js",
-    "dev:refactored": "node --watch src/server.js"
+    "start": "node src/server.js",
+    "start:legacy": "node server.js",
+    "dev": "node --watch src/server.js",
+    "dev:legacy": "node --watch server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

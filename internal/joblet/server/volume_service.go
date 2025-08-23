@@ -16,13 +16,13 @@ import (
 // VolumeServiceServer implements the gRPC volume service
 type VolumeServiceServer struct {
 	pb.UnimplementedVolumeServiceServer
-	auth          auth2.GrpcAuthorization
+	auth          auth2.GRPCAuthorization
 	volumeManager *volume.Manager
 	logger        *logger.Logger
 }
 
 // NewVolumeServiceServer creates a new volume service server
-func NewVolumeServiceServer(auth auth2.GrpcAuthorization, volumeManager *volume.Manager) *VolumeServiceServer {
+func NewVolumeServiceServer(auth auth2.GRPCAuthorization, volumeManager *volume.Manager) *VolumeServiceServer {
 	return &VolumeServiceServer{
 		auth:          auth,
 		volumeManager: volumeManager,

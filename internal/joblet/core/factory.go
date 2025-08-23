@@ -1,14 +1,17 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
 	"joblet/internal/joblet/adapters"
 	"joblet/internal/joblet/core/interfaces"
 	"joblet/internal/joblet/core/volume"
+	"joblet/internal/joblet/domain"
+	"joblet/internal/joblet/events"
+	interfaces_ext "joblet/internal/joblet/interfaces"
 	"joblet/internal/joblet/monitoring"
-	"joblet/internal/joblet/monitoring/domain"
 	"joblet/internal/joblet/pubsub"
 	"joblet/internal/joblet/runtime"
 	"joblet/internal/joblet/workflow"
@@ -32,15 +35,16 @@ type ServiceComponents struct {
 	Joblet            interfaces.Joblet
 	WorkflowManager   *workflow.WorkflowManager
 	VolumeManager     *volume.Manager
-	RuntimeManager    *runtime.Manager
 	RuntimeResolver   *runtime.Resolver
 	MonitoringService *monitoring.Service
 	JobStore          JobStore
 	NetworkStore      adapters.NetworkStoreAdapter
 	VolumeStore       VolumeStore
+	EventBus          events.EventBus
+	ServiceRegistry   interfaces_ext.ServiceRegistry
 }
 
-// NewComponentFactory creates a new component factory
+// NewComponentFactory creates a new component factory for dependency injection
 func NewComponentFactory(cfg *config.Config, platform platform.Platform) *ComponentFactory {
 	factoryLogger := logger.New().WithField("component", "factory")
 	return &ComponentFactory{
@@ -51,11 +55,10 @@ func NewComponentFactory(cfg *config.Config, platform platform.Platform) *Compon
 	}
 }
 
-// CreateServices creates and wires all application services
+// CreateServices creates and wires all application services with proper dependency injection
 func (f *ComponentFactory) CreateServices() (*ServiceComponents, error) {
 	f.logger.Debug("initializing application services")
 
-	// Create storage adapters first
 	jobStore, err := f.createJobStore()
 	if err != nil {
 		return nil, err
@@ -71,16 +74,16 @@ func (f *ComponentFactory) CreateServices() (*ServiceComponents, error) {
 		return nil, err
 	}
 
-	// Create managers
 	volumeManager := f.createVolumeManager(volumeStore)
-	runtimeManager, runtimeResolver := f.createRuntimeComponents()
+	runtimeResolver := f.createRuntimeComponents()
 	workflowManager := f.createWorkflowManager()
-
-	// Create monitoring
 	monitoringService := f.createMonitoringService()
 
-	// Create core joblet with all dependencies
+	f.configureVolumeMonitoring(monitoringService, volumeManager)
+
+	eventBus := events.NewInMemoryEventBus()
 	joblet := NewJoblet(jobStore, f.config, networkStore)
+	serviceRegistry := f.createServiceRegistry(joblet, volumeManager, networkStore, monitoringService, runtimeResolver)
 
 	f.logger.Info("all application services initialized successfully")
 
@@ -88,23 +91,21 @@ func (f *ComponentFactory) CreateServices() (*ServiceComponents, error) {
 		Joblet:            joblet,
 		WorkflowManager:   workflowManager,
 		VolumeManager:     volumeManager,
-		RuntimeManager:    runtimeManager,
 		RuntimeResolver:   runtimeResolver,
 		MonitoringService: monitoringService,
 		JobStore:          jobStore,
 		NetworkStore:      networkStore,
 		VolumeStore:       volumeStore,
+		EventBus:          eventBus,
+		ServiceRegistry:   serviceRegistry,
 	}, nil
 }
 
-// createJobStore creates and configures the job storage adapter
+// createJobStore creates and configures the job storage adapter with in-memory backend
 func (f *ComponentFactory) createJobStore() (JobStore, error) {
 	f.logger.Debug("creating job store adapter")
 
-	// Create adapter factory
 	adapterFactory := adapters.NewAdapterFactory(f.logger)
-
-	// Create default job store configuration for development
 	jobStoreConfig := &adapters.JobStoreConfig{
 		Store: &adapters.StoreConfig{
 			Backend: "memory",
@@ -126,7 +127,6 @@ func (f *ComponentFactory) createJobStore() (JobStore, error) {
 		LogPersistence: &f.config.Buffers.LogPersistence,
 	}
 
-	// Create the adapter
 	adapter, err := adapterFactory.CreateJobStoreAdapter(jobStoreConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create job store adapter: %w", err)
@@ -136,14 +136,11 @@ func (f *ComponentFactory) createJobStore() (JobStore, error) {
 	return adapter, nil
 }
 
-// createNetworkStore creates and configures the network storage adapter
+// createNetworkStore creates and configures the network storage adapter for job networking
 func (f *ComponentFactory) createNetworkStore() (adapters.NetworkStoreAdapter, error) {
 	f.logger.Debug("creating network store adapter")
 
-	// Create adapter factory
 	adapterFactory := adapters.NewAdapterFactory(f.logger)
-
-	// Create default network store configuration for development
 	networkStoreConfig := &adapters.NetworkStoreConfig{
 		NetworkStore: &adapters.StoreConfig{
 			Backend: "memory",
@@ -153,7 +150,6 @@ func (f *ComponentFactory) createNetworkStore() (adapters.NetworkStoreAdapter, e
 		},
 	}
 
-	// Create the adapter
 	adapter, err := adapterFactory.CreateNetworkStoreAdapter(networkStoreConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create network store adapter: %w", err)
@@ -163,21 +159,17 @@ func (f *ComponentFactory) createNetworkStore() (adapters.NetworkStoreAdapter, e
 	return adapter, nil
 }
 
-// createVolumeStore creates and configures the volume storage adapter
+// createVolumeStore creates and configures the volume storage adapter for persistent data
 func (f *ComponentFactory) createVolumeStore() (VolumeStore, error) {
 	f.logger.Debug("creating volume store adapter")
 
-	// Create adapter factory
 	adapterFactory := adapters.NewAdapterFactory(f.logger)
-
-	// Create default volume store configuration for development
 	volumeStoreConfig := &adapters.VolumeStoreConfig{
 		Store: &adapters.StoreConfig{
 			Backend: "memory",
 		},
 	}
 
-	// Create the adapter
 	adapter, err := adapterFactory.CreateVolumeStoreAdapter(volumeStoreConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create volume store adapter: %w", err)
@@ -187,12 +179,11 @@ func (f *ComponentFactory) createVolumeStore() (VolumeStore, error) {
 	return adapter, nil
 }
 
-// createVolumeManager creates the volume manager with its dependencies
+// createVolumeManager creates a volume manager to handle persistent volume operations
 func (f *ComponentFactory) createVolumeManager(volumeStore VolumeStore) *volume.Manager {
 	f.logger.Debug("creating volume manager")
 
-	// Create volume manager with basic configuration
-	basePath := "/opt/joblet/volumes" // Default volume path
+	basePath := "/opt/joblet/volumes"
 	if f.config.Filesystem.BaseDir != "" {
 		basePath = filepath.Join(f.config.Filesystem.BaseDir, "volumes")
 	}
@@ -202,33 +193,224 @@ func (f *ComponentFactory) createVolumeManager(volumeStore VolumeStore) *volume.
 	return manager
 }
 
-// createRuntimeComponents creates runtime manager and resolver
-func (f *ComponentFactory) createRuntimeComponents() (*runtime.Manager, *runtime.Resolver) {
-	f.logger.Debug("creating runtime components", "enabled", f.config.Runtime.Enabled)
-
-	if f.config.Runtime.Enabled {
-		f.logger.Info("runtime support enabled", "basePath", f.config.Runtime.BasePath)
-		manager := runtime.NewManager(f.config.Runtime.BasePath, f.platform)
-		resolver := runtime.NewResolver(f.config.Runtime.BasePath, f.platform)
-		return manager, resolver
-	}
-
-	f.logger.Info("runtime support disabled - using minimal runtime components")
-	// Create minimal runtime components for interface compliance
-	manager := runtime.NewManager("", f.platform)
-	resolver := runtime.NewResolver("", f.platform)
-	return manager, resolver
+// createRuntimeComponents creates a runtime resolver to manage execution environments
+func (f *ComponentFactory) createRuntimeComponents() *runtime.Resolver {
+	f.logger.Debug("creating runtime resolver", "basePath", f.config.Runtime.BasePath)
+	return runtime.NewResolver(f.config.Runtime.BasePath, f.platform)
 }
 
-// createWorkflowManager creates the workflow manager
+// createWorkflowManager creates a workflow manager to handle multi-job orchestration
 func (f *ComponentFactory) createWorkflowManager() *workflow.WorkflowManager {
 	f.logger.Debug("creating workflow manager")
 	return workflow.NewWorkflowManager()
 }
 
-// createMonitoringService creates the monitoring service
+// createMonitoringService creates a monitoring service for system and job metrics collection
 func (f *ComponentFactory) createMonitoringService() *monitoring.Service {
 	f.logger.Debug("creating monitoring service")
-	// Use basic monitoring config - full implementation would map f.config properly
-	return monitoring.NewService(&domain.MonitoringConfig{})
+	return monitoring.NewService(nil)
+}
+
+// configureVolumeMonitoring wires volume manager with monitoring service for disk usage tracking
+func (f *ComponentFactory) configureVolumeMonitoring(monitoringService *monitoring.Service, volumeManager *volume.Manager) {
+	f.logger.Debug("configuring volume monitoring integration")
+
+	basePath := "/opt/joblet/volumes"
+	if f.config.Filesystem.BaseDir != "" {
+		basePath = filepath.Join(f.config.Filesystem.BaseDir, "volumes")
+	}
+
+	monitoringService.SetVolumeManager(volumeManager, basePath)
+	f.logger.Info("volume monitoring integration configured", "volumeBasePath", basePath)
+}
+
+// createServiceRegistry creates a centralized service registry for dependency access
+func (f *ComponentFactory) createServiceRegistry(
+	joblet interfaces.Joblet,
+	volumeManager *volume.Manager,
+	networkStore adapters.NetworkStoreAdapter,
+	monitoringService *monitoring.Service,
+	runtimeResolver *runtime.Resolver) interfaces_ext.ServiceRegistry {
+
+	f.logger.Debug("creating service registry")
+	return &serviceRegistryImpl{
+		joblet:            joblet,
+		volumeManager:     volumeManager,
+		networkStore:      networkStore,
+		monitoringService: monitoringService,
+		runtimeResolver:   runtimeResolver,
+	}
+}
+
+type serviceRegistryImpl struct {
+	joblet            interfaces.Joblet
+	volumeManager     *volume.Manager
+	networkStore      adapters.NetworkStoreAdapter
+	monitoringService *monitoring.Service
+	runtimeResolver   *runtime.Resolver
+}
+
+func (r *serviceRegistryImpl) GetJobService() interfaces_ext.JobServiceInterface {
+	return &jobServiceWrapper{joblet: r.joblet}
+}
+
+func (r *serviceRegistryImpl) GetVolumeService() interfaces_ext.VolumeServiceInterface {
+	return &volumeServiceWrapper{manager: r.volumeManager}
+}
+
+func (r *serviceRegistryImpl) GetNetworkService() interfaces_ext.NetworkServiceInterface {
+	return &networkServiceWrapper{store: r.networkStore}
+}
+
+func (r *serviceRegistryImpl) GetMonitoringService() interfaces_ext.MonitoringServiceInterface {
+	return &monitoringServiceWrapper{service: r.monitoringService}
+}
+
+func (r *serviceRegistryImpl) GetRuntimeService() interfaces_ext.RuntimeServiceInterface {
+	return &runtimeServiceWrapper{resolver: r.runtimeResolver}
+}
+
+// Service wrappers - these adapt internal implementations to the interface contracts
+type jobServiceWrapper struct {
+	joblet interfaces.Joblet
+}
+
+func (j *jobServiceWrapper) StartJob(ctx context.Context, req interfaces.StartJobRequest) (*domain.Job, error) {
+	return j.joblet.StartJob(ctx, req)
+}
+
+func (j *jobServiceWrapper) StopJob(ctx context.Context, req interfaces.StopJobRequest) error {
+	return j.joblet.StopJob(ctx, req)
+}
+
+func (j *jobServiceWrapper) DeleteJob(ctx context.Context, req interfaces.DeleteJobRequest) error {
+	return j.joblet.DeleteJob(ctx, req)
+}
+
+func (j *jobServiceWrapper) ExecuteScheduledJob(ctx context.Context, req interfaces.ExecuteScheduledJobRequest) error {
+	return j.joblet.ExecuteScheduledJob(ctx, req)
+}
+
+func (j *jobServiceWrapper) GetJobStatus(ctx context.Context, jobID string) (*domain.Job, bool) {
+	// This would need to be implemented via a job store interface
+	return nil, false
+}
+
+func (j *jobServiceWrapper) ListJobs(ctx context.Context) []*domain.Job {
+	// This would need to be implemented via a job store interface
+	return nil
+}
+
+// Additional service wrappers
+type volumeServiceWrapper struct {
+	manager *volume.Manager
+}
+
+func (v *volumeServiceWrapper) CreateVolume(ctx context.Context, name string, size int64) error {
+	// Adapt to the actual volume manager interface signature
+	_, err := v.manager.CreateVolume(name, "", domain.VolumeTypeFilesystem)
+	return err
+}
+
+func (v *volumeServiceWrapper) DeleteVolume(ctx context.Context, name string) error {
+	// Implement delete - may need to add to volume.Manager
+	return fmt.Errorf("delete volume not implemented")
+}
+
+func (v *volumeServiceWrapper) ListVolumes(ctx context.Context) ([]string, error) {
+	volumes := v.manager.ListVolumes()
+	names := make([]string, len(volumes))
+	for i, vol := range volumes {
+		names[i] = vol.Name
+	}
+	return names, nil
+}
+
+func (v *volumeServiceWrapper) MountVolume(ctx context.Context, volumeName, mountPath string) error {
+	// Implement mount - may need to add to volume.Manager
+	return fmt.Errorf("mount volume not implemented")
+}
+
+type networkServiceWrapper struct {
+	store adapters.NetworkStoreAdapter
+}
+
+func (n *networkServiceWrapper) CreateNetwork(ctx context.Context, name string, config interface{}) error {
+	// Implementation would depend on the network store interface
+	return fmt.Errorf("not implemented")
+}
+
+func (n *networkServiceWrapper) DeleteNetwork(ctx context.Context, name string) error {
+	// Implementation would depend on the network store interface
+	return fmt.Errorf("not implemented")
+}
+
+func (n *networkServiceWrapper) ListNetworks(ctx context.Context) ([]string, error) {
+	// Implementation would depend on the network store interface
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (n *networkServiceWrapper) AssignJobToNetwork(ctx context.Context, jobID, networkName string) error {
+	// Implementation would depend on the network store interface
+	return fmt.Errorf("not implemented")
+}
+
+type monitoringServiceWrapper struct {
+	service *monitoring.Service
+}
+
+func (m *monitoringServiceWrapper) CollectSystemMetrics(ctx context.Context) (map[string]interface{}, error) {
+	// Convert monitoring service response to generic map
+	return map[string]interface{}{
+		"placeholder": true,
+	}, nil
+}
+
+func (m *monitoringServiceWrapper) GetJobMetrics(ctx context.Context, jobID string) (map[string]interface{}, error) {
+	// Convert monitoring service response to generic map
+	return map[string]interface{}{
+		"jobId": jobID,
+	}, nil
+}
+
+func (m *monitoringServiceWrapper) StartMonitoring(ctx context.Context, jobID string) error {
+	// Implementation would depend on the monitoring service interface
+	return nil
+}
+
+func (m *monitoringServiceWrapper) StopMonitoring(ctx context.Context, jobID string) error {
+	// Implementation would depend on the monitoring service interface
+	return nil
+}
+
+type runtimeServiceWrapper struct {
+	resolver *runtime.Resolver
+}
+
+func (r *runtimeServiceWrapper) ListRuntimes(ctx context.Context) ([]string, error) {
+	runtimes, err := r.resolver.ListRuntimes()
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, len(runtimes))
+	for i, rt := range runtimes {
+		names[i] = rt.Name
+	}
+	return names, nil
+}
+
+func (r *runtimeServiceWrapper) InstallRuntime(ctx context.Context, spec string) error {
+	// Implementation would need to be added to resolver or use different interface
+	return fmt.Errorf("not implemented")
+}
+
+func (r *runtimeServiceWrapper) RemoveRuntime(ctx context.Context, spec string) error {
+	// Implementation would need to be added to resolver or use different interface
+	return fmt.Errorf("not implemented")
+}
+
+func (r *runtimeServiceWrapper) ValidateRuntime(ctx context.Context, spec string) (bool, error) {
+	_, err := r.resolver.ResolveRuntime(spec)
+	return err == nil, err
 }

@@ -2,8 +2,11 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	pb "joblet/api/gen"
 	"joblet/internal/rnx/common"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -64,6 +67,10 @@ func runDelete(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to delete job: %v", err)
 	}
 
+	if common.JSONOutput {
+		return outputDeleteJobJSON(response)
+	}
+
 	// Display result with appropriate formatting
 	if response.Success {
 		fmt.Printf("✅ Job deleted successfully:\n")
@@ -77,4 +84,11 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// outputDeleteJobJSON outputs the delete job result in JSON format
+func outputDeleteJobJSON(response *pb.DeleteJobRes) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(response)
 }

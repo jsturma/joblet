@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"joblet/pkg/config"
 	"joblet/pkg/platform"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 // CommandValidator validates commands and arguments
 type CommandValidator struct {
 	platform         platform.Platform
+	config           *config.Config
 	maxCommandLength int
 	maxArgLength     int
 	maxArgCount      int
@@ -19,9 +21,10 @@ type CommandValidator struct {
 }
 
 // NewCommandValidator creates a new command validator
-func NewCommandValidator(platform platform.Platform) *CommandValidator {
+func NewCommandValidator(platform platform.Platform, config *config.Config) *CommandValidator {
 	return &CommandValidator{
 		platform:         platform,
+		config:           config,
 		maxCommandLength: 1024,
 		maxArgLength:     4096,
 		maxArgCount:      100,
@@ -54,11 +57,7 @@ func NewCommandValidator(platform platform.Platform) *CommandValidator {
 			"cat":      true,
 			"grep":     true,
 			"find":     true,
-			"python":   true,
-			"python3":  true,
-			"node":     true,
-			"java":     true,
-			"go":       true,
+			// Removed hardcoded runtime commands - any command is allowed if runtime provides it
 		},
 	}
 }
@@ -223,13 +222,27 @@ func (cv *CommandValidator) ResolveCommand(command string) (string, error) {
 		return resolved, nil
 	}
 
-	// Try common locations
-	commonPaths := []string{
-		filepath.Join("/bin", command),
-		filepath.Join("/usr/bin", command),
-		filepath.Join("/usr/local/bin", command),
-		filepath.Join("/sbin", command),
-		filepath.Join("/usr/sbin", command),
+	// Try common locations from configuration
+	commonPaths := make([]string, 0, len(cv.config.Runtime.CommonPaths)+2)
+
+	// Add configured common paths
+	for _, basePath := range cv.config.Runtime.CommonPaths {
+		commonPaths = append(commonPaths, filepath.Join(basePath, command))
+	}
+
+	// Add essential system paths not typically in config
+	systemPaths := []string{"/bin", "/sbin"}
+	for _, sysPath := range systemPaths {
+		found := false
+		for _, commonPath := range cv.config.Runtime.CommonPaths {
+			if commonPath == sysPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			commonPaths = append(commonPaths, filepath.Join(sysPath, command))
+		}
 	}
 
 	for _, path := range commonPaths {

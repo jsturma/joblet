@@ -1,9 +1,9 @@
 // React import not needed with modern JSX transform
-import {Calendar, ChevronLeft, ChevronRight, Clock, Network, Play, Square} from 'lucide-react';
+import {Calendar, ChevronLeft, ChevronRight, Clock, Network} from 'lucide-react';
 
 interface WorkflowListProps {
     workflows: Array<{
-        id: string | number; // Support both UUID strings and legacy numeric IDs
+        uuid: string; // Only use UUID
         name: string;
         workflow: string;
         status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
@@ -107,10 +107,10 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                 <div className="divide-y divide-gray-700">
                     {workflows.map((workflow, index) => (
                         <div
-                            key={`workflow-${workflow.id || index}-${index}`}
+                            key={`workflow-${workflow.uuid || index}-${index}`}
                             onClick={() => {
-                                if (workflow.id) {
-                                    onWorkflowClick(workflow.id.toString());
+                                if (workflow.uuid) {
+                                    onWorkflowClick(workflow.uuid);
                                 }
                             }}
                             className="p-6 hover:bg-gray-700 cursor-pointer transition-colors"
@@ -153,31 +153,6 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-2 ml-4">
-                                    {workflow.status === 'RUNNING' ? (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // TODO: Stop workflow
-                                            }}
-                                            className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-600 rounded"
-                                            title="Stop Workflow"
-                                        >
-                                            <Square className="h-4 w-4"/>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // TODO: Start workflow
-                                            }}
-                                            className="p-2 text-green-400 hover:text-green-300 hover:bg-gray-600 rounded"
-                                            title="Start Workflow"
-                                        >
-                                            <Play className="h-4 w-4"/>
-                                        </button>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     ))}

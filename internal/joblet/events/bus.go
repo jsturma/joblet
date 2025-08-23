@@ -1,0 +1,144 @@
+package events
+
+import (
+	"context"
+	"fmt"
+	"joblet/internal/joblet/domain"
+	"sync"
+)
+
+// EventType represents different event types in the system
+type EventType string
+
+const (
+	JobStarted      EventType = "job.started"
+	JobCompleted    EventType = "job.completed"
+	JobFailed       EventType = "job.failed"
+	JobStopped      EventType = "job.stopped"
+	VolumeCreated   EventType = "volume.created"
+	VolumeDeleted   EventType = "volume.deleted"
+	NetworkSetup    EventType = "network.setup"
+	NetworkTornDown EventType = "network.torn_down"
+)
+
+// Event represents a system event
+type Event struct {
+	Type      EventType
+	JobID     string
+	Data      interface{}
+	Timestamp int64
+}
+
+// EventHandler handles system events
+type EventHandler interface {
+	Handle(ctx context.Context, event Event) error
+	SupportedEvents() []EventType
+}
+
+// EventBus manages event publishing and subscription
+type EventBus interface {
+	Publish(ctx context.Context, event Event) error
+	Subscribe(eventType EventType, handler EventHandler) error
+	Unsubscribe(eventType EventType, handler EventHandler) error
+}
+
+// InMemoryEventBus is a simple in-memory event bus implementation
+type InMemoryEventBus struct {
+	handlers map[EventType][]EventHandler
+	mutex    sync.RWMutex
+}
+
+// NewInMemoryEventBus creates a new in-memory event bus for decoupled component communication
+func NewInMemoryEventBus() *InMemoryEventBus {
+	return &InMemoryEventBus{
+		handlers: make(map[EventType][]EventHandler),
+	}
+}
+
+// Publish sends an event to all registered handlers concurrently
+func (bus *InMemoryEventBus) Publish(ctx context.Context, event Event) error {
+	bus.mutex.RLock()
+	handlers, exists := bus.handlers[event.Type]
+	bus.mutex.RUnlock()
+
+	if !exists {
+		return nil
+	}
+	var wg sync.WaitGroup
+	errors := make([]error, 0)
+	errorMutex := sync.Mutex{}
+
+	for _, handler := range handlers {
+		wg.Add(1)
+		go func(h EventHandler) {
+			defer wg.Done()
+			if err := h.Handle(ctx, event); err != nil {
+				errorMutex.Lock()
+				errors = append(errors, err)
+				errorMutex.Unlock()
+			}
+		}(handler)
+	}
+
+	wg.Wait()
+
+	if len(errors) > 0 {
+		return fmt.Errorf("event handling errors: %v", errors)
+	}
+
+	return nil
+}
+
+// Subscribe registers an event handler to receive events of a specific type
+func (bus *InMemoryEventBus) Subscribe(eventType EventType, handler EventHandler) error {
+	bus.mutex.Lock()
+	defer bus.mutex.Unlock()
+
+	if bus.handlers[eventType] == nil {
+		bus.handlers[eventType] = make([]EventHandler, 0)
+	}
+
+	bus.handlers[eventType] = append(bus.handlers[eventType], handler)
+	return nil
+}
+
+// Unsubscribe removes an event handler from receiving events of a specific type
+func (bus *InMemoryEventBus) Unsubscribe(eventType EventType, handler EventHandler) error {
+	bus.mutex.Lock()
+	defer bus.mutex.Unlock()
+
+	handlers, exists := bus.handlers[eventType]
+	if !exists {
+		return nil
+	}
+
+	for i, h := range handlers {
+		if h == handler {
+			bus.handlers[eventType] = append(handlers[:i], handlers[i+1:]...)
+			break
+		}
+	}
+
+	return nil
+}
+
+// JobEventData contains job-specific event data
+type JobEventData struct {
+	Job    *domain.Job
+	Reason string
+	Error  error
+}
+
+// VolumeEventData contains volume-specific event data
+type VolumeEventData struct {
+	VolumeName string
+	Size       int64
+	MountPath  string
+}
+
+// NetworkEventData contains network-specific event data
+type NetworkEventData struct {
+	NetworkName string
+	JobID       string
+	Config      interface{} // Generic config to avoid import coupling
+}

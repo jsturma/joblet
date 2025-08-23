@@ -448,7 +448,6 @@ rnx run --env="PATH=/custom/path" command
 **Reserved variables include:**
 
 - System: `PATH`, `HOME`, `USER`, `SHELL`, `TERM`, `PWD`, `HOSTNAME`
-- Docker: `DOCKER_HOST`, `DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`
 - Joblet: `JOBLET_JOB_ID`, `JOBLET_WORKFLOW_ID`, `JOBLET_RUNTIME`
 
 ## Best Practices
@@ -623,7 +622,7 @@ jobs:
       WANDB_API_KEY: "your_wandb_api_key"
       MLFLOW_TRACKING_TOKEN: "your_mlflow_token"
     volumes: ["ml-data", "models"]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     resources:
       max_memory: 4096
       max_cpu: 80

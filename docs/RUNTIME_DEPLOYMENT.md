@@ -112,7 +112,7 @@ rnx runtime test python-3.11-ml
 rnx runtime info python-3.11-ml
 
 # Run jobs using deployed runtime
-rnx run --runtime=python:3.11-ml python script.py
+rnx run --runtime=python-3.11-ml python script.py
 ```
 
 ## 🎯 Available Runtimes
@@ -180,18 +180,16 @@ jobs:
           done
 ```
 
-### Container-based Build Environment
+### Isolated Build Environment
 
 ```bash
-# Use Docker for isolated builds
-docker run -it --rm -v $(pwd)/packages:/output ubuntu:22.04 bash
-
-# Inside container
-apt update && apt install -y git
+# Use VM or isolated environment for builds
+# Set up a clean build environment
+sudo apt update && sudo apt install -y git
 git clone https://github.com/ehsaniara/joblet.git
 cd joblet
 sudo ./runtimes/python-3.11-ml/setup_python_3_11_ml.sh
-cp /tmp/runtime-deployments/* /output/
+cp /tmp/runtime-deployments/* ./packages/
 ```
 
 ### Batch Runtime Updates
@@ -240,7 +238,7 @@ After extraction, the runtime is immediately available:
 ```bash
 rnx runtime list              # Runtime appears in list
 rnx runtime test python-3.11-ml  # Test the runtime
-rnx run --runtime=python:3.11-ml python script.py  # Use it
+rnx run --runtime=python-3.11-ml python script.py  # Use it
 ```
 
 ### Deployment Verification
@@ -253,7 +251,7 @@ rnx runtime list | grep python-3.11-ml
 rnx runtime test python-3.11-ml
 
 # Run simple test job
-rnx run --runtime=python:3.11-ml python -c "import numpy; print('✅ Runtime working')"
+rnx run --runtime=python-3.11-ml python -c "import numpy; print('✅ Runtime working')"
 ```
 
 ### Common Issues

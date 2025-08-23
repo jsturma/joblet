@@ -120,7 +120,7 @@ All examples use only confirmed Joblet capabilities:
 - Job selection with `file.yaml:job-name`
 - File uploads with `uploads.files`
 - Volume mounting with `volumes`
-- Runtime environments with `runtime: "python:3.11"`
+- Runtime environments with `runtime: "python-3.11"`
 - Resource limits (CPU/memory)
 - Argument passing
 
@@ -149,13 +149,13 @@ rnx status <id>                         # Check workflow or job status
 rnx list --workflow                     # List all workflows
 ```
 
-## No Docker/Container References
+## Native Job Execution
 
-These examples intentionally avoid Docker, Kubernetes, or container orchestration since:
+These examples use Joblet's native Linux process isolation:
 
-- Joblet **IS** the container replacement
-- All execution happens in Joblet's native Linux isolation
-- Focus on realistic command-line tools and scripts
+- All execution happens in Joblet's isolated environments
+- Direct command-line tools and scripts
+- Focus on realistic system administration and development workflows
 
 ## Running Individual Jobs
 

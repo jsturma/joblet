@@ -3,7 +3,7 @@
 set -e
 
 # CI-compatible E2E test runner
-# These tests work without systemd, docker, or special privileges
+# These tests work without systemd or special privileges
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

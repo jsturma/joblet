@@ -2,8 +2,11 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	pb "joblet/api/gen"
 	"joblet/internal/rnx/common"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -55,6 +58,10 @@ func runStop(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to stop job: %v", err)
 	}
 
+	if common.JSONOutput {
+		return outputStopJobJSON(response)
+	}
+
 	fmt.Printf("Job stopped successfully:\n")
 	fmt.Printf("ID: %s\n", response.Uuid)
 	// Display status with color coding
@@ -62,4 +69,11 @@ func runStop(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Status: %s%s%s\n", statusColor, response.Status, resetColor)
 
 	return nil
+}
+
+// outputStopJobJSON outputs the stop job result in JSON format
+func outputStopJobJSON(response *pb.StopJobRes) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(response)
 }

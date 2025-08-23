@@ -63,7 +63,7 @@ func createMockContextNoCerts() context.Context {
 }
 
 func TestGrpcAuthorization_ExtractClientRole(t *testing.T) {
-	auth := NewGrpcAuthorization().(*grpcAuthorization)
+	auth := NewGRPCAuthorization().(*grpcAuthorization)
 
 	tests := []struct {
 		name         string
@@ -154,7 +154,7 @@ func TestGrpcAuthorization_ExtractClientRole(t *testing.T) {
 }
 
 func TestGrpcAuthorization_IsOperationAllowed(t *testing.T) {
-	auth := NewGrpcAuthorization().(*grpcAuthorization)
+	auth := NewGRPCAuthorization().(*grpcAuthorization)
 
 	tests := []struct {
 		role      ClientRole
@@ -195,7 +195,7 @@ func TestGrpcAuthorization_IsOperationAllowed(t *testing.T) {
 }
 
 func TestGrpcAuthorization_Authorized(t *testing.T) {
-	auth := NewGrpcAuthorization()
+	auth := NewGRPCAuthorization()
 
 	tests := []struct {
 		name         string
@@ -361,7 +361,7 @@ func TestOperation_String(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkGrpcAuthorization_ExtractClientRole(b *testing.B) {
-	auth := NewGrpcAuthorization().(*grpcAuthorization)
+	auth := NewGRPCAuthorization().(*grpcAuthorization)
 	ctx := createMockContext([]string{"admin"})
 
 	b.ResetTimer()
@@ -371,7 +371,7 @@ func BenchmarkGrpcAuthorization_ExtractClientRole(b *testing.B) {
 }
 
 func BenchmarkGrpcAuthorization_IsOperationAllowed(b *testing.B) {
-	auth := NewGrpcAuthorization().(*grpcAuthorization)
+	auth := NewGRPCAuthorization().(*grpcAuthorization)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -380,7 +380,7 @@ func BenchmarkGrpcAuthorization_IsOperationAllowed(b *testing.B) {
 }
 
 func BenchmarkGrpcAuthorization_Authorized(b *testing.B) {
-	auth := NewGrpcAuthorization()
+	auth := NewGRPCAuthorization()
 	ctx := createMockContext([]string{"admin"})
 
 	b.ResetTimer()
@@ -389,8 +389,8 @@ func BenchmarkGrpcAuthorization_Authorized(b *testing.B) {
 	}
 }
 
-func TestNewGrpcAuthorization(t *testing.T) {
-	auth := NewGrpcAuthorization()
+func TestNewGRPCAuthorization(t *testing.T) {
+	auth := NewGRPCAuthorization()
 	if auth == nil {
 		t.Error("Expected non-nil authorization instance")
 	}

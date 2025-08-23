@@ -5,6 +5,7 @@ import (
 	pb "joblet/api/gen"
 	"joblet/internal/joblet/adapters"
 	auth2 "joblet/internal/joblet/auth"
+	"joblet/internal/joblet/core"
 	"joblet/internal/joblet/core/interfaces"
 	"joblet/internal/joblet/core/volume"
 	"joblet/internal/joblet/monitoring"
@@ -20,24 +21,24 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+// StartGRPCServerWithRegistry initializes and starts the main Joblet gRPC server using service registry pattern.
+func StartGRPCServerWithRegistry(serviceComponents *core.ServiceComponents, cfg *config.Config, platform platform.Platform) (*grpc.Server, error) {
+	return StartGRPCServer(
+		serviceComponents.JobStore,
+		serviceComponents.Joblet,
+		cfg,
+		serviceComponents.NetworkStore,
+		serviceComponents.VolumeManager,
+		serviceComponents.MonitoringService,
+		platform,
+	)
+}
+
 // StartGRPCServer initializes and starts the main Joblet gRPC server.
-// Configures the server with:
-//   - mTLS authentication using embedded certificates
-//   - High-performance settings for production traffic (128MB messages, 1000 concurrent streams)
-//   - Keepalive parameters for connection health monitoring
-//   - All Joblet services: Job execution, Network management, Volume management, Monitoring
-//
-// Creates a non-blocking server that listens on the configured address and po
-// Creates a non-blocking server that listens on the configured address and port.
-// Returns the gRPC server instance for graceful shutdown control.
+// DEPRECATED: Use StartGRPCServerWithRegistry for new implementations
 func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet, cfg *config.Config, networkStore adapters.NetworkStoreAdapter, volumeManager *volume.Manager, monitoringService *monitoring.Service, platform platform.Platform) (*grpc.Server, error) {
 	serverLogger := logger.WithField("component", "grpc-server")
 	serverAddress := cfg.GetServerAddress()
-
-	serverLogger.Debug("initializing gRPC server with embedded certificates",
-		"address", serverAddress,
-		"maxRecvMsgSize", cfg.GRPC.MaxRecvMsgSize,
-		"maxSendMsgSize", cfg.GRPC.MaxSendMsgSize)
 
 	// Get TLS configuration from embedded certificates
 	tlsConfig, err := cfg.GetServerTLSConfig()
@@ -45,10 +46,6 @@ func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet
 		serverLogger.Error("failed to create TLS config from embedded certificates", "error", err)
 		return nil, fmt.Errorf("failed to create TLS config: %w", err)
 	}
-
-	serverLogger.Debug("TLS configuration created from embedded certificates",
-		"clientAuth", "RequireAndVerifyClientCert",
-		"minTLSVersion", "1.3")
 
 	creds := credentials.NewTLS(tlsConfig)
 
@@ -69,37 +66,18 @@ func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet
 		}),
 	}
 
-	serverLogger.Debug("gRPC server options configured for high-performance production traffic",
-		"maxRecvMsgSize", cfg.GRPC.MaxRecvMsgSize,
-		"maxSendMsgSize", cfg.GRPC.MaxSendMsgSize,
-		"maxHeaderListSize", cfg.GRPC.MaxHeaderListSize,
-		"maxConcurrentStreams", cfg.GRPC.MaxConcurrentStreams,
-		"connectionTimeout", cfg.GRPC.ConnectionTimeout,
-		"keepAliveTime", cfg.GRPC.KeepAliveTime,
-		"keepAliveTimeout", cfg.GRPC.KeepAliveTimeout)
-
 	grpcServer := grpc.NewServer(grpcOptions...)
 
-	auth := auth2.NewGrpcAuthorization()
-	serverLogger.Debug("authorization module initialized")
+	auth := auth2.NewGRPCAuthorization()
 
-	// Create runtime manager for workflow validation
-	var runtimeManager *runtime.Manager
-	var runtimeResolver *runtime.Resolver
-	if cfg.Runtime.Enabled {
-		serverLogger.Info("runtime support enabled for workflow validation", "basePath", cfg.Runtime.BasePath)
-		runtimeManager = runtime.NewManager(cfg.Runtime.BasePath, platform)
-		runtimeResolver = runtime.NewResolver(cfg.Runtime.BasePath, platform)
-	} else {
-		serverLogger.Info("runtime support disabled - workflow validation will use fallback")
-		// Create minimal runtime components for validation interface compliance
-		runtimeManager = runtime.NewManager("", platform)
-		runtimeResolver = runtime.NewResolver("", platform)
-	}
+	// Create runtime resolver for workflow validation
+	// Runtime support is always enabled
+	serverLogger.Info("initializing runtime resolver for workflow validation", "basePath", cfg.Runtime.BasePath)
+	runtimeResolver := runtime.NewResolver(cfg.Runtime.BasePath, platform)
 
 	// Create workflow manager and unified job service with validation
 	workflowManager := workflow.NewWorkflowManager()
-	jobService := NewWorkflowServiceServer(auth, jobStore, joblet, workflowManager, volumeManager, runtimeManager, runtimeResolver)
+	jobService := NewWorkflowServiceServer(auth, jobStore, joblet, workflowManager, volumeManager, runtimeResolver)
 	pb.RegisterJobServiceServer(grpcServer, jobService)
 
 	// Create and register network service
@@ -114,13 +92,9 @@ func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet
 	monitoringGrpcService := NewMonitoringServiceServer(monitoringService)
 	pb.RegisterMonitoringServiceServer(grpcServer, monitoringGrpcService)
 
-	// Create and register runtime service
-	runtimeService := NewRuntimeServiceServer(auth, cfg.Runtime.BasePath, platform)
+	// Create and register runtime service with direct installation capabilities (no job system)
+	runtimeService := NewRuntimeServiceServer(auth, cfg.Runtime.BasePath, platform, cfg, jobStore, joblet)
 	pb.RegisterRuntimeServiceServer(grpcServer, runtimeService)
-
-	serverLogger.Debug("all gRPC services registered successfully", "services", []string{"job", "workflow", "network", "volume", "monitoring", "runtime"})
-
-	serverLogger.Debug("creating TCP listener", "address", serverAddress)
 
 	lis, err := net.Listen("tcp", serverAddress)
 	if err != nil {
@@ -128,21 +102,17 @@ func StartGRPCServer(jobStore adapters.JobStoreAdapter, joblet interfaces.Joblet
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
 
-	serverLogger.Debug("TCP listener created successfully", "address", serverAddress, "network", "tcp")
-
 	go func() {
-		serverLogger.Debug("starting TLS gRPC server with embedded certificates",
-			"address", serverAddress, "ready", true)
+		serverLogger.Info("starting gRPC server", "address", serverAddress)
 
 		if serveErr := grpcServer.Serve(lis); serveErr != nil {
 			serverLogger.Error("gRPC server stopped with error", "error", serveErr)
 		} else {
-			serverLogger.Debug("gRPC server stopped gracefully")
+			serverLogger.Info("gRPC server stopped gracefully")
 		}
 	}()
 
-	serverLogger.Debug("gRPC server initialization completed",
-		"address", serverAddress, "tlsEnabled", true, "authRequired", true, "certType", "embedded")
+	serverLogger.Info("gRPC server initialized", "address", serverAddress)
 
 	return grpcServer, nil
 }

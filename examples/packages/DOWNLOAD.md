@@ -58,5 +58,5 @@ Verify runtime installation:
 
 ```bash
 joblet runtime list
-# Should show: java:17, java:21, python:3.11:ml
+# Should show: java:17, java:21, python-3.11:ml
 ```

@@ -40,7 +40,7 @@ jobs:
   job-name:                          # Job name (used for dependencies and monitoring)
     command: "python3"
     args: ["script.py", "--option", "value"]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
     network: "bridge"
     uploads:
       files: ["script.py", "config.json"]
@@ -67,7 +67,7 @@ jobs:
 |-------------|-----------------------|----------|----------------------------------------------------|
 | `command`   | Executable to run     | Yes      | `"python3"`, `"java"`, `"node"`                    |
 | `args`      | Command arguments     | No       | `["script.py", "--verbose"]`                       |
-| `runtime`   | Runtime environment   | No       | `"python:3.11-ml"`, `"java:17"`                    |
+| `runtime`   | Runtime environment   | No       | `"python-3.11-ml"`, `"openjdk:21"`                    |
 | `network`   | Network configuration | No       | `"bridge"`, `"isolated"`, `"none"`, `"custom-net"` |
 | `uploads`   | Files to upload       | No       | See [File Uploads](#file-uploads)                  |
 | `volumes`   | Persistent volumes    | No       | `["data-volume", "logs"]`                          |
@@ -83,7 +83,7 @@ jobs:
   extract-data:
     command: "python3"
     args: ["extract.py"]
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
 
   process-data:
     command: "python3"
@@ -491,7 +491,7 @@ jobs:
   web-service:
     command: "java"
     args: ["-jar", "web-service.jar"]
-    runtime: "java:17"
+    runtime: "openjdk:21"
     network: "frontend"
     uploads:
       files: ["web-service.jar", "application.properties"]

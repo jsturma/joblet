@@ -25,10 +25,10 @@ interface Edge {
     toPos: Position;
 }
 
-const NODE_WIDTH = 160;
-const NODE_HEIGHT = 120;
-const HORIZONTAL_SPACING = 280;
-const VERTICAL_SPACING = 200;
+const NODE_WIDTH = 140;
+const NODE_HEIGHT = 100;
+const HORIZONTAL_SPACING = 220;
+const VERTICAL_SPACING = 140;
 
 export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                                                                 jobs,
@@ -337,46 +337,46 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
     const selectedJob = jobs.find(job => job.id === selectedJobId);
 
     return (
-        <div className="relative w-full h-full bg-gray-50 overflow-hidden">
+        <div className="relative w-full h-full bg-gray-900 overflow-hidden">
             {/* Controls */}
             <div className="absolute top-4 right-4 z-20 flex space-x-2">
                 <button
                     onClick={handleZoomIn}
-                    className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
+                    className="p-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600"
                     title="Zoom In">
                     <ZoomIn className="w-4 h-4"/>
                 </button>
                 <button
                     onClick={handleZoomOut}
-                    className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
+                    className="p-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600"
                     title="Zoom Out">
                     <ZoomOut className="w-4 h-4"/>
                 </button>
                 <button
                     onClick={handleResetView}
-                    className="p-2 bg-gray-500 rounded-lg shadow-md hover:bg-gray-800"
+                    className="p-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600"
                     title="Reset View & Positions">
                     <RotateCcw className="w-4 h-4"/>
                 </button>
             </div>
 
             {/* Zoom Level */}
-            <div className="absolute top-4 left-4 z-20 bg-gray-400 rounded-lg shadow-md px-3 py-2 text-sm">
+            <div className="absolute top-4 left-4 z-20 bg-gray-700 text-white rounded-lg shadow-md px-3 py-2 text-sm">
                 {Math.round(zoom * 100)}%
             </div>
 
             {/* WebSocket Connection Status */}
             {workflowId && (
-                <div className="absolute top-16 left-4 z-20 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-2 text-sm">
+                <div className="absolute top-16 left-4 z-20 flex items-center gap-2 bg-gray-800 text-white rounded-lg shadow-md px-3 py-2 text-sm">
                     {connected ? (
                         <>
-                            <Wifi className="w-4 h-4 text-green-500" />
-                            <span className="text-green-600 font-medium">Live Updates</span>
+                            <Wifi className="w-4 h-4 text-green-400" />
+                            <span className="text-green-400 font-medium">Live Updates</span>
                         </>
                     ) : (
                         <>
-                            <WifiOff className="w-4 h-4 text-red-500" />
-                            <span className="text-red-600 font-medium">
+                            <WifiOff className="w-4 h-4 text-red-400" />
+                            <span className="text-red-400 font-medium">
                                 {error ? 'Connection Error' : 'Connecting...'}
                             </span>
                         </>
@@ -413,7 +413,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                             <path
                                 d="M 20 0 L 0 0 0 20"
                                 fill="none"
-                                stroke="#e5e7eb"
+                                stroke="#374151"
                                 strokeWidth="1"
                                 opacity="0.5"
                             />
@@ -428,7 +428,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                             orient="auto">
                             <polygon
                                 points="0 0, 8 3, 0 6"
-                                fill="#4b5563"
+                                fill="#9ca3af"
                             />
                         </marker>
                     </defs>
@@ -446,7 +446,7 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                                       ${edge.toPos.x - 50} ${edge.toPos.y} 
                                       ${edge.toPos.x} ${edge.toPos.y}`}
                                 fill="none"
-                                stroke="#4b5563"
+                                stroke="#9ca3af"
                                 strokeWidth="2.5"
                                 strokeDasharray="none"
                                 markerEnd="url(#arrowhead)"
@@ -489,11 +489,11 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
             {processedJobs.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                        <Maximize2 className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        <Maximize2 className="w-12 h-12 text-gray-500 mx-auto mb-4"/>
+                        <h3 className="text-lg font-medium text-white mb-2">
                             No Workflow Jobs
                         </h3>
-                        <p className="text-gray-500">
+                        <p className="text-gray-400">
                             Jobs with dependencies will appear as a workflow graph
                         </p>
                     </div>
@@ -502,21 +502,21 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
             {/* Job Details Panel */}
             {selectedJob && (
-                <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-20">
-                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                <div className="absolute bottom-4 left-4 bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm z-20 border border-gray-700">
+                    <h4 className="font-medium text-white mb-2 flex items-center gap-2">
                         <span>{selectedJob.name || selectedJob.id}</span>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            selectedJob.status === 'RUNNING' ? 'bg-yellow-100 text-yellow-800' :
-                                selectedJob.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                    selectedJob.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                                        selectedJob.status === 'CANCELLED' ? 'bg-orange-100 text-orange-800' :
-                                            selectedJob.status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-gray-100 text-gray-800'
+                            selectedJob.status === 'RUNNING' ? 'bg-yellow-900 text-yellow-200' :
+                                selectedJob.status === 'COMPLETED' ? 'bg-green-900 text-green-200' :
+                                    selectedJob.status === 'FAILED' ? 'bg-red-900 text-red-200' :
+                                        selectedJob.status === 'CANCELLED' ? 'bg-orange-900 text-orange-200' :
+                                            selectedJob.status === 'PENDING' ? 'bg-blue-900 text-blue-200' :
+                                                'bg-gray-700 text-gray-200'
                         }`}>
                             {selectedJob.status}
                         </span>
                     </h4>
-                    <div className="space-y-1 text-sm text-gray-600">
+                    <div className="space-y-1 text-sm text-gray-300">
                         {selectedJob.id && selectedJob.name && (
                             <div>ID: <span className="font-mono text-xs">{selectedJob.id}</span></div>
                         )}
@@ -568,8 +568,8 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
                         {/* Resource Limits - only show if set */}
                         {(selectedJob.maxCPU > 0 || selectedJob.maxMemory > 0 || selectedJob.maxIOBPS > 0 || selectedJob.cpuCores) && (
-                            <div className="mt-2 pt-2 border-t">
-                                <div className="text-xs font-medium text-gray-500 mb-1">Resource Limits</div>
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                                <div className="text-xs font-medium text-gray-400 mb-1">Resource Limits</div>
                                 {selectedJob.maxCPU > 0 && (
                                     <div>Max CPU: <span className="font-medium">{selectedJob.maxCPU}%</span></div>
                                 )}
@@ -590,8 +590,8 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                         {(selectedJob.runtime || selectedJob.network !== 'default' ||
                             (selectedJob.volumes && selectedJob.volumes.length > 0) ||
                             (selectedJob.uploads && selectedJob.uploads.length > 0)) && (
-                            <div className="mt-2 pt-2 border-t">
-                                <div className="text-xs font-medium text-gray-500 mb-1">Configuration</div>
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                                <div className="text-xs font-medium text-gray-400 mb-1">Configuration</div>
                                 {selectedJob.runtime && (
                                     <div>Runtime: <span className="font-medium">{selectedJob.runtime}</span></div>
                                 )}
@@ -612,8 +612,8 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
                         {/* Environment Variables - only show if set */}
                         {(Object.keys(selectedJob.envVars || {}).length > 0 ||
                             Object.keys(selectedJob.secretEnvVars || {}).length > 0) && (
-                            <div className="mt-2 pt-2 border-t">
-                                <div className="text-xs font-medium text-gray-500 mb-1">Environment</div>
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                                <div className="text-xs font-medium text-gray-400 mb-1">Environment</div>
                                 {Object.keys(selectedJob.envVars || {}).length > 0 && (
                                     <div>Variables: <span
                                         className="font-medium">{Object.keys(selectedJob.envVars || {}).length}</span>
@@ -629,8 +629,8 @@ export const WorkflowGraph: React.FC<WorkflowGraphProps> = ({
 
                         {/* Resource Usage - only show if available */}
                         {selectedJob.resourceUsage && (
-                            <div className="mt-2 pt-2 border-t">
-                                <div className="text-xs font-medium text-gray-500 mb-1">Current Usage</div>
+                            <div className="mt-2 pt-2 border-t border-gray-600">
+                                <div className="text-xs font-medium text-gray-400 mb-1">Current Usage</div>
                                 <div>CPU: <span
                                     className="font-medium">{Math.round(selectedJob.resourceUsage.cpuPercent)}%</span>
                                 </div>

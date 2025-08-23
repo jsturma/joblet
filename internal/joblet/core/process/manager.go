@@ -9,6 +9,7 @@ import (
 	"io"
 	"joblet/internal/joblet/core/upload"
 	"joblet/internal/joblet/domain"
+	"joblet/pkg/config"
 	"joblet/pkg/platform"
 	"os"
 	"os/exec"
@@ -30,15 +31,17 @@ const (
 // Manager handles all process-related operations including launching, cleanup, and validation
 type Manager struct {
 	platform      platform.Platform
+	config        *config.Config
 	logger        *logger.Logger
 	uploadManager *upload.Manager
 }
 
 // NewProcessManager creates a new unified process manager
-func NewProcessManager(platform platform.Platform) *Manager {
+func NewProcessManager(platform platform.Platform, config *config.Config) *Manager {
 	log := logger.New().WithField("component", "process-manager")
 	return &Manager{
 		platform:      platform,
+		config:        config,
 		logger:        log,
 		uploadManager: upload.NewManager(platform, log),
 	}
@@ -52,6 +55,7 @@ type LaunchConfig struct {
 	Stdout      io.Writer
 	Stderr      io.Writer
 	JobID       string
+	JobType     domain.JobType // Job type for isolation configuration
 	Command     string
 	Args        []string
 	ExtraFiles  []*os.File
@@ -412,13 +416,27 @@ func (m *Manager) ResolveCommand(command string) (string, error) {
 		return resolvedPath, nil
 	}
 
-	// Try common paths
-	commonPaths := []string{
-		filepath.Join("/bin", command),
-		filepath.Join("/usr/bin", command),
-		filepath.Join("/usr/local/bin", command),
-		filepath.Join("/sbin", command),
-		filepath.Join("/usr/sbin", command),
+	// Try common paths from configuration
+	commonPaths := make([]string, 0, len(m.config.Runtime.CommonPaths)+2)
+
+	// Add configured common paths
+	for _, basePath := range m.config.Runtime.CommonPaths {
+		commonPaths = append(commonPaths, filepath.Join(basePath, command))
+	}
+
+	// Add essential system paths not typically in config
+	systemPaths := []string{"/bin", "/sbin"}
+	for _, sysPath := range systemPaths {
+		found := false
+		for _, commonPath := range m.config.Runtime.CommonPaths {
+			if commonPath == sysPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			commonPaths = append(commonPaths, filepath.Join(sysPath, command))
+		}
 	}
 
 	log.Debug("checking common command locations", "paths", commonPaths)

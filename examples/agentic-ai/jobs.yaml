@@ -2,7 +2,7 @@ version: "1.0"
 
 # Agentic AI and LLM Inference Examples
 defaults:
-  runtime: "python:3.11-ml"
+  runtime: "python-3.11-ml"
   resources:
     max_memory: 4096
     max_cpu: 80
@@ -24,7 +24,7 @@ jobs:
     resources:
       max_memory: 2048
       max_cpu: 75
-    runtime: "python:3.11"
+    runtime: "python-3.11"
 
   # LLM inference server
   llm-inference:
@@ -44,7 +44,7 @@ jobs:
     resources:
       max_memory: 4096
       max_cpu: 80
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
 
   # RAG (Retrieval-Augmented Generation) system
   rag-system:
@@ -65,7 +65,7 @@ jobs:
     resources:
       max_memory: 4096
       max_cpu: 80
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
 
   # Distributed training across multiple jobs
   distributed-training:
@@ -86,7 +86,7 @@ jobs:
     resources:
       max_memory: 6144
       max_cpu: 75
-    runtime: "python:3.11-ml"
+    runtime: "python-3.11-ml"
 
   # Install dependencies for all demos
   setup-deps:
@@ -106,7 +106,7 @@ jobs:
     resources:
       max_memory: 2048
       max_cpu: 50
-    runtime: "python:3.11"
+    runtime: "python-3.11"
 
   # Run all demos in sequence
   run-all:
@@ -130,4 +130,4 @@ jobs:
     resources:
       max_memory: 4096
       max_cpu: 80
-    runtime: "python:3.11"
+    runtime: "python-3.11"

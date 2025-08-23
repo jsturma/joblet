@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"joblet/internal/joblet/adapters"
 	"joblet/internal/joblet/network"
-	"joblet/internal/joblet/runtime"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -27,7 +26,6 @@ type Coordinator struct {
 	platform       platform.Platform
 	config         *config.Config
 	logger         *logger.Logger
-	runtimeManager *runtime.Manager
 
 	// Cleanup tracking
 	activeCleanups sync.Map // jobID -> cleanup status
@@ -55,7 +53,6 @@ func NewCoordinator(
 	config *config.Config,
 	logger *logger.Logger,
 	networkStore adapters.NetworkStoreAdapter,
-	runtimeManager *runtime.Manager,
 ) *Coordinator {
 	var networkSetup *network.NetworkSetup
 	if networkStore != nil {
@@ -72,7 +69,6 @@ func NewCoordinator(
 		logger:         logger.WithField("component", "cleanup-coordinator"),
 		networkStore:   networkStore,
 		networkSetup:   networkSetup,
-		runtimeManager: runtimeManager,
 	}
 }
 
@@ -111,13 +107,8 @@ func (c *Coordinator) CleanupJob(jobID string) error {
 		status.FilesCleaned = true
 	}
 
-	// 3. Clean up runtime resources if runtime manager is available
-	if c.runtimeManager != nil {
-		if err := c.cleanupRuntime(jobID); err != nil {
-			log.Error("runtime cleanup failed", "error", err)
-			status.Errors = append(status.Errors, fmt.Errorf("runtime: %w", err))
-		}
-	}
+	// 3. Runtime cleanup is now handled by the filesystem isolator during unmounting
+	// No separate runtime cleanup needed since runtime mounts are cleaned up with job filesystem
 
 	// 4. Clean up any remaining resources
 	if err := c.cleanupAdditionalResources(jobID); err != nil {
@@ -164,6 +155,86 @@ func (c *Coordinator) CleanupJob(jobID string) error {
 
 	log.Info("job cleanup completed successfully", "duration", duration)
 	return nil
+}
+
+// CleanupJobSystemResourcesOnly performs system resource cleanup (cgroups, namespaces)
+// but preserves filesystem artifacts. Used for runtime build jobs.
+func (c *Coordinator) CleanupJobSystemResourcesOnly(jobID string) error {
+	log := c.logger.WithField("jobID", jobID)
+	log.Debug("starting system resource cleanup only - preserving filesystem artifacts")
+
+	// Check if cleanup is already in progress
+	if _, exists := c.activeCleanups.Load(jobID); exists {
+		log.Warn("cleanup already in progress for job")
+		return fmt.Errorf("cleanup already in progress for job %s", jobID)
+	}
+
+	// Track cleanup status
+	status := &CleanupStatus{
+		JobID:     jobID,
+		StartTime: time.Now(),
+		Errors:    make([]error, 0),
+	}
+	c.activeCleanups.Store(jobID, status)
+	defer c.activeCleanups.Delete(jobID)
+
+	// Only clean system resources, not filesystem artifacts
+
+	// 1. Clean up cgroup (releases system resources)
+	c.cleanupCgroup(jobID)
+	status.CgroupCleaned = true
+
+	// 2. Skip filesystem cleanup to preserve runtime artifacts
+	log.Info("skipping filesystem cleanup - preserving runtime artifacts in /opt/joblet/runtimes")
+	status.FilesCleaned = false // Mark as not cleaned intentionally
+
+	// 3. Skip runtime cleanup to preserve runtime installations
+	log.Debug("skipping runtime resource cleanup for runtime build job")
+
+	// 4. Clean up any remaining system resources (networking, etc.)
+	if err := c.cleanupAdditionalResources(jobID); err != nil {
+		log.Error("additional system resource cleanup failed", "error", err)
+		status.Errors = append(status.Errors, fmt.Errorf("additional: %w", err))
+	}
+
+	status.Completed = true
+
+	if len(status.Errors) > 0 {
+		log.Error("system resource cleanup completed with errors", "errors", status.Errors)
+		return fmt.Errorf("cleanup had %d errors: %v", len(status.Errors), status.Errors[0])
+	}
+
+	log.Info("system resource cleanup completed successfully - runtime artifacts preserved")
+	return nil
+}
+
+// CleanupJobWithProcessSystemOnly cleans up a job including its process,
+// but only cleans system resources (cgroups, namespaces), preserving filesystem artifacts.
+// Used for runtime build jobs.
+func (c *Coordinator) CleanupJobWithProcessSystemOnly(ctx context.Context, jobID string, pid int32) error {
+	log := c.logger.WithField("jobID", jobID)
+	log.Debug("starting job cleanup with process termination (system resources only)", "pid", pid)
+
+	// First, stop the process
+	if pid > 0 {
+		cleanupReq := &process.CleanupRequest{
+			JobID:           jobID,
+			PID:             pid,
+			ForceKill:       false,
+			GracefulTimeout: c.config.Cgroup.CleanupTimeout,
+		}
+
+		result, err := c.processManager.CleanupProcess(ctx, cleanupReq)
+		if err != nil {
+			log.Error("process cleanup failed", "error", err)
+			// Continue with other cleanup even if process cleanup fails
+		} else {
+			log.Debug("process cleanup completed", "method", result.Method)
+		}
+	}
+
+	// Then perform system resource cleanup only (not filesystem cleanup)
+	return c.CleanupJobSystemResourcesOnly(jobID)
 }
 
 // CleanupJobWithProcess cleans up a job including its process
@@ -357,36 +428,4 @@ func (c *Coordinator) SchedulePeriodicCleanup(ctx context.Context, interval time
 			}
 		}
 	}
-}
-
-// cleanupRuntime cleans up runtime resources for a job
-func (c *Coordinator) cleanupRuntime(jobID string) error {
-	log := c.logger.WithField("jobID", jobID).WithField("component", "runtime-cleanup")
-	log.Debug("cleaning up runtime resources")
-
-	jobRootDir := filepath.Join(c.config.Filesystem.BaseDir, jobID)
-
-	// We need to get the job's runtime info from the store to know what to cleanup
-	// For now, we'll attempt cleanup based on common runtime patterns
-	// In a more sophisticated implementation, we'd store runtime info with the job
-
-	// Attempt to unmount common runtime paths
-	commonRuntimePaths := []string{
-		"/usr/local/bin",
-		"/usr/local/lib",
-		"/usr/lib/jvm",
-		"/usr/local/node",
-		"/usr/local/go",
-	}
-
-	for _, runtimePath := range commonRuntimePaths {
-		mountPoint := filepath.Join(jobRootDir, strings.TrimPrefix(runtimePath, "/"))
-		if c.platform.DirExists(mountPoint) {
-			// Try to unmount - ignore errors since some paths may not be mounted
-			_ = c.platform.Unmount(mountPoint, 0)
-			log.Debug("attempted unmount", "path", mountPoint)
-		}
-	}
-
-	return nil
 }

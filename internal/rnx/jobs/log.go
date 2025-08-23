@@ -2,13 +2,16 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	pb "joblet/api/gen"
 	"joblet/internal/rnx/common"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/status"
@@ -96,6 +99,23 @@ func runLog(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("error receiving log stream: %v", e)
 		}
 
-		fmt.Printf("%s", chunk.Payload)
+		if common.JSONOutput {
+			if err := outputLogChunkJSON(chunk); err != nil {
+				return fmt.Errorf("failed to output JSON: %v", err)
+			}
+		} else {
+			fmt.Printf("%s", chunk.Payload)
+		}
 	}
+}
+
+// outputLogChunkJSON outputs a log chunk as a JSON object (one per line for streaming)
+func outputLogChunkJSON(chunk *pb.DataChunk) error {
+	logEntry := map[string]interface{}{
+		"timestamp": time.Now().Format(time.RFC3339),
+		"data":      string(chunk.Payload),
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	return encoder.Encode(logEntry)
 }

@@ -13,7 +13,7 @@ func TestStartProcessOptions(t *testing.T) {
 		Uuid:    "test-job",
 		Command: "python3",
 		Args:    []string{"script.py"},
-		Runtime: "python:3.11-ml",
+		Runtime: "python-3.11-ml",
 	}
 
 	uploads := []domain.FileUpload{

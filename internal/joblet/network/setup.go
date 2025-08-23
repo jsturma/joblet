@@ -40,6 +40,55 @@ func NewNetworkSetup(platform platform.Platform, networkStore NetworkStoreInterf
 	}
 }
 
+// SetupNamespace configures network namespace for a job after process creation.
+// This method is called by the network manager after IP allocation to set up
+// the actual network interfaces and routing within the job's namespace.
+func (ns *NetworkSetup) SetupNamespace(jobID string, allocation *JobAllocation) error {
+	log := ns.logger.WithFields("jobID", jobID, "network", allocation.Network)
+	log.Info("SetupNamespace called for job", "ip", allocation.IP, "vethPeer", allocation.VethPeer)
+
+	// Find the process PID from the cgroup - this is critical for namespace setup
+	pid, err := ns.findJobPID(jobID)
+	if err != nil {
+		log.Error("failed to find job process PID", "error", err)
+		return fmt.Errorf("failed to find job process PID: %w", err)
+	}
+
+	log.Info("found job PID, setting up network namespace", "pid", pid)
+
+	// Call the existing SetupJobNetwork method that handles all namespace configuration
+	return ns.SetupJobNetwork(allocation, pid)
+}
+
+// findJobPID finds the PID of the main process for a job by scanning the cgroup
+func (ns *NetworkSetup) findJobPID(jobID string) (int, error) {
+	// The job process should be in its dedicated cgroup
+	cgroupPath := fmt.Sprintf("/sys/fs/cgroup/joblet.slice/joblet.service/job-%s/cgroup.procs", jobID)
+
+	content, err := ns.platform.ReadFile(cgroupPath)
+	if err != nil {
+		// Fallback: try the unified cgroup path
+		cgroupPath = fmt.Sprintf("/sys/fs/cgroup/unified/joblet/job-%s/cgroup.procs", jobID)
+		content, err = ns.platform.ReadFile(cgroupPath)
+		if err != nil {
+			return 0, fmt.Errorf("failed to read cgroup.procs from %s: %w", cgroupPath, err)
+		}
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	if len(lines) == 0 || lines[0] == "" {
+		return 0, fmt.Errorf("no processes found in cgroup %s", cgroupPath)
+	}
+
+	// Return the first PID (should be the main job process)
+	var pid int
+	if _, err := fmt.Sscanf(lines[0], "%d", &pid); err != nil {
+		return 0, fmt.Errorf("failed to parse PID from '%s': %w", lines[0], err)
+	}
+
+	return pid, nil
+}
+
 // SetupJobNetwork configures network isolation and connectivity for a job process.
 // It validates the target process exists, then delegates to the appropriate network
 // setup method based on the allocation type:
@@ -309,6 +358,27 @@ func (ns *NetworkSetup) ensureBridge(networkName string) error {
 	if err := ns.execCommand("iptables", "-t", "nat", "-A", "POSTROUTING",
 		"-s", cidr, "-j", "MASQUERADE"); err != nil {
 		ns.logger.Warn("failed to setup NAT", "error", err)
+	}
+
+	// Setup FORWARD rules for bridge network traffic (allow traffic through the bridge)
+	// Allow traffic from bridge network to external networks
+	inRuleExists := ns.execCommand("iptables", "-C", "FORWARD",
+		"-i", bridgeName, "-j", "ACCEPT") == nil
+	if !inRuleExists {
+		if err := ns.execCommand("iptables", "-I", "FORWARD", "1",
+			"-i", bridgeName, "-j", "ACCEPT"); err != nil {
+			ns.logger.Warn("failed to add FORWARD in rule for bridge", "bridge", bridgeName, "error", err)
+		}
+	}
+
+	// Allow traffic from external networks back to bridge network
+	outRuleExists := ns.execCommand("iptables", "-C", "FORWARD",
+		"-o", bridgeName, "-j", "ACCEPT") == nil
+	if !outRuleExists {
+		if err := ns.execCommand("iptables", "-I", "FORWARD", "1",
+			"-o", bridgeName, "-j", "ACCEPT"); err != nil {
+			ns.logger.Warn("failed to add FORWARD out rule for bridge", "bridge", bridgeName, "error", err)
+		}
 	}
 
 	// Setup network isolation
@@ -632,6 +702,10 @@ func (ns *NetworkSetup) RemoveBridge(networkName string) error {
 		"-s", cidr, "-j", "MASQUERADE"); err != nil {
 		ns.logger.Debug("failed to remove NAT rule", "error", err)
 	}
+
+	// Remove FORWARD rules for bridge network traffic
+	_ = ns.execCommand("iptables", "-D", "FORWARD", "-i", bridgeName, "-j", "ACCEPT")
+	_ = ns.execCommand("iptables", "-D", "FORWARD", "-o", bridgeName, "-j", "ACCEPT")
 
 	// Bring down the bridge
 	if err := ns.execCommand("ip", "link", "set", bridgeName, "down"); err != nil {

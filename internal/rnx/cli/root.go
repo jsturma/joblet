@@ -24,7 +24,7 @@ Key Features:
   - Execute jobs with resource limits and scheduling
   - Manage multi-job workflows with dependencies  
   - Create and manage networks, volumes, and runtimes
-  - Monitor system resources and job performance
+  - Monitor remote server resources, job performance, and volume usage
   - Stream real-time logs from running jobs
 
 Quick Examples:
@@ -33,7 +33,8 @@ Quick Examples:
   rnx list --workflow                         # List all workflows
   rnx status <job-uuid>                       # Check job status (supports short UUIDs)
   rnx log <job-uuid>                          # Stream job logs (supports short UUIDs)
-  rnx monitor status                          # View system metrics
+  rnx monitor status                          # View remote server metrics and volumes
+  rnx monitor top --json                      # JSON output for dashboards
 
 Note: Job and workflow UUIDs support short-form usage (first 8 characters)
 if they uniquely identify the resource.

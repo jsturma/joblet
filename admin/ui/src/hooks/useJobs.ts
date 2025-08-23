@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {Job, JobExecuteRequest} from '../types/job';
 import {apiService} from '../services/apiService';
+import {useAutoRefresh} from './useAutoRefresh';
 
 interface UseJobsReturn {
     jobs: Job[];
@@ -9,6 +10,7 @@ interface UseJobsReturn {
     refreshJobs: () => Promise<void>;
     executeJob: (request: JobExecuteRequest) => Promise<string>;
     stopJob: (jobId: string) => Promise<void>;
+    deleteJob: (jobId: string) => Promise<void>;
     // Pagination
     currentPage: number;
     pageSize: number;
@@ -25,30 +27,30 @@ const getNumericId = (id: string): number => {
     return match ? parseInt(match[0], 10) : 0;
 };
 
-// Sort jobs by startTime (oldest first), then by numeric ID in ascending order
+// Sort jobs by startTime (newest first), then by numeric ID in descending order
 const sortJobs = (jobs: Job[]): Job[] => {
     return [...jobs].sort((a, b) => {
-        // Primary sort: by startTime (older jobs first) - check both field name variations
+        // Primary sort: by startTime (newer jobs first) - check both field name variations
         const aTime = (a as any).start_time || a.startTime;
         const bTime = (b as any).start_time || b.startTime;
         if (aTime && bTime) {
             const timeA = new Date(aTime).getTime();
             const timeB = new Date(bTime).getTime();
             if (timeA !== timeB) {
-                return timeA - timeB; // Ascending order (oldest first)
+                return timeB - timeA; // Descending order (newest first)
             }
         }
 
-        // Secondary sort: by numeric ID for consistency
+        // Secondary sort: by numeric ID for consistency (newer/higher IDs first)
         const numA = getNumericId(a.id);
         const numB = getNumericId(b.id);
 
         if (numA !== numB) {
-            return numA - numB; // Ascending order by numeric ID
+            return numB - numA; // Descending order by numeric ID
         }
 
-        // Fallback: string comparison if numeric parts are equal
-        return a.id.localeCompare(b.id);
+        // Fallback: reverse string comparison if numeric parts are equal
+        return b.id.localeCompare(a.id);
     });
 };
 
@@ -103,6 +105,15 @@ export const useJobs = (): UseJobsReturn => {
         }
     }, [fetchJobs]);
 
+    const deleteJob = useCallback(async (jobId: string): Promise<void> => {
+        try {
+            await apiService.deleteJob(jobId);
+            await fetchJobs(false); // Refresh job list without loading indicator
+        } catch (err) {
+            throw new Error(err instanceof Error ? err.message : 'Failed to delete job');
+        }
+    }, [fetchJobs]);
+
     // Calculate pagination values
     const totalJobs = jobs.length;
     const totalPages = Math.ceil(totalJobs / pageSize);
@@ -123,13 +134,12 @@ export const useJobs = (): UseJobsReturn => {
         setCurrentPage(1); // Reset to first page when changing page size
     }, []);
 
+    // Auto-refresh functionality using user settings
+    useAutoRefresh(() => fetchJobs(false));
+
     useEffect(() => {
         // Initial load with loading indicator
         fetchJobs(true);
-
-        // Poll for updates every 5 seconds (without loading indicator)
-        const interval = setInterval(() => fetchJobs(false), 5000);
-        return () => clearInterval(interval);
     }, [fetchJobs]);
 
     return {
@@ -139,6 +149,7 @@ export const useJobs = (): UseJobsReturn => {
         refreshJobs,
         executeJob,
         stopJob,
+        deleteJob,
         currentPage,
         pageSize,
         totalJobs,

@@ -62,7 +62,7 @@ deploy_runtime_blue_green() {
     ssh admin@$host "sudo unzip /tmp/$runtime_file -d /opt/joblet/runtimes/"
     
     # Step 2: Health check new runtime
-    ssh admin@$host "rnx run --runtime=python:3.11-ml-v2.0 python $HEALTH_CHECK_SCRIPT" || {
+    ssh admin@$host "rnx run --runtime=python-3.11-ml-v2.0 python $HEALTH_CHECK_SCRIPT" || {
         echo "❌ Health check failed on $host"
         return 1
     }
@@ -71,7 +71,7 @@ deploy_runtime_blue_green() {
     ssh admin@$host "sudo ln -sfn /opt/joblet/runtimes/python/python-3.11-ml-v2.0 /opt/joblet/runtimes/python/python-3.11-ml"
     
     # Step 4: Verify production traffic
-    ssh admin@$host "rnx run --runtime=python:3.11-ml python -c 'print(\"✅ Production ready\")'"
+    ssh admin@$host "rnx run --runtime=python-3.11-ml python -c 'print(\"✅ Production ready\")'"
     
     echo "✅ Blue-green deployment complete on $host"
 }
@@ -281,56 +281,6 @@ pipeline {
 }
 ```
 
-## 🐳 Container-Based Build Environments
-
-### Docker Build Environment
-
-```dockerfile
-# Dockerfile.runtime-builder
-FROM ubuntu:22.04
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    wget \
-    curl \
-    git \
-    zip \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /build
-COPY runtimes/ ./runtimes/
-
-# Build script
-COPY <<EOF build_runtimes.sh
-#!/bin/bash
-set -e
-
-for runtime_dir in ./runtimes/*/; do
-    runtime_name=\$(basename "\$runtime_dir")
-    echo "Building \$runtime_name..."
-    sudo "\$runtime_dir/setup_\${runtime_name}.sh"
-done
-
-# Copy artifacts to output
-mkdir -p /output
-cp /tmp/runtime-deployments/* /output/
-chown -R 1000:1000 /output
-EOF
-
-RUN chmod +x build_runtimes.sh
-CMD ["./build_runtimes.sh"]
-```
-
-```bash
-# Build all runtimes in container
-docker build -f Dockerfile.runtime-builder -t runtime-builder .
-docker run --privileged -v $(pwd)/runtime-packages:/output runtime-builder
-
-# Deploy from packages
-for package in runtime-packages/*.zip; do
-    sudo unzip "$package" -d /opt/joblet/runtimes/
-done
-```
 
 ## 📊 Monitoring and Observability
 

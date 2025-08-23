@@ -1,10 +1,12 @@
 import {useCallback, useEffect, useState} from 'react';
 import {apiService} from '../services/apiService';
+import {useAutoRefresh} from './useAutoRefresh';
 
 type WorkflowStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'QUEUED' | 'STOPPED';
 
 export interface Workflow {
-    id: string | number; // Support both UUID strings and legacy numeric IDs
+    uuid: string; // UUID field for consistency with WorkflowList
+    id?: string | number; // Optional ID field for backward compatibility
     name: string;
     workflow: string;
     status: WorkflowStatus;
@@ -48,25 +50,21 @@ export const useWorkflows = (): UseWorkflowsReturn => {
             setError(null);
             const response = await apiService.getWorkflows();
 
-            // Transform API response: map 'uuid' to 'id' and add name field
+            // Transform API response: ensure uuid field and add name field
             const transformedWorkflows = response.map(workflow => ({
                 ...workflow,
-                id: workflow.uuid || workflow.id, // Map uuid to id for consistency
-                name: workflow.workflow || `Workflow ${workflow.uuid ? workflow.uuid.substring(0, 8) : workflow.id}` // Use workflow filename as name
+                uuid: workflow.uuid || workflow.id, // Ensure uuid field exists
+                name: workflow.workflow || `Workflow ${workflow.uuid ? workflow.uuid.substring(0, 8) : 'Unknown'}` // Use workflow filename as name
             }));
 
-            // Sort workflows by creation date (newest first), fallback to ID comparison
+            // Sort workflows by creation date (newest first), fallback to UUID comparison
             const sortedWorkflows = transformedWorkflows.sort((a, b) => {
                 // First try to sort by created_at timestamp
                 if (a.created_at && b.created_at) {
                     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                 }
-                // Fallback to ID comparison only if both are numbers
-                if (typeof a.id === 'number' && typeof b.id === 'number') {
-                    return b.id - a.id;
-                }
-                // For UUIDs or mixed types, use string comparison
-                return String(b.id).localeCompare(String(a.id));
+                // For UUIDs, use string comparison
+                return String(b.uuid).localeCompare(String(a.uuid));
             });
             setWorkflows(sortedWorkflows);
         } catch (err) {
@@ -103,13 +101,12 @@ export const useWorkflows = (): UseWorkflowsReturn => {
         setCurrentPage(1); // Reset to first page when changing page size
     }, []);
 
+    // Auto-refresh functionality using user settings
+    useAutoRefresh(() => fetchWorkflows(false));
+
     useEffect(() => {
         // Initial load with loading indicator
         fetchWorkflows(true);
-
-        // Poll for updates every 10 seconds (without loading indicator)
-        const interval = setInterval(() => fetchWorkflows(false), 10000);
-        return () => clearInterval(interval);
     }, [fetchWorkflows]);
 
     return {

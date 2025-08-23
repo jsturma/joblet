@@ -33,6 +33,19 @@ type FakeNetworkStoreInterface struct {
 	assignJobToNetworkReturnsOnCall map[int]struct {
 		result1 error
 	}
+	GetJobAllocationStub        func(string) (*execution.JobNetworkAllocation, error)
+	getJobAllocationMutex       sync.RWMutex
+	getJobAllocationArgsForCall []struct {
+		arg1 string
+	}
+	getJobAllocationReturns struct {
+		result1 *execution.JobNetworkAllocation
+		result2 error
+	}
+	getJobAllocationReturnsOnCall map[int]struct {
+		result1 *execution.JobNetworkAllocation
+		result2 error
+	}
 	ReleaseIPStub        func(string, string) error
 	releaseIPMutex       sync.RWMutex
 	releaseIPArgsForCall []struct {
@@ -185,6 +198,70 @@ func (fake *FakeNetworkStoreInterface) AssignJobToNetworkReturnsOnCall(i int, re
 	fake.assignJobToNetworkReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeNetworkStoreInterface) GetJobAllocation(arg1 string) (*execution.JobNetworkAllocation, error) {
+	fake.getJobAllocationMutex.Lock()
+	ret, specificReturn := fake.getJobAllocationReturnsOnCall[len(fake.getJobAllocationArgsForCall)]
+	fake.getJobAllocationArgsForCall = append(fake.getJobAllocationArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GetJobAllocationStub
+	fakeReturns := fake.getJobAllocationReturns
+	fake.recordInvocation("GetJobAllocation", []interface{}{arg1})
+	fake.getJobAllocationMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeNetworkStoreInterface) GetJobAllocationCallCount() int {
+	fake.getJobAllocationMutex.RLock()
+	defer fake.getJobAllocationMutex.RUnlock()
+	return len(fake.getJobAllocationArgsForCall)
+}
+
+func (fake *FakeNetworkStoreInterface) GetJobAllocationCalls(stub func(string) (*execution.JobNetworkAllocation, error)) {
+	fake.getJobAllocationMutex.Lock()
+	defer fake.getJobAllocationMutex.Unlock()
+	fake.GetJobAllocationStub = stub
+}
+
+func (fake *FakeNetworkStoreInterface) GetJobAllocationArgsForCall(i int) string {
+	fake.getJobAllocationMutex.RLock()
+	defer fake.getJobAllocationMutex.RUnlock()
+	argsForCall := fake.getJobAllocationArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeNetworkStoreInterface) GetJobAllocationReturns(result1 *execution.JobNetworkAllocation, result2 error) {
+	fake.getJobAllocationMutex.Lock()
+	defer fake.getJobAllocationMutex.Unlock()
+	fake.GetJobAllocationStub = nil
+	fake.getJobAllocationReturns = struct {
+		result1 *execution.JobNetworkAllocation
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNetworkStoreInterface) GetJobAllocationReturnsOnCall(i int, result1 *execution.JobNetworkAllocation, result2 error) {
+	fake.getJobAllocationMutex.Lock()
+	defer fake.getJobAllocationMutex.Unlock()
+	fake.GetJobAllocationStub = nil
+	if fake.getJobAllocationReturnsOnCall == nil {
+		fake.getJobAllocationReturnsOnCall = make(map[int]struct {
+			result1 *execution.JobNetworkAllocation
+			result2 error
+		})
+	}
+	fake.getJobAllocationReturnsOnCall[i] = struct {
+		result1 *execution.JobNetworkAllocation
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeNetworkStoreInterface) ReleaseIP(arg1 string, arg2 string) error {

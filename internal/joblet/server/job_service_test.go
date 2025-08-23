@@ -12,7 +12,7 @@ import (
 )
 
 func TestNewJobServiceServer(t *testing.T) {
-	mockAuth := &authfakes.FakeGrpcAuthorization{}
+	mockAuth := &authfakes.FakeGRPCAuthorization{}
 	mockStore := &adaptersfakes.FakeJobStoreAdapter{}
 	mockJoblet := &interfacesfakes.FakeJoblet{}
 
@@ -36,7 +36,7 @@ func TestNewJobServiceServer(t *testing.T) {
 }
 
 func TestListJobs_EmptyStore(t *testing.T) {
-	mockAuth := &authfakes.FakeGrpcAuthorization{}
+	mockAuth := &authfakes.FakeGRPCAuthorization{}
 	mockStore := &adaptersfakes.FakeJobStoreAdapter{}
 	mockJoblet := &interfacesfakes.FakeJoblet{}
 
@@ -65,7 +65,7 @@ func TestListJobs_EmptyStore(t *testing.T) {
 }
 
 func TestListJobs_WithJobs(t *testing.T) {
-	mockAuth := &authfakes.FakeGrpcAuthorization{}
+	mockAuth := &authfakes.FakeGRPCAuthorization{}
 	mockStore := &adaptersfakes.FakeJobStoreAdapter{}
 	mockJoblet := &interfacesfakes.FakeJoblet{}
 
