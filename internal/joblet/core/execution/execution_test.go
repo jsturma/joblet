@@ -136,10 +136,10 @@ func TestExecutionCoordinator_NoRuntimeFallback(t *testing.T) {
 		t.Errorf("Expected GetRuntimeInitPath not to be called for non-runtime jobs, got: %d", fakeEnvManager.GetRuntimeInitPathCallCount())
 	}
 
-	// Verify launch config uses resolved path for non-runtime jobs (fallback path resolution)
+	// Verify launch config uses joblet binary for two-stage execution (not command path)
 	_, launchConfig := fakeProcessManager.LaunchProcessArgsForCall(0)
-	if launchConfig.InitPath != "/usr/bin/echo" && launchConfig.InitPath != "/bin/echo" {
-		t.Errorf("Expected InitPath to be resolved to absolute path for 'echo', got: %s", launchConfig.InitPath)
+	if launchConfig.InitPath != "/opt/joblet/joblet" {
+		t.Errorf("Expected InitPath to be '/opt/joblet/joblet' for two-stage execution, got: %s", launchConfig.InitPath)
 	}
 }
 
