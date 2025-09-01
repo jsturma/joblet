@@ -151,10 +151,10 @@ router.delete('/volumes/:volumeName', async (req, res) => {
         const {volumeName} = req.params;
         const node = req.query.node;
         
-        const output = await execRnx(['volume', 'delete', volumeName], {node});
+        const output = await execRnx(['volume', 'remove', volumeName], {node});
         res.json({success: true, output});
     } catch (error) {
-        console.error('Failed to delete volume:', error);
+        console.error('Failed to remove volume:', error);
         res.status(500).json({error: error.message});
     }
 });
@@ -215,15 +215,19 @@ router.get('/networks', async (req, res) => {
 // Create network
 router.post('/networks', async (req, res) => {
     try {
-        const {name, subnet, type} = req.body;
+        const {name, cidr, type} = req.body;
         const node = req.query.node;
         
         if (!name) {
             return res.status(400).json({error: 'Network name is required'});
         }
         
+        if (!cidr) {
+            return res.status(400).json({error: 'CIDR range is required'});
+        }
+        
         const args = ['network', 'create', name];
-        if (subnet) args.push('--subnet', subnet);
+        args.push('--cidr', cidr);
         if (type) args.push('--type', type);
         
         const output = await execRnx(args, {node});
@@ -240,7 +244,7 @@ router.delete('/networks/:networkName', async (req, res) => {
         const {networkName} = req.params;
         const node = req.query.node;
         
-        const output = await execRnx(['network', 'delete', networkName], {node});
+        const output = await execRnx(['network', 'remove', networkName], {node});
         res.json({success: true, output});
     } catch (error) {
         console.error('Failed to delete network:', error);

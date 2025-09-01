@@ -401,6 +401,61 @@ const Jobs: React.FC = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Command Preview Section */}
+                            <div className="mt-6 bg-gray-800 border border-gray-700 rounded-lg p-6">
+                                <h3 className="text-lg font-medium text-gray-200 mb-4">Command Examples</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Run Simple Job
+                                        </label>
+                                        <pre className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+rnx job run "echo Hello World"
+                                        </pre>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Run with Runtime
+                                        </label>
+                                        <pre className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+rnx job run "python3 script.py" --runtime=python-3.11
+                                        </pre>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            List Jobs
+                                        </label>
+                                        <pre className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+rnx job list
+                                        </pre>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Stop Job
+                                        </label>
+                                        <pre className="bg-gray-900 text-red-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+rnx job stop &lt;job-id&gt;
+                                        </pre>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            View Job Logs
+                                        </label>
+                                        <pre className="bg-gray-900 text-blue-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+rnx job logs &lt;job-id&gt;
+                                        </pre>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Run with Resources
+                                        </label>
+                                        <pre className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+rnx job run "npm test" --cpu=50 --memory=512MB
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
                         </>
                     )}
                 </div>

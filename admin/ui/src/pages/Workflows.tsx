@@ -29,7 +29,8 @@ const Workflows: React.FC = () => {
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(getInitialWorkflowId());
     const [createWorkflowModal, setCreateWorkflowModal] = useState({
         show: false,
-        creating: false
+        creating: false,
+        error: ''
     });
     const [directoryBrowser, setDirectoryBrowser] = useState({
         currentPath: '',
@@ -150,7 +151,7 @@ const Workflows: React.FC = () => {
 
         try {
             await apiService.executeWorkflow(selectedFile, undefined, createVolumes);
-            setCreateWorkflowModal({show: false, creating: false});
+            setCreateWorkflowModal({show: false, creating: false, error: ''});
             setSelectedFile(null);
             setWorkflowValidation({
                 valid: true,
@@ -163,11 +164,8 @@ const Workflows: React.FC = () => {
             // Workflow list will auto-refresh via polling
         } catch (error) {
             console.error('Failed to create workflow:', error);
-            setCreateWorkflowModal(prev => ({...prev, creating: false}));
-            
-            // Display error message to user
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            alert(`Failed to create workflow:\n\n${errorMessage}`);
+            setCreateWorkflowModal(prev => ({...prev, creating: false, error: errorMessage}));
         }
     };
 
@@ -190,7 +188,7 @@ const Workflows: React.FC = () => {
             loading: false,
             error: ''
         });
-        setCreateWorkflowModal({show: false, creating: false});
+        setCreateWorkflowModal({show: false, creating: false, error: ''});
     };
 
     // Load directory browser when modal opens
@@ -486,6 +484,31 @@ const Workflows: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Error Display */}
+                            {createWorkflowModal.error && (
+                                <div className="px-6 py-4 bg-red-900/20 border-t border-gray-600">
+                                    <div className="flex items-start space-x-3">
+                                        <div className="w-6 h-6 rounded-full bg-red-500 flex-shrink-0 flex items-center justify-center mt-0.5">
+                                            <X className="w-4 h-4 text-white"/>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-medium text-red-200 mb-2">Failed to Execute Workflow</h4>
+                                            <div className="text-sm text-red-300 bg-red-900/30 p-3 rounded border border-red-700">
+                                                <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
+{createWorkflowModal.error}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setCreateWorkflowModal(prev => ({...prev, error: ''}))}
+                                            className="text-red-300 hover:text-red-100"
+                                        >
+                                            <X className="w-4 h-4"/>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Footer */}
                             <div className="flex space-x-3 justify-end p-6 border-t border-gray-600">

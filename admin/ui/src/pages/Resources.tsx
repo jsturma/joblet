@@ -77,6 +77,16 @@ const Resources: React.FC = () => {
         deleting: false
     });
 
+    const [deleteNetworkConfirm, setDeleteNetworkConfirm] = useState<{
+        show: boolean;
+        networkName: string;
+        deleting: boolean;
+    }>({
+        show: false,
+        networkName: '',
+        deleting: false
+    });
+
     const [createVolumeModal, setCreateVolumeModal] = useState({
         show: false,
         creating: false
@@ -118,6 +128,11 @@ const Resources: React.FC = () => {
         name: '',
         size: '',
         type: 'filesystem'
+    });
+
+    const [volumeFormErrors, setVolumeFormErrors] = useState({
+        name: '',
+        size: ''
     });
 
     const [networkForm, setNetworkForm] = useState({
@@ -541,16 +556,31 @@ const Resources: React.FC = () => {
         setDeleteConfirm({show: true, volumeName, deleting: false});
     };
 
-    const handleDeleteNetwork = async (networkName: string) => {
+    const handleDeleteNetwork = (networkName: string) => {
+        setDeleteNetworkConfirm({show: true, networkName, deleting: false});
+    };
+
+    const confirmDeleteNetwork = async () => {
+        if (!deleteNetworkConfirm.networkName) return;
+
+        setDeleteNetworkConfirm(prev => ({...prev, deleting: true}));
+
         try {
-            await apiService.deleteNetwork(networkName);
+            await apiService.deleteNetwork(deleteNetworkConfirm.networkName);
+            setDeleteNetworkConfirm({show: false, networkName: '', deleting: false});
             await fetchNetworks(); // Refresh the network list
         } catch (error) {
+            console.error('Failed to delete network:', error);
             setError(prev => ({
                 ...prev,
                 networks: error instanceof Error ? error.message : 'Failed to delete network'
             }));
+            setDeleteNetworkConfirm(prev => ({...prev, deleting: false}));
         }
+    };
+
+    const cancelDeleteNetwork = () => {
+        setDeleteNetworkConfirm({show: false, networkName: '', deleting: false});
     };
 
     const confirmDeleteVolume = async () => {
@@ -576,8 +606,48 @@ const Resources: React.FC = () => {
         setDeleteConfirm({show: false, volumeName: '', deleting: false});
     };
 
+    // Validation functions
+    const validateVolumeName = (name: string): string => {
+        if (!name) return 'Volume name is required';
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9-_]*$/.test(name)) {
+            return 'Name must start with alphanumeric and contain only letters, numbers, hyphens, and underscores';
+        }
+        if (name.length > 63) {
+            return 'Name must be 63 characters or less';
+        }
+        return '';
+    };
+
+    const validateVolumeSize = (size: string): string => {
+        if (!size) return 'Volume size is required';
+        if (!/^\d+(\.\d+)?(B|KB|MB|GB|TB)$/i.test(size)) {
+            return 'Size must be a number followed by unit (B, KB, MB, GB, TB). Example: 1GB, 500MB';
+        }
+        return '';
+    };
+
+    const handleVolumeNameChange = (name: string) => {
+        setVolumeForm(prev => ({...prev, name}));
+        setVolumeFormErrors(prev => ({...prev, name: validateVolumeName(name)}));
+    };
+
+    const handleVolumeSizeChange = (size: string) => {
+        setVolumeForm(prev => ({...prev, size}));
+        setVolumeFormErrors(prev => ({...prev, size: validateVolumeSize(size)}));
+    };
+
     const handleCreateVolume = async () => {
-        if (!volumeForm.name || !volumeForm.size) return;
+        // Validate all fields
+        const nameError = validateVolumeName(volumeForm.name);
+        const sizeError = validateVolumeSize(volumeForm.size);
+        
+        if (nameError || sizeError) {
+            setVolumeFormErrors({
+                name: nameError,
+                size: sizeError
+            });
+            return;
+        }
 
         setCreateVolumeModal(prev => ({...prev, creating: true}));
 
@@ -585,6 +655,7 @@ const Resources: React.FC = () => {
             await apiService.createVolume(volumeForm.name, volumeForm.size, volumeForm.type);
             setCreateVolumeModal({show: false, creating: false});
             setVolumeForm({name: '', size: '', type: 'filesystem'});
+            setVolumeFormErrors({name: '', size: ''});
             await fetchVolumes(); // Refresh the volume list
         } catch (error) {
             setError(prev => ({
@@ -622,12 +693,19 @@ const Resources: React.FC = () => {
     }, []);
 
     const formatSize = (size: string | number): string => {
-        if (typeof size === 'string') return size; // Already formatted
-        if (size === 0) return '0 B';
+        // If it's already a formatted string with units, return as-is
+        if (typeof size === 'string' && /\d+(\.\d+)?\s*(B|KB|MB|GB|TB)$/i.test(size)) {
+            return size;
+        }
+        
+        // Convert string to number if it's just a number
+        const numericSize = typeof size === 'string' ? parseInt(size) : size;
+        
+        if (numericSize === 0 || isNaN(numericSize)) return '0 B';
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(size) / Math.log(k));
-        return parseFloat((size / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        const i = Math.floor(Math.log(numericSize) / Math.log(k));
+        return parseFloat((numericSize / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
     // Filter runtimes based on search query
@@ -872,7 +950,7 @@ const Resources: React.FC = () => {
             {deleteConfirm.show && (
                 <div
                     className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-200">
@@ -887,16 +965,28 @@ const Resources: React.FC = () => {
                                 </button>
                             </div>
 
-                            <div className="mb-6">
-                                <p className="text-gray-300 mb-2">
-                                    Are you sure you want to delete the volume "{deleteConfirm.volumeName}"?
-                                </p>
-                                <p className="text-sm text-red-400">
-                                    This action cannot be undone. All data in this volume will be permanently lost.
-                                </p>
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-300 mb-2">
+                                        Are you sure you want to delete the volume "{deleteConfirm.volumeName}"?
+                                    </p>
+                                    <p className="text-sm text-red-400">
+                                        This action cannot be undone. All data in this volume will be permanently lost.
+                                    </p>
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{`rnx volume remove ${deleteConfirm.volumeName}`}
+                                    </pre>
+                                </div>
                             </div>
 
-                            <div className="flex space-x-3 justify-end">
+                            <div className="flex space-x-3 justify-end mt-6">
                                 <button
                                     onClick={cancelDeleteVolume}
                                     disabled={deleteConfirm.deleting}
@@ -932,12 +1022,15 @@ const Resources: React.FC = () => {
             {createVolumeModal.show && (
                 <div
                     className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-200">Create Volume</h3>
                                 <button
-                                    onClick={() => setCreateVolumeModal({show: false, creating: false})}
+                                    onClick={() => {
+                                        setCreateVolumeModal({show: false, creating: false});
+                                        setVolumeFormErrors({name: '', size: ''});
+                                    }}
                                     className="text-gray-400 hover:text-gray-300"
                                     disabled={createVolumeModal.creating}
                                 >
@@ -953,46 +1046,77 @@ const Resources: React.FC = () => {
                                     <input
                                         type="text"
                                         value={volumeForm.name}
-                                        onChange={(e) => setVolumeForm(prev => ({...prev, name: e.target.value}))}
-                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder={t('resources.enterVolumeName')}
+                                        onChange={(e) => handleVolumeNameChange(e.target.value)}
+                                        className={`w-full px-3 py-2 border rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 ${
+                                            volumeFormErrors.name 
+                                                ? 'border-red-500 focus:ring-red-500' 
+                                                : 'border-gray-600 focus:ring-blue-500'
+                                        }`}
+                                        placeholder="e.g., backend, cache, data"
                                         disabled={createVolumeModal.creating}
                                     />
+                                    {volumeFormErrors.name && (
+                                        <p className="mt-1 text-xs text-red-400">{volumeFormErrors.name}</p>
+                                    )}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        Size
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={volumeForm.size}
-                                        onChange={(e) => setVolumeForm(prev => ({...prev, size: e.target.value}))}
-                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder={t('resources.enterVolumeSize')}
-                                        disabled={createVolumeModal.creating}
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Size
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={volumeForm.size}
+                                            onChange={(e) => handleVolumeSizeChange(e.target.value)}
+                                            className={`w-full px-3 py-2 border rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 ${
+                                                volumeFormErrors.size 
+                                                    ? 'border-red-500 focus:ring-red-500' 
+                                                    : 'border-gray-600 focus:ring-blue-500'
+                                            }`}
+                                            placeholder="e.g., 1GB, 500MB"
+                                            disabled={createVolumeModal.creating}
+                                        />
+                                        {volumeFormErrors.size && (
+                                            <p className="mt-1 text-xs text-red-400">{volumeFormErrors.size}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Type
+                                        </label>
+                                        <select
+                                            value={volumeForm.type}
+                                            onChange={(e) => setVolumeForm(prev => ({...prev, type: e.target.value}))}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            disabled={createVolumeModal.creating}
+                                        >
+                                            <option value="filesystem">Filesystem</option>
+                                            <option value="memory">Memory (tmpfs)</option>
+                                        </select>
+                                    </div>
                                 </div>
 
+                                {/* Command Preview */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        Type
+                                        Command Preview
                                     </label>
-                                    <select
-                                        value={volumeForm.type}
-                                        onChange={(e) => setVolumeForm(prev => ({...prev, type: e.target.value}))}
-                                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        disabled={createVolumeModal.creating}
-                                    >
-                                        <option value="filesystem">Filesystem</option>
-                                        <option value="memory">Memory (tmpfs)</option>
-                                    </select>
+                                    <pre className="bg-gray-900 text-green-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{volumeForm.name && volumeForm.size 
+  ? `rnx volume create ${volumeForm.name} --size=${volumeForm.size}${volumeForm.type !== 'filesystem' ? ` --type=${volumeForm.type}` : ''}`
+  : '# Enter volume name and size to see command preview'}
+                                    </pre>
                                 </div>
                             </div>
 
                             <div className="flex space-x-3 justify-end mt-6">
                                 <button
-                                    onClick={() => setCreateVolumeModal({show: false, creating: false})}
+                                    onClick={() => {
+                                        setCreateVolumeModal({show: false, creating: false});
+                                        setVolumeFormErrors({name: '', size: ''});
+                                    }}
                                     disabled={createVolumeModal.creating}
                                     className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -1000,7 +1124,7 @@ const Resources: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={handleCreateVolume}
-                                    disabled={createVolumeModal.creating || !volumeForm.name || !volumeForm.size}
+                                    disabled={createVolumeModal.creating || !volumeForm.name || !volumeForm.size || !!volumeFormErrors.name || !!volumeFormErrors.size}
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
                                 >
                                     {createVolumeModal.creating ? (
@@ -1022,11 +1146,83 @@ const Resources: React.FC = () => {
                 </div>
             )}
 
+            {/* Delete Network Confirmation Dialog */}
+            {deleteNetworkConfirm.show && (
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-200">
+                                    Delete Network
+                                </h3>
+                                <button
+                                    onClick={cancelDeleteNetwork}
+                                    className="text-gray-400 hover:text-gray-300"
+                                    disabled={deleteNetworkConfirm.deleting}
+                                >
+                                    <X className="h-5 w-5"/>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-300 mb-2">
+                                        Are you sure you want to delete the network "{deleteNetworkConfirm.networkName}"?
+                                    </p>
+                                    <p className="text-sm text-red-400">
+                                        This action cannot be undone. Any containers using this network must be stopped first.
+                                    </p>
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{`rnx network remove ${deleteNetworkConfirm.networkName}`}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            <div className="flex space-x-3 justify-end mt-6">
+                                <button
+                                    onClick={cancelDeleteNetwork}
+                                    disabled={deleteNetworkConfirm.deleting}
+                                    className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteNetwork}
+                                    disabled={deleteNetworkConfirm.deleting}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {deleteNetworkConfirm.deleting ? (
+                                        <>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Trash2 className="h-4 w-4 mr-2"/>
+                                            Delete
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Create Network Modal */}
             {createNetworkModal.show && (
                 <div
                     className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-200">Create Network</h3>
@@ -1049,7 +1245,7 @@ const Resources: React.FC = () => {
                                         value={networkForm.name}
                                         onChange={(e) => setNetworkForm(prev => ({...prev, name: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                        placeholder={t('resources.enterNetworkName')}
+                                        placeholder="e.g., backend-net, app-network"
                                         disabled={createNetworkModal.creating}
                                     />
                                 </div>
@@ -1063,12 +1259,24 @@ const Resources: React.FC = () => {
                                         value={networkForm.cidr}
                                         onChange={(e) => setNetworkForm(prev => ({...prev, cidr: e.target.value}))}
                                         className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                        placeholder={t('resources.enterNetworkSubnet')}
+                                        placeholder="e.g., 10.1.0.0/24, 192.168.100.0/24"
                                         disabled={createNetworkModal.creating}
                                     />
                                     <p className="text-xs text-gray-400 mt-1">
-                                        Examples: 10.1.0.0/24, 192.168.100.0/24
+                                        Format: IP address followed by subnet mask (e.g., 10.1.0.0/24)
                                     </p>
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre className="bg-gray-900 text-green-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{networkForm.name && networkForm.cidr 
+  ? `rnx network create ${networkForm.name} --cidr=${networkForm.cidr}`
+  : '# Enter network name and CIDR range to see command preview'}
+                                    </pre>
                                 </div>
                             </div>
 
@@ -1477,7 +1685,7 @@ const Resources: React.FC = () => {
             {runtimeConfirm.show && (
                 <div
                     className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-200">
@@ -1494,30 +1702,50 @@ const Resources: React.FC = () => {
                                 </button>
                             </div>
 
-                            <div className="mb-6">
-                                <p className="text-gray-300 mb-2">
-                                    {runtimeConfirm.action === 'install' && `Install runtime "${runtimeConfirm.runtimeName}" from GitHub?`}
-                                    {runtimeConfirm.action === 'reinstall' && `Reinstall runtime "${runtimeConfirm.runtimeName}" with --force flag?`}
-                                    {runtimeConfirm.action === 'remove' && `Remove runtime "${runtimeConfirm.runtimeName}"?`}
-                                </p>
-                                {runtimeConfirm.action === 'install' && (
-                                    <p className="text-sm text-blue-400">
-                                        This will download and build the runtime from ehsaniara/joblet repository.
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-300 mb-2">
+                                        {runtimeConfirm.action === 'install' && `Install runtime "${runtimeConfirm.runtimeName}" from GitHub?`}
+                                        {runtimeConfirm.action === 'reinstall' && `Reinstall runtime "${runtimeConfirm.runtimeName}" with --force flag?`}
+                                        {runtimeConfirm.action === 'remove' && `Remove runtime "${runtimeConfirm.runtimeName}"?`}
                                     </p>
-                                )}
-                                {runtimeConfirm.action === 'reinstall' && (
-                                    <p className="text-sm text-orange-400">
-                                        This will rebuild the runtime, replacing the current installation.
-                                    </p>
-                                )}
-                                {runtimeConfirm.action === 'remove' && (
-                                    <p className="text-sm text-red-400">
-                                        This action cannot be undone. The runtime will be completely removed from the system.
-                                    </p>
-                                )}
+                                    {runtimeConfirm.action === 'install' && (
+                                        <p className="text-sm text-blue-400">
+                                            This will download and build the runtime from ehsaniara/joblet repository.
+                                        </p>
+                                    )}
+                                    {runtimeConfirm.action === 'reinstall' && (
+                                        <p className="text-sm text-orange-400">
+                                            This will rebuild the runtime, replacing the current installation.
+                                        </p>
+                                    )}
+                                    {runtimeConfirm.action === 'remove' && (
+                                        <p className="text-sm text-red-400">
+                                            This action cannot be undone. The runtime will be completely removed from the system.
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre className={`bg-gray-900 p-4 rounded-md text-sm overflow-x-auto font-mono ${
+                                        runtimeConfirm.action === 'install' ? 'text-blue-400' :
+                                        runtimeConfirm.action === 'reinstall' ? 'text-orange-400' :
+                                        'text-red-400'
+                                    }`}>
+{runtimeConfirm.action === 'install' 
+  ? `rnx runtime install ${runtimeConfirm.runtimeName} --github-repo=ehsaniara/joblet/tree/main/runtimes`
+  : runtimeConfirm.action === 'reinstall'
+  ? `rnx runtime install ${runtimeConfirm.runtimeName} --force --github-repo=ehsaniara/joblet/tree/main/runtimes`
+  : `rnx runtime remove ${runtimeConfirm.runtimeName}`}
+                                    </pre>
+                                </div>
                             </div>
 
-                            <div className="flex space-x-3 justify-end">
+                            <div className="flex space-x-3 justify-end mt-6">
                                 <button
                                     onClick={cancelRuntimeAction}
                                     disabled={runtimeConfirm.processing}
