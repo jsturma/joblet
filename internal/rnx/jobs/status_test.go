@@ -126,9 +126,7 @@ func TestGetStatusColor(t *testing.T) {
 			statusColor, resetColor := getStatusColor(tt.status)
 
 			// Basic validation - colors should be strings (even if empty)
-			if statusColor == "" && resetColor == "" {
-				// This might be expected if colors are disabled
-			}
+			// We don't assert specific values since colors may be disabled in test environments
 
 			// Test that we get consistent results
 			statusColor2, resetColor2 := getStatusColor(tt.status)
