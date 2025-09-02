@@ -222,6 +222,7 @@ func (m *JobMapper) ProtobufToStartJobRequest(req *pb.RunJobRequest) (*interface
 		Schedule:          req.Schedule,
 		Network:           network,
 		Volumes:           req.Volumes,
+		Runtime:           req.Runtime,
 		Environment:       req.Environment,
 		SecretEnvironment: req.SecretEnvironment,
 		JobType:           domain.JobTypeStandard, // JobService jobs use standard (production) isolation
