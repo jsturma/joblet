@@ -117,6 +117,13 @@ message GetJobStatusRes{
   string scheduledTime = 13;    // When the job should execute (empty if immediate)
   map<string, string> environment = 14;       // Regular environment variables (visible)
   map<string, string> secret_environment = 15; // Secret environment variables (masked)
+  string network = 16;                     // Network configuration
+  repeated string volumes = 17;            // Mounted volumes
+  string runtime = 18;                     // Runtime environment
+  string workDir = 19;                     // Working directory
+  repeated string uploads = 20;            // Uploaded files/directories
+  repeated string dependencies = 21;       // Job dependencies (for workflow jobs)
+  string workflowUuid = 22;               // Workflow UUID (if part of workflow)
 }
 
 // StopJob

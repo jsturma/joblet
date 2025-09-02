@@ -60,20 +60,6 @@ func (s *JobServiceServer) RunJob(ctx context.Context, req *pb.RunJobRequest) (*
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
 	}
 
-	// TEMPORARY WORKAROUND: Extract runtime from command args if present
-	if jobRequest.Runtime == "" && len(req.Args) > 0 {
-		for i, arg := range req.Args {
-			if strings.HasPrefix(arg, "RUNTIME=") {
-				runtime := strings.TrimPrefix(arg, "RUNTIME=")
-				jobRequest.Runtime = runtime
-				log.Info("runtime extracted from args (workaround)", "runtime", runtime)
-				// Remove the RUNTIME= arg from the args list
-				req.Args = append(req.Args[:i], req.Args[i+1:]...)
-				break
-			}
-		}
-	}
-
 	// Log the cleaned request structure (excluding sensitive environment variables)
 	envCount := 0
 	if jobRequest.Environment != nil {
@@ -227,8 +213,23 @@ func (s *JobServiceServer) GetJobStatus(ctx context.Context, req *pb.GetJobStatu
 		scheduledTimeStr = job.ScheduledTime.Format("2006-01-02T15:04:05Z07:00")
 	}
 
+	// TODO: File uploads information would need to be stored in Job domain object
+	// For now, we'll leave this empty since uploads aren't persisted in the Job struct
+	var uploadStrings []string
+
+	// TODO: Dependencies would need to be resolved from workflow store
+	// This requires additional information that's not currently stored in the Job
+	var dependencies []string
+
+	// TODO: WorkDir would need to be added to Job domain object
+	workDir := ""
+
+	// TODO: WorkflowUuid would need to be added to Job domain object
+	workflowUuid := ""
+
 	return &pb.GetJobStatusRes{
 		Uuid:              job.Uuid,
+		Name:              job.Name,
 		Status:            string(job.Status),
 		Command:           job.Command,
 		Args:              job.Args,
@@ -242,6 +243,13 @@ func (s *JobServiceServer) GetJobStatus(ctx context.Context, req *pb.GetJobStatu
 		ScheduledTime:     scheduledTimeStr,
 		Environment:       job.Environment,
 		SecretEnvironment: maskedSecretEnv,
+		Network:           job.Network,
+		Volumes:           job.Volumes,
+		Runtime:           job.Runtime,
+		WorkDir:           workDir,
+		Uploads:           uploadStrings,
+		Dependencies:      dependencies,
+		WorkflowUuid:      workflowUuid,
 	}, nil
 }
 

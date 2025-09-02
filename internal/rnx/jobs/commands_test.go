@@ -74,6 +74,111 @@ func TestNewStatusCmd(t *testing.T) {
 	}
 }
 
+func TestStatusCommandEnhancedHelp(t *testing.T) {
+	cmd := NewStatusCmd()
+
+	// Test that the enhanced help content is present
+	helpContent := cmd.Long
+
+	expectedSections := []string{
+		"comprehensive status and details",
+		"Job identification (UUID, name, command, arguments)",
+		"Resource limits (CPU, memory, I/O, core binding)",
+		"Runtime environment (Python, Java, Node.js runtimes)",
+		"Network configuration (bridge, isolated, custom networks)",
+		"Volume storage (mounted persistent and memory volumes)",
+		"Environment variables (regular and secret/masked)",
+		"File uploads and working directory",
+		"Workflow information (UUID, dependencies for workflow jobs)",
+		"Job Status Examples:",
+		"Workflow Status Examples:",
+		"Job Status Information Displayed:",
+		"Output Formats:",
+	}
+
+	for _, section := range expectedSections {
+		if !strings.Contains(helpContent, section) {
+			t.Errorf("Enhanced help content missing section: '%s'", section)
+		}
+	}
+}
+
+func TestStatusCommandShortDescription(t *testing.T) {
+	cmd := NewStatusCmd()
+
+	expectedShort := "Get comprehensive status and details of a job or workflow by UUID"
+	if cmd.Short != expectedShort {
+		t.Errorf("Expected Short description '%s', got '%s'", expectedShort, cmd.Short)
+	}
+}
+
+func TestStatusCommandHelpExamples(t *testing.T) {
+	cmd := NewStatusCmd()
+	helpContent := cmd.Long
+
+	// Test that specific examples are included
+	expectedExamples := []string{
+		"rnx status f47ac10b-58cc-4372-a567-0e02b2c3d479",
+		"rnx status f47ac10b",
+		"rnx status --json f47ac10b",
+		"rnx status --workflow a1b2c3d4-e5f6-7890-1234-567890abcdef",
+		"rnx status --workflow a1b2c3d4",
+		"rnx status --workflow --detail a1b2c3d4",
+		"rnx status --workflow --json a1b2c3d4",
+	}
+
+	for _, example := range expectedExamples {
+		if !strings.Contains(helpContent, example) {
+			t.Errorf("Help content missing example: '%s'", example)
+		}
+	}
+}
+
+func TestStatusCommandInformationCategories(t *testing.T) {
+	cmd := NewStatusCmd()
+	helpContent := cmd.Long
+
+	// Test that all information categories are documented
+	expectedCategories := []string{
+		"Basic Info: Job UUID, name, command with arguments, current status",
+		"Timing: Creation time, start time, end time, execution duration",
+		"Resource Limits: CPU percentage, memory MB, I/O bandwidth, CPU cores",
+		"Runtime Environment: Python, Java, Node.js runtime specifications",
+		"Network: Network configuration (bridge, isolated, custom networks)",
+		"Storage: Mounted volumes (filesystem and memory-based)",
+		"Working Directory: Job execution directory path",
+		"Uploaded Files: List of files uploaded for job execution",
+		"Environment: Regular environment variables (visible in logs)",
+		"Secrets: Secret environment variables (masked as ***)",
+		"Workflow Context: Workflow UUID and job dependencies (if applicable)",
+		"Results: Exit code and completion status",
+		"Actions: Contextual next steps (view logs, stop job, etc.)",
+	}
+
+	for _, category := range expectedCategories {
+		if !strings.Contains(helpContent, category) {
+			t.Errorf("Help content missing information category: '%s'", category)
+		}
+	}
+}
+
+func TestStatusCommandOutputFormats(t *testing.T) {
+	cmd := NewStatusCmd()
+	helpContent := cmd.Long
+
+	// Test that output formats are documented
+	expectedFormats := []string{
+		"Default: Human-readable formatted output with sections",
+		"--json: Machine-readable JSON with all available fields",
+	}
+
+	for _, format := range expectedFormats {
+		if !strings.Contains(helpContent, format) {
+			t.Errorf("Help content missing output format: '%s'", format)
+		}
+	}
+}
+
 func TestNewListCmd(t *testing.T) {
 	cmd := NewListCmd()
 

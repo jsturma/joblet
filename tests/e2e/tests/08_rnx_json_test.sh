@@ -159,6 +159,130 @@ test_rnx_list_json() {
     return 1
 }
 
+test_rnx_status_json() {
+    # First create a test job to get status for  
+    local run_output
+    run_output=$("$RNX_BINARY" --json run --env=TEST_VAR=status_test echo 'status-test-job' 2>&1)
+    
+    if [[ $? -ne 0 ]]; then
+        echo "    ${RED}Failed to create test job for status test${NC}"
+        return 1
+    fi
+    
+    # Extract job UUID from run output
+    local job_uuid
+    job_uuid=$(extract_json_value "$run_output" "job_uuid")
+    
+    if [[ -z "$job_uuid" ]]; then
+        echo "    ${RED}Failed to extract job UUID from run output${NC}"
+        return 1
+    fi
+    
+    # Wait a moment for job to complete
+    sleep 2
+    
+    # Test status command with JSON output
+    local json_output
+    json_output=$(execute_rnx_json "status $job_uuid" "uuid command status")
+    
+    if [[ $? -eq 0 ]]; then
+        # Check for enhanced status fields that were added
+        local enhanced_fields="uuid command status startTime environment"
+        for field in $enhanced_fields; do
+            if ! echo "$json_output" | grep -q "\"$field\""; then
+                echo "    ${RED}Status JSON missing enhanced field: $field${NC}"
+                return 1
+            fi
+        done
+        
+        # Check for new fields added in the enhancement (even if empty)
+        local new_fields="network volumes runtime workDir uploads dependencies workflowUuid"
+        for field in $new_fields; do
+            if ! echo "$json_output" | grep -q "\"$field\""; then
+                echo "    ${YELLOW}Note: Status JSON missing new field: $field (may be empty)${NC}"
+                # Don't fail the test for these as they may be empty
+            fi
+        done
+        
+        # Verify the UUID in response matches the requested one
+        local response_uuid
+        response_uuid=$(extract_json_value "$json_output" "uuid")
+        
+        if [[ "$response_uuid" == "$job_uuid" ]]; then
+            return 0
+        else
+            echo "    ${RED}Response UUID ($response_uuid) doesn't match requested UUID ($job_uuid)${NC}"
+            return 1
+        fi
+    fi
+    
+    return 1
+}
+
+test_rnx_status_enhanced_display() {
+    # Test that the enhanced status display contains expected sections
+    local run_output
+    run_output=$("$RNX_BINARY" --json run --max-cpu=50 --max-memory=256 --env=TEST_VAR=enhanced --secret-env=SECRET_VAR=hidden echo 'enhanced-status-test' 2>&1)
+    
+    if [[ $? -ne 0 ]]; then
+        echo "    ${RED}Failed to create enhanced test job${NC}"
+        return 1
+    fi
+    
+    local job_uuid
+    job_uuid=$(extract_json_value "$run_output" "job_uuid")
+    
+    if [[ -z "$job_uuid" ]]; then
+        echo "    ${RED}Failed to extract job UUID from enhanced run output${NC}"
+        return 1
+    fi
+    
+    # Wait for job to complete
+    sleep 3
+    
+    # Test regular (non-JSON) status output for enhanced sections
+    local status_output
+    status_output=$("$RNX_BINARY" status "$job_uuid" 2>&1)
+    
+    if [[ $? -eq 0 ]]; then
+        # Check for expected sections in the enhanced display
+        local expected_sections=("Job ID:" "Command:" "Status:" "Timing:" "Resource Limits:" "Environment Variables:")
+        for section in "${expected_sections[@]}"; do
+            if ! echo "$status_output" | grep -q "$section"; then
+                echo "    ${RED}Enhanced status display missing section: $section${NC}"
+                return 1
+            fi
+        done
+        
+        # Check that resource limits show the values we set
+        if ! echo "$status_output" | grep -q "Max CPU: 50%"; then
+            echo "    ${RED}Enhanced status display missing CPU limit${NC}"
+            return 1
+        fi
+        
+        if ! echo "$status_output" | grep -q "Max Memory: 256 MB"; then
+            echo "    ${RED}Enhanced status display missing memory limit${NC}"
+            return 1
+        fi
+        
+        # Check that environment variables are displayed
+        if ! echo "$status_output" | grep -q "TEST_VAR=enhanced"; then
+            echo "    ${RED}Enhanced status display missing environment variable${NC}"
+            return 1
+        fi
+        
+        # Check that secret variables are masked
+        if ! echo "$status_output" | grep -q "SECRET_VAR=\*\*\* (secret)"; then
+            echo "    ${RED}Enhanced status display not masking secret variable correctly${NC}"
+            return 1
+        fi
+        
+        return 0
+    fi
+    
+    return 1
+}
+
 # Test that non-JSON commands still work normally (regression test)
 test_rnx_normal_output() {
     # Test that commands without --json still produce normal output
@@ -203,6 +327,10 @@ main() {
     run_test "rnx runtime list --json" test_rnx_runtime_list_json
     run_test "rnx run --json" test_rnx_run_json
     run_test "rnx list --json" test_rnx_list_json
+    run_test "rnx status --json" test_rnx_status_json
+    
+    test_section "Enhanced Status Command Tests"
+    run_test "Enhanced status display" test_rnx_status_enhanced_display
     
     test_section "RNX Regression Tests"
     run_test "Normal output still works" test_rnx_normal_output

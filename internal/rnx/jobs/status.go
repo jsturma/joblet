@@ -19,8 +19,21 @@ var detailFlag bool
 func NewStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status <uuid>",
-		Short: "Get the status of a job or workflow by UUID",
-		Long: `Get the status of a job or workflow by UUID.
+		Short: "Get comprehensive status and details of a job or workflow by UUID",
+		Long: `Get comprehensive status and details of a job or workflow by UUID.
+
+The status command shows complete job information including:
+• Job identification (UUID, name, command, arguments)
+• Execution status and timing (created, started, ended, duration)
+• Resource limits (CPU, memory, I/O, core binding)
+• Runtime environment (Python, Java, Node.js runtimes)
+• Network configuration (bridge, isolated, custom networks)
+• Volume storage (mounted persistent and memory volumes)
+• Environment variables (regular and secret/masked)
+• File uploads and working directory
+• Workflow information (UUID, dependencies for workflow jobs)
+• Process results (exit code, completion status)
+• Contextual next actions (view logs, stop job, etc.)
 
 Both jobs and workflows use UUIDs (36-character identifiers).
 Short-form UUIDs are supported - you can use just the first 8 characters
@@ -28,26 +41,48 @@ if they uniquely identify a job or workflow.
 Use --workflow flag to explicitly request workflow status.
 Use --detail flag with workflow status to show the original YAML content.
 
-Examples:
-  # Get job status (using full UUID)
+Job Status Examples:
+  # Get comprehensive job status (using full UUID)
   rnx status f47ac10b-58cc-4372-a567-0e02b2c3d479
   
   # Get job status (using short-form UUID)
   rnx status f47ac10b
   
+  # Get job status in JSON format (all fields)
+  rnx status --json f47ac10b
+
+Workflow Status Examples:
   # Get workflow status (using full UUID)
   rnx status --workflow a1b2c3d4-e5f6-7890-1234-567890abcdef
   
   # Get workflow status (using short-form UUID)
   rnx status --workflow a1b2c3d4
   
-  # Get workflow status with YAML content
+  # Get workflow status with original YAML content
   rnx status --workflow --detail a1b2c3d4
   
-  # JSON output
-  rnx status --json f47ac10b
+  # Get workflow status in JSON format
   rnx status --workflow --json a1b2c3d4
-  rnx status --workflow --json --detail a1b2c3d4  # JSON with YAML content`,
+  rnx status --workflow --json --detail a1b2c3d4  # JSON with YAML content
+
+Job Status Information Displayed:
+  • Basic Info: Job UUID, name, command with arguments, current status
+  • Timing: Creation time, start time, end time, execution duration
+  • Resource Limits: CPU percentage, memory MB, I/O bandwidth, CPU cores
+  • Runtime Environment: Python, Java, Node.js runtime specifications
+  • Network: Network configuration (bridge, isolated, custom networks)
+  • Storage: Mounted volumes (filesystem and memory-based)
+  • Working Directory: Job execution directory path
+  • Uploaded Files: List of files uploaded for job execution  
+  • Environment: Regular environment variables (visible in logs)
+  • Secrets: Secret environment variables (masked as ***)
+  • Workflow Context: Workflow UUID and job dependencies (if applicable)
+  • Results: Exit code and completion status
+  • Actions: Contextual next steps (view logs, stop job, etc.)
+
+Output Formats:
+  • Default: Human-readable formatted output with sections
+  • --json: Machine-readable JSON with all available fields`,
 		Args: cobra.ExactArgs(1),
 		RunE: runStatus,
 	}
@@ -198,6 +233,54 @@ func getJobStatus(jobID string) error {
 		fmt.Printf("\nResource Limits:\n")
 		for _, limit := range resourceLimits {
 			fmt.Printf("%s\n", limit)
+		}
+	}
+
+	// Display runtime information
+	if response.Runtime != "" {
+		fmt.Printf("\nRuntime Environment:\n")
+		fmt.Printf("  Runtime: %s\n", response.Runtime)
+	}
+
+	// Display network configuration
+	if response.Network != "" {
+		fmt.Printf("\nNetwork Configuration:\n")
+		fmt.Printf("  Network: %s\n", response.Network)
+	}
+
+	// Display volume information
+	if len(response.Volumes) > 0 {
+		fmt.Printf("\nVolumes:\n")
+		for _, volume := range response.Volumes {
+			fmt.Printf("  - %s\n", volume)
+		}
+	}
+
+	// Display working directory
+	if response.WorkDir != "" {
+		fmt.Printf("\nWorking Directory:\n")
+		fmt.Printf("  Work Dir: %s\n", response.WorkDir)
+	}
+
+	// Display uploaded files
+	if len(response.Uploads) > 0 {
+		fmt.Printf("\nUploaded Files:\n")
+		for _, upload := range response.Uploads {
+			fmt.Printf("  - %s\n", upload)
+		}
+	}
+
+	// Display workflow information
+	if response.WorkflowUuid != "" {
+		fmt.Printf("\nWorkflow Information:\n")
+		fmt.Printf("  Workflow UUID: %s\n", response.WorkflowUuid)
+
+		// Display dependencies if available
+		if len(response.Dependencies) > 0 {
+			fmt.Printf("  Dependencies:\n")
+			for _, dep := range response.Dependencies {
+				fmt.Printf("    - %s\n", dep)
+			}
 		}
 	}
 

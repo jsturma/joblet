@@ -395,6 +395,13 @@ type GetJobStatusRes struct {
 	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (empty if immediate)
 	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
 	SecretEnvironment map[string]string      `protobuf:"bytes,15,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
+	Network           string                 `protobuf:"bytes,16,opt,name=network,proto3" json:"network,omitempty"`                                                                                                                        // Network configuration
+	Volumes           []string               `protobuf:"bytes,17,rep,name=volumes,proto3" json:"volumes,omitempty"`                                                                                                                        // Mounted volumes
+	Runtime           string                 `protobuf:"bytes,18,opt,name=runtime,proto3" json:"runtime,omitempty"`                                                                                                                        // Runtime environment
+	WorkDir           string                 `protobuf:"bytes,19,opt,name=workDir,proto3" json:"workDir,omitempty"`                                                                                                                        // Working directory
+	Uploads           []string               `protobuf:"bytes,20,rep,name=uploads,proto3" json:"uploads,omitempty"`                                                                                                                        // Uploaded files/directories
+	Dependencies      []string               `protobuf:"bytes,21,rep,name=dependencies,proto3" json:"dependencies,omitempty"`                                                                                                              // Job dependencies (for workflow jobs)
+	WorkflowUuid      string                 `protobuf:"bytes,22,opt,name=workflowUuid,proto3" json:"workflowUuid,omitempty"`                                                                                                              // Workflow UUID (if part of workflow)
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -532,6 +539,55 @@ func (x *GetJobStatusRes) GetSecretEnvironment() map[string]string {
 		return x.SecretEnvironment
 	}
 	return nil
+}
+
+func (x *GetJobStatusRes) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *GetJobStatusRes) GetVolumes() []string {
+	if x != nil {
+		return x.Volumes
+	}
+	return nil
+}
+
+func (x *GetJobStatusRes) GetRuntime() string {
+	if x != nil {
+		return x.Runtime
+	}
+	return ""
+}
+
+func (x *GetJobStatusRes) GetWorkDir() string {
+	if x != nil {
+		return x.WorkDir
+	}
+	return ""
+}
+
+func (x *GetJobStatusRes) GetUploads() []string {
+	if x != nil {
+		return x.Uploads
+	}
+	return nil
+}
+
+func (x *GetJobStatusRes) GetDependencies() []string {
+	if x != nil {
+		return x.Dependencies
+	}
+	return nil
+}
+
+func (x *GetJobStatusRes) GetWorkflowUuid() string {
+	if x != nil {
+		return x.WorkflowUuid
+	}
+	return ""
 }
 
 // StopJob
@@ -5990,7 +6046,7 @@ const file_joblet_proto_rawDesc = "" +
 	"\x04mode\x18\x03 \x01(\rR\x04mode\x12 \n" +
 	"\visDirectory\x18\x04 \x01(\bR\visDirectory\"%\n" +
 	"\x0fGetJobStatusReq\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\"\x98\x05\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\"\xe2\x06\n" +
 	"\x0fGetJobStatusRes\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -6007,7 +6063,14 @@ const file_joblet_proto_rawDesc = "" +
 	"\bexitCode\x18\f \x01(\x05R\bexitCode\x12$\n" +
 	"\rscheduledTime\x18\r \x01(\tR\rscheduledTime\x12J\n" +
 	"\venvironment\x18\x0e \x03(\v2(.joblet.GetJobStatusRes.EnvironmentEntryR\venvironment\x12]\n" +
-	"\x12secret_environment\x18\x0f \x03(\v2..joblet.GetJobStatusRes.SecretEnvironmentEntryR\x11secretEnvironment\x1a>\n" +
+	"\x12secret_environment\x18\x0f \x03(\v2..joblet.GetJobStatusRes.SecretEnvironmentEntryR\x11secretEnvironment\x12\x18\n" +
+	"\anetwork\x18\x10 \x01(\tR\anetwork\x12\x18\n" +
+	"\avolumes\x18\x11 \x03(\tR\avolumes\x12\x18\n" +
+	"\aruntime\x18\x12 \x01(\tR\aruntime\x12\x18\n" +
+	"\aworkDir\x18\x13 \x01(\tR\aworkDir\x12\x18\n" +
+	"\auploads\x18\x14 \x03(\tR\auploads\x12\"\n" +
+	"\fdependencies\x18\x15 \x03(\tR\fdependencies\x12\"\n" +
+	"\fworkflowUuid\x18\x16 \x01(\tR\fworkflowUuid\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
