@@ -32,6 +32,11 @@ export interface Job {
     secretEnvVars?: Record<string, string>;
     dependsOn: string[];
     resourceUsage?: ResourceUsage;
+    // Additional fields from rnx status
+    createdTime?: string;
+    workingDir?: string;
+    workflowUUID?: string;
+    name?: string;
 }
 
 // Extended interface for workflow jobs with additional fields

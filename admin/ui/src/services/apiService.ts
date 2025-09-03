@@ -121,6 +121,10 @@ class APIService {
         return this.request<Job>(`/jobs/${jobId}`);
     }
 
+    async getJobStatus(jobId: string): Promise<any> {
+        return this.request<any>(`/jobs/${jobId}/status`);
+    }
+
     async executeJob(request: JobExecuteRequest): Promise<{ jobId: string }> {
         return this.request<{ jobId: string }>('/jobs/execute', {
             method: 'POST',

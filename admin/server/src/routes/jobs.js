@@ -143,6 +143,24 @@ router.post('/execute', async (req, res) => {
     }
 });
 
+// Get comprehensive job status using rnx status
+router.get('/:jobId/status', async (req, res) => {
+    try {
+        const {jobId} = req.params;
+        const node = req.query.node;
+        const output = await execRnx(['status', jobId, '--json'], {node});
+        const statusData = JSON.parse(output);
+        res.json(statusData);
+    } catch (error) {
+        console.error(`Failed to get job status for ${req.params.jobId}:`, error);
+        res.status(500).json({
+            error: 'Failed to get job status',
+            message: error.message,
+            id: req.params.jobId
+        });
+    }
+});
+
 // Get job details
 router.get('/:jobId', async (req, res) => {
     try {

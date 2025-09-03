@@ -16,7 +16,8 @@ interface NetworkResource {
     id: string;
     name: string;
     type: string;
-    subnet: string;
+    subnet?: string;
+    cidr?: string;
 }
 
 interface Runtime {
@@ -873,7 +874,7 @@ const Resources: React.FC = () => {
                                                 <p className="text-sm text-gray-500">{network.type}</p>
                                             </div>
                                             <div className="text-right mr-3">
-                                                <p className="text-sm text-gray-600">{network.subnet || 'N/A'}</p>
+                                                <p className="text-sm text-gray-600">{network.subnet || network.cidr || 'N/A'}</p>
                                             </div>
                                             {(network.name !== 'bridge' && network.name !== 'host') && (
                                                 <div>

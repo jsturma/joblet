@@ -80,6 +80,10 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
     const [isDragOver, setIsDragOver] = useState<boolean>(false);
     const [runtimes, setRuntimes] = useState<Runtime[]>([]);
     const [loadingRuntimes, setLoadingRuntimes] = useState(true);
+    const [networks, setNetworks] = useState<Array<{id: string; name: string; type: string}>>([]);
+    const [loadingNetworks, setLoadingNetworks] = useState(true);
+    const [volumes, setVolumes] = useState<Array<{id?: string; name: string; size: string; type: string}>>([]);
+    const [loadingVolumes, setLoadingVolumes] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dirInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -118,19 +122,12 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
         });
     }, []);
 
-    const addVolume = useCallback((volume: string) => {
-        if (volume && !config.volumes.includes(volume)) {
-            setConfig(prev => ({
-                ...prev,
-                volumes: [...prev.volumes, volume]
-            }));
-        }
-    }, [config.volumes]);
-
-    const removeVolume = useCallback((volume: string) => {
+    const toggleVolume = useCallback((volumeName: string) => {
         setConfig(prev => ({
             ...prev,
-            volumes: prev.volumes.filter(v => v !== volume)
+            volumes: prev.volumes.includes(volumeName)
+                ? prev.volumes.filter(v => v !== volumeName)
+                : [...prev.volumes, volumeName]
         }));
     }, []);
 
@@ -276,7 +273,33 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
             }
         };
 
+        const fetchNetworks = async () => {
+            try {
+                setLoadingNetworks(true);
+                const response = await apiService.getNetworks();
+                setNetworks(response.networks || []);
+            } catch (error) {
+                console.error('Failed to fetch networks:', error);
+            } finally {
+                setLoadingNetworks(false);
+            }
+        };
+
+        const fetchVolumes = async () => {
+            try {
+                setLoadingVolumes(true);
+                const response = await apiService.getVolumes();
+                setVolumes(response.volumes || []);
+            } catch (error) {
+                console.error('Failed to fetch volumes:', error);
+            } finally {
+                setLoadingVolumes(false);
+            }
+        };
+
         fetchRuntimes();
+        fetchNetworks();
+        fetchVolumes();
     }, []);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -284,6 +307,18 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
 
         if (!config.command.trim()) {
             alert(t('jobBuilder.commandRequired'));
+            return;
+        }
+
+        // Validate CPU limit (must be 0 or >= 10)
+        if (config.maxCpu > 0 && config.maxCpu < 10) {
+            alert('CPU limit must be either 0 (unlimited) or at least 10%');
+            return;
+        }
+
+        // Validate Memory limit (must be 0 or >= 1)
+        if (config.maxMemory > 0 && config.maxMemory < 1) {
+            alert('Memory limit must be either 0 (unlimited) or at least 1 MB');
             return;
         }
 
@@ -495,7 +530,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                         {/* Resource Limits */}
                         <div>
                             <h3 className="text-lg font-medium text-gray-500 mb-4">{t('jobBuilder.resourceLimits')}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-white mb-2">
                                         CPU Limit (%)
@@ -509,7 +544,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                         min="0"
                                     />
                                     <p className="mt-1 text-xs text-gray-500">
-                                        CPU limit as percentage (200% = 2 cores)
+                                        CPU limit as percentage (200% = 2 cores). Minimum: 10% or 0 (unlimited)
                                     </p>
                                 </div>
 
@@ -526,7 +561,7 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                         min="0"
                                     />
                                     <p className="mt-1 text-xs text-gray-500">
-                                        Memory limit in megabytes
+                                        Memory limit in megabytes. Minimum: 1 MB or 0 (unlimited)
                                     </p>
                                 </div>
 
@@ -599,11 +634,28 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                                         value={config.network}
                                         onChange={(e) => updateConfig({network: e.target.value})}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        disabled={loadingNetworks}
                                     >
-                                        <option value="bridge">Bridge (default)</option>
-                                        <option value="host">Host</option>
-                                        <option value="none">None</option>
-                                        <option value="isolated">Isolated</option>
+                                        {loadingNetworks ? (
+                                            <option value="">Loading networks...</option>
+                                        ) : (
+                                            <>
+                                                {/* Default built-in networks */}
+                                                <option value="bridge">bridge (default)</option>
+                                                <option value="host">host</option>
+                                                <option value="none">none</option>
+
+                                                {/* Custom networks */}
+                                                {networks
+                                                    .filter(net => !['bridge', 'host', 'none'].includes(net.name))
+                                                    .map(network => (
+                                                        <option key={network.id || network.name} value={network.name}>
+                                                            {network.name}
+                                                        </option>
+                                                    ))
+                                                }
+                                            </>
+                                        )}
                                     </select>
                                 </div>
                             </div>
@@ -614,45 +666,40 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                             <label className="block text-sm font-medium text-white mb-2">
                                 Volumes
                             </label>
-                            <div className="flex space-x-2 mb-2">
-                                <input
-                                    type="text"
-                                    placeholder="Volume name"
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter') {
-                                            addVolume((e.target as HTMLInputElement).value);
-                                            (e.target as HTMLInputElement).value = '';
-                                        }
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                        addVolume(input.value);
-                                        input.value = '';
-                                    }}
-                                    className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                >
-                                    Add
-                                </button>
-                            </div>
-                            {config.volumes.length > 0 && (
-                                <div className="space-y-1">
-                                    {config.volumes.map((volume, index) => (
-                                        <div key={index}
-                                             className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-                                            <span className="text-sm">{volume}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeVolume(volume)}
-                                                className="text-red-500 hover:text-red-700"
+                            {loadingVolumes ? (
+                                <p className="text-sm text-gray-400">Loading available volumes...</p>
+                            ) : volumes.length === 0 ? (
+                                <p className="text-sm text-gray-400">No volumes available. Create volumes in the Resources page.</p>
+                            ) : (
+                                <div className="border border-gray-600 bg-gray-800 rounded-md p-3 max-h-48 overflow-y-auto">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                        {volumes.map((volume) => (
+                                            <label
+                                                key={volume.id || volume.name}
+                                                className="flex items-start space-x-2 cursor-pointer hover:bg-gray-700 p-2 rounded transition-colors"
                                             >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    ))}
+                                                <input
+                                                    type="checkbox"
+                                                    checked={config.volumes.includes(volume.name)}
+                                                    onChange={() => toggleVolume(volume.name)}
+                                                    className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-medium text-white truncate">
+                                                        {volume.name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 truncate">
+                                                        {volume.size} • {volume.type}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {config.volumes.length > 0 && (
+                                <div className="mt-2 text-xs text-gray-400">
+                                    Selected ({config.volumes.length}): {config.volumes.join(', ')}
                                 </div>
                             )}
                         </div>

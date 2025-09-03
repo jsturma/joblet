@@ -31,6 +31,15 @@ const Jobs: React.FC = () => {
     const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
     const [autoScroll, setAutoScroll] = useState<boolean>(true);
     const [showCreateJob, setShowCreateJob] = useState<boolean>(false);
+    const [stopJobConfirm, setStopJobConfirm] = useState<{
+        show: boolean;
+        jobId: string;
+        stopping: boolean;
+    }>({
+        show: false,
+        jobId: '',
+        stopping: false
+    });
     const {logs, connected, error: logError, clearLogs} = useLogStream(selectedJobId);
     const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -92,8 +101,44 @@ const Jobs: React.FC = () => {
         setJobLoading(true);
 
         try {
-            const jobDetails = await apiService.getJob(jobId);
-            setSelectedJob(jobDetails);
+            // Try to get comprehensive status first
+            try {
+                const statusData = await apiService.getJobStatus(jobId);
+                // Map the comprehensive status data to Job interface
+                const enhancedJob: Job = {
+                    id: statusData.uuid || statusData.id || jobId,
+                    name: statusData.name,
+                    command: statusData.command || '',
+                    args: statusData.args || [],
+                    status: statusData.status || 'UNKNOWN',
+                    createdTime: statusData.created_time || statusData.createdTime,
+                    startTime: statusData.start_time || statusData.startTime || '',
+                    endTime: statusData.end_time || statusData.endTime,
+                    scheduledTime: statusData.scheduled_time || statusData.scheduledTime,
+                    duration: statusData.duration || 0,
+                    exitCode: statusData.exit_code ?? statusData.exitCode,
+                    maxCPU: statusData.max_cpu || statusData.maxCPU || 0,
+                    maxMemory: statusData.max_memory || statusData.maxMemory || 0,
+                    maxIOBPS: statusData.max_io_bps || statusData.maxIOBPS || 0,
+                    cpuCores: statusData.cpu_cores || statusData.cpuCores,
+                    runtime: statusData.runtime,
+                    network: statusData.network || 'bridge',
+                    volumes: statusData.volumes || [],
+                    uploads: statusData.uploads || statusData.uploaded_files || [],
+                    uploadDirs: statusData.upload_dirs || statusData.uploadDirs || [],
+                    workingDir: statusData.working_dir || statusData.workingDir,
+                    envVars: statusData.environment || statusData.envVars || {},
+                    secretEnvVars: statusData.secrets || statusData.secretEnvVars || {},
+                    dependsOn: statusData.depends_on || statusData.dependsOn || [],
+                    workflowUUID: statusData.workflow_uuid || statusData.workflowUUID
+                };
+                setSelectedJob(enhancedJob);
+            } catch (statusError) {
+                // Fallback to regular job details if status endpoint fails
+                console.warn('Failed to fetch comprehensive status, falling back to basic details:', statusError);
+                const jobDetails = await apiService.getJob(jobId);
+                setSelectedJob(jobDetails);
+            }
         } catch (error) {
             console.error('Failed to fetch job details:', error);
         } finally {
@@ -101,20 +146,29 @@ const Jobs: React.FC = () => {
         }
     };
 
-    const handleStopJob = async (jobId: string) => {
-        if (!confirm('Are you sure you want to stop this running job?')) {
-            return;
-        }
+    const handleStopJob = (jobId: string) => {
+        setStopJobConfirm({show: true, jobId, stopping: false});
+    };
 
-        setStoppingJobId(jobId);
+    const confirmStopJob = async () => {
+        if (!stopJobConfirm.jobId) return;
+
+setStopJobConfirm(prev => ({...prev, stopping: true}));
+        setStoppingJobId(stopJobConfirm.jobId);
         try {
-            await stopJob(jobId);
+            await stopJob(stopJobConfirm.jobId);
+            setStopJobConfirm({show: false, jobId: '', stopping: false});
         } catch (error) {
             console.error('Failed to stop job:', error);
             alert('Failed to stop job: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            setStopJobConfirm(prev => ({...prev, stopping: false}));
         } finally {
             setStoppingJobId(null);
         }
+    };
+
+    const cancelStopJob = () => {
+        setStopJobConfirm({show: false, jobId: '', stopping: false});
     };
 
     const handleDeleteJob = async (jobId: string) => {
@@ -595,6 +649,12 @@ rnx job run "npm test" --cpu=50 --memory=512MB
                                                         </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white font-mono">{selectedJob.id}</dd>
                                                     </div>
+                                                    {selectedJob.name && (
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Name</dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.name}</dd>
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
                                                         <dd className="mt-1">
@@ -614,6 +674,12 @@ rnx job run "npm test" --cpu=50 --memory=512MB
                                                             {selectedJob.args?.length ? selectedJob.args.join(' ') : 'None'}
                                                         </dd>
                                                     </div>
+                                                    {selectedJob.workingDir && (
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Working Directory</dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white font-mono">{selectedJob.workingDir}</dd>
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration</dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDuration(selectedJob.duration)}</dd>
@@ -646,11 +712,42 @@ rnx job run "npm test" --cpu=50 --memory=512MB
                                                 </dl>
                                             </div>
 
+                                            {/* Timing Information */}
+                                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Timing Information</h4>
+                                                <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                    {selectedJob.createdTime && (
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created Time</dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                                                                {new Date(selectedJob.createdTime).toLocaleString()}
+                                                            </dd>
+                                                        </div>
+                                                    )}
+                                                    {selectedJob.startTime && (
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Start Time</dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                                                                {new Date(selectedJob.startTime).toLocaleString()}
+                                                            </dd>
+                                                        </div>
+                                                    )}
+                                                    {selectedJob.endTime && (
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">End Time</dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                                                                {new Date(selectedJob.endTime).toLocaleString()}
+                                                            </dd>
+                                                        </div>
+                                                    )}
+                                                </dl>
+                                            </div>
+
                                             {/* Resource Limits */}
                                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                                 <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Resource
                                                     Limits</h4>
-                                                <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Max
                                                             CPU (%)
@@ -681,7 +778,7 @@ rnx job run "npm test" --cpu=50 --memory=512MB
                                             {/* Configuration */}
                                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                                 <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Configuration</h4>
-                                                <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Runtime</dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.runtime || 'Default'}</dd>
@@ -693,17 +790,62 @@ rnx job run "npm test" --cpu=50 --memory=512MB
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Volumes</dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                                                            {selectedJob.volumes?.length ? selectedJob.volumes.join(', ') : 'None'}
+                                                            {selectedJob.volumes?.length ? (
+                                                                <div className="space-y-1">
+                                                                    {selectedJob.volumes.map((volume, index) => (
+                                                                        <div key={index} className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
+                                                                            {volume}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : 'None'}
                                                         </dd>
                                                     </div>
                                                     <div>
                                                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Uploads</dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                                                            {selectedJob.uploads?.length ? selectedJob.uploads.join(', ') : 'None'}
+                                                            {selectedJob.uploads?.length ? (
+                                                                <div className="space-y-1">
+                                                                    {selectedJob.uploads.map((upload, index) => (
+                                                                        <div key={index} className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
+                                                                            {upload}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : 'None'}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Upload Directories</dt>
+                                                        <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                                                            {selectedJob.uploadDirs?.length ? (
+                                                                <div className="space-y-1">
+                                                                    {selectedJob.uploadDirs.map((uploadDir, index) => (
+                                                                        <div key={index} className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
+                                                                            {uploadDir}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : 'None'}
                                                         </dd>
                                                     </div>
                                                 </dl>
                                             </div>
+
+                                            {/* Workflow Context */}
+                                            {selectedJob.workflowUUID && (
+                                                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Workflow Context</h4>
+                                                    <dl className="grid grid-cols-1 gap-4">
+                                                        <div>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Workflow UUID</dt>
+                                                            <dd className="mt-1 text-sm text-gray-900 dark:text-white font-mono">
+                                                                {selectedJob.workflowUUID}
+                                                            </dd>
+                                                        </div>
+                                                    </dl>
+                                                </div>
+                                            )}
 
                                             {/* Dependencies */}
                                             {selectedJob.dependsOn && selectedJob.dependsOn.length > 0 && (
@@ -792,6 +934,76 @@ rnx job run "npm test" --cpu=50 --memory=512MB
                                     )}
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Stop Job Confirmation Dialog */}
+            {stopJobConfirm.show && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-200">
+                                    Stop Job
+                                </h3>
+                                <button
+                                    onClick={cancelStopJob}
+                                    className="text-gray-400 hover:text-gray-300"
+                                    disabled={stopJobConfirm.stopping}
+                                >
+                                    <X className="h-5 w-5"/>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-300 mb-2">
+                                        Are you sure you want to stop job "{stopJobConfirm.jobId}"?
+                                    </p>
+                                    <p className="text-sm text-orange-400">
+                                        This will terminate the running job immediately. Any unsaved work may be lost.
+                                    </p>
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre className="bg-gray-900 text-orange-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{`rnx job stop ${stopJobConfirm.jobId}`}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            <div className="flex space-x-3 justify-end mt-6">
+                                <button
+                                    onClick={cancelStopJob}
+                                    disabled={stopJobConfirm.stopping}
+                                    className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmStopJob}
+                                    disabled={stopJobConfirm.stopping}
+                                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {stopJobConfirm.stopping ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Stopping...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Square className="h-4 w-4 mr-2"/>
+                                            Stop Job
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
