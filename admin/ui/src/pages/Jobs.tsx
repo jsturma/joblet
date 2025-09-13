@@ -48,6 +48,15 @@ const Jobs: React.FC = () => {
         show: false,
         deleting: false
     });
+    const [deleteJobConfirm, setDeleteJobConfirm] = useState<{
+        show: boolean;
+        jobId: string;
+        deleting: boolean;
+    }>({
+        show: false,
+        jobId: '',
+        deleting: false
+    });
     const {logs, connected, error: logError, clearLogs} = useLogStream(selectedJobId);
     const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -199,20 +208,29 @@ setStopJobConfirm(prev => ({...prev, stopping: true}));
         setDeleteAllConfirm({show: false, deleting: false});
     };
 
-    const handleDeleteJob = async (jobId: string) => {
-        if (!confirm('Are you sure you want to delete this job? This action cannot be UNDONE.')) {
-            return;
-        }
+    const handleDeleteJob = (jobId: string) => {
+        setDeleteJobConfirm({show: true, jobId, deleting: false});
+    };
 
-        setDeletingJobId(jobId);
+    const confirmDeleteJob = async () => {
+        if (!deleteJobConfirm.jobId) return;
+
+        setDeleteJobConfirm(prev => ({...prev, deleting: true}));
+        setDeletingJobId(deleteJobConfirm.jobId);
         try {
-            await deleteJob(jobId);
+            await deleteJob(deleteJobConfirm.jobId);
+            setDeleteJobConfirm({show: false, jobId: '', deleting: false});
         } catch (error) {
             console.error('Failed to delete job:', error);
             alert('Failed to delete job: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            setDeleteJobConfirm(prev => ({...prev, deleting: false}));
         } finally {
             setDeletingJobId(null);
         }
+    };
+
+    const cancelDeleteJob = () => {
+        setDeleteJobConfirm({show: false, jobId: '', deleting: false});
     };
 
     const handleCloseModal = () => {
@@ -1146,6 +1164,79 @@ rnx delete-all
                                         <>
                                             <Trash2 className="h-4 w-4 mr-2"/>
                                             Delete All Jobs
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Job Confirmation Dialog */}
+            {deleteJobConfirm.show && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-200">
+                                    Delete Job
+                                </h3>
+                                <button
+                                    onClick={cancelDeleteJob}
+                                    className="text-gray-400 hover:text-gray-300"
+                                    disabled={deleteJobConfirm.deleting}
+                                >
+                                    <X className="h-5 w-5"/>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-300 mb-2">
+                                        Are you sure you want to delete job "{deleteJobConfirm.jobId}"?
+                                    </p>
+                                    <p className="text-sm text-red-400">
+                                        This will permanently delete the job including its logs and metadata.
+                                    </p>
+                                    <p className="text-sm text-orange-400 mt-2">
+                                        This action cannot be UNDONE.
+                                    </p>
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{`rnx delete ${deleteJobConfirm.jobId}`}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            <div className="flex space-x-3 justify-end mt-6">
+                                <button
+                                    onClick={cancelDeleteJob}
+                                    disabled={deleteJobConfirm.deleting}
+                                    className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteJob}
+                                    disabled={deleteJobConfirm.deleting}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {deleteJobConfirm.deleting ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Trash2 className="h-4 w-4 mr-2"/>
+                                            Delete Job
                                         </>
                                     )}
                                 </button>
