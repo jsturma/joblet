@@ -7,7 +7,7 @@
 source "$(dirname "$0")/../lib/test_framework.sh"
 
 # Test configuration
-GITHUB_REPO="ehsaniara/joblet/tree/code-clean/runtimes"
+GITHUB_REPO="ehsaniara/joblet/tree/main/runtimes"
 PYTHON_RUNTIME="python-3.11-ml"
 JAVA_RUNTIME="openjdk-21"
 TEST_RUNTIME_INSTALLED=false
