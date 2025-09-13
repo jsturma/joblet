@@ -351,21 +351,22 @@ rnx run --network=db-net --volume=pgdata postgres:latest
 
 ## Inter-Job Communication
 
-### Service Discovery
+### Distributed Training Example
 
 ```bash
-# Start a service
+# Start parameter server for distributed training
 rnx run \
-  --network=app-net \
-  redis-server
+  --network=training-net \
+  --name=ps-0 \
+  python3 parameter_server.py --port=2222
 
-# Get service IP
-SERVICE_IP=$(rnx run --network=app-net --json hostname -I | jq -r .output | awk '{print $1}')
+# Get parameter server IP
+PS_IP=$(rnx run --network=training-net --json hostname -I | jq -r .output | awk '{print $1}')
 
-# Connect from another job
+# Start worker nodes
 rnx run \
-  --network=app-net \
-  python app.py
+  --network=training-net \
+  python3 worker.py --ps-host=$PS_IP --worker-id=0
 ```
 
 ### Multi-Service Application
@@ -574,7 +575,7 @@ rnx network create prod-backend --cidr=10.4.2.0/24
 rnx network create prod-database --cidr=10.4.3.0/24
 
 # Service-based naming
-rnx network create redis-cluster --cidr=10.5.1.0/24
+rnx network create cache-cluster --cidr=10.5.1.0/24
 rnx network create kafka-cluster --cidr=10.5.2.0/24
 
 # Project-based naming
@@ -718,28 +719,28 @@ rnx run --network=debug-net nc -zv target-host 80
 ### Microservices Architecture
 
 ```bash
-# Create service networks
-rnx network create frontend-net --cidr=10.80.1.0/24
-rnx network create backend-net --cidr=10.80.2.0/24
-rnx network create cache-net --cidr=10.80.3.0/24
+# Create networks for distributed ML pipeline
+rnx network create training-net --cidr=10.80.1.0/24
+rnx network create inference-net --cidr=10.80.2.0/24
+rnx network create data-processing-net --cidr=10.80.3.0/24
 
-# Deploy services
-# Frontend
+# Deploy ML pipeline components
+# Training job with GPUs
 rnx run \
-  --network=frontend-net \
-  --upload-dir=./frontend \
-  npm start
+  --network=training-net \
+  --upload-dir=./models \
+  python3 train_model.py --epochs=100 --batch-size=128
 
-# Backend API
+# Inference/evaluation job
 rnx run \
-  --network=backend-net \
-  --upload-dir=./backend \
-  python app.py
+  --network=inference-net \
+  --upload-dir=./models \
+  python3 evaluate.py --model-path=/volumes/models/latest
 
-# Cache layer
+# Data preprocessing
 rnx run \
-  --network=cache-net \
-  redis-server
+  --network=data-processing-net \
+  python3 preprocess.py --input=/volumes/raw --output=/volumes/processed
 ```
 
 ### Testing Environment
@@ -763,20 +764,21 @@ rnx run \
 ### Development Workflow
 
 ```bash
-# Create development network
-rnx network create dev --cidr=10.100.0.0/24
+# Create development network for ML experimentation
+rnx network create ml-dev --cidr=10.100.0.0/24
 
-# Start all services
-# Start development services as separate jobs
-rnx run --network=dev --name=db postgres:13
-rnx run --network=dev --name=redis redis:6
+# Start supporting services for ML development
+# Jupyter notebook server for experimentation
+rnx run --network=ml-dev --name=jupyter python3 -m jupyter notebook --ip=0.0.0.0
+# TensorBoard for monitoring training
+rnx run --network=ml-dev --name=tensorboard tensorboard --logdir=/volumes/logs
 
-# Run development job with hot reload
+# Run training experiment with live monitoring
 rnx run \
-  --network=dev \
-  --volume=code \
-  --upload-dir=./src \
-  nodemon app.js
+  --network=ml-dev \
+  --volume=experiments \
+  --upload-dir=./experiments \
+  python3 experiment.py --tensorboard-host=tensorboard
 ```
 
 ## See Also

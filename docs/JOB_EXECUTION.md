@@ -220,15 +220,17 @@ Every job has these variables set:
 ### Using Environment Files
 
 ```bash
-# Create env file
+# Create env file for ML training job
 cat > .env << EOF
-DATABASE_URL=postgres://localhost/mydb
-REDIS_URL=redis://localhost:6379
-API_TOKEN=secret
+MODEL_PATH=/volumes/models/bert-base
+DATASET_PATH=/volumes/datasets/training
+GPU_MEMORY_FRACTION=0.8
+BATCH_SIZE=32
+LEARNING_RATE=0.001
 EOF
 
-# Upload and source
-rnx run --upload=.env bash -c 'source .env && echo $DATABASE_URL'
+# Upload and source for training job
+rnx run --upload=.env python3 train_model.py
 ```
 
 ## Job Scheduling

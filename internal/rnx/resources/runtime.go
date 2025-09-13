@@ -41,7 +41,6 @@ Examples:
   
   # Get information about a specific runtime (language, database, etc.)
   rnx runtime info openjdk-21
-  rnx runtime info redis-7.0
   
   # Test a runtime
   rnx runtime test openjdk-21

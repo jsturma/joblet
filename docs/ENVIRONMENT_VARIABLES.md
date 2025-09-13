@@ -532,23 +532,24 @@ jobs:
 version: "3.0"
 
 jobs:
-  web-app:
-    command: "node"
-    args: ["server.js"]
+  ml-training:
+    command: "python3"
+    args: ["train.py"]
     environment:
-      NODE_ENV: "production"
-      PORT: "8080"
-      APP_NAME: "my-web-app"
+      MODEL_NAME: "bert-base-uncased"
+      BATCH_SIZE: "32"
+      LEARNING_RATE: "0.0001"
+      NUM_EPOCHS: "10"
+      DEVICE: "cuda"
       LOG_LEVEL: "info"
-      REDIS_HOST: "redis.internal"
-      REDIS_PORT: "6379"
+      CHECKPOINT_DIR: "/volumes/checkpoints"
     secret_environment:
-      DATABASE_URL: "postgresql://user:pass@db:5432/app"
-      SESSION_SECRET: "super_secret_session_key"
-      REDIS_PASSWORD: "redis_secret_password"
+      WANDB_API_KEY: "your_wandb_api_key_here"
+      HF_TOKEN: "huggingface_token_here"
+      AWS_ACCESS_KEY: "aws_key_for_s3_data"
     resources:
-      max_memory: 512
-      max_cpu: 50
+      max_memory: 16384
+      max_cpu: 400
 ```
 
 ### Example 2: Data Pipeline
@@ -660,58 +661,57 @@ jobs:
       max_memory: 1024
 ```
 
-### Example 4: Microservices Configuration
+### Example 4: Distributed Training Configuration
 
 ```yaml
 version: "3.0"
 
 jobs:
-  user-service:
-    command: "java"
-    args: ["-jar", "user-service.jar"]
+  parameter-server:
+    command: "python3"
+    args: ["parameter_server.py"]
     environment:
-      SPRING_PROFILES_ACTIVE: "production"
-      SERVER_PORT: "8081"
-      SERVICE_NAME: "user-service"
-      LOG_LEVEL: "INFO"
-      CACHE_ENABLED: "true"
-      CACHE_TTL: "3600"
+      ROLE: "ps"
+      PS_HOST: "0.0.0.0"
+      PS_PORT: "2222"
+      NUM_WORKERS: "4"
+      MODEL_PARALLELISM: "true"
+      OPTIMIZER: "adam"
     secret_environment:
-      DATABASE_PASSWORD: "user_db_password"
-      JWT_SECRET: "user_service_jwt_secret"
-      REDIS_PASSWORD: "redis_password"
-    network: "microservices"
+      CLUSTER_TOKEN: "secure_cluster_token"
+      MONITORING_API_KEY: "monitoring_key"
+    network: "distributed-training"
     resources:
       max_memory: 1024
 
-  payment-service:
-    command: "java"
-    args: ["-jar", "payment-service.jar"]
+  worker-node-0:
+    command: "python3"
+    args: ["worker.py"]
     environment:
-      SPRING_PROFILES_ACTIVE: "production"
-      SERVER_PORT: "8082"
-      SERVICE_NAME: "payment-service"
-      USER_SERVICE_URL: "http://user-service:8081"
-      LOG_LEVEL: "INFO"
+      ROLE: "worker"
+      WORKER_ID: "0"
+      PS_HOST: "parameter-server"
+      PS_PORT: "2222"
+      BATCH_SIZE: "64"
+      GRADIENT_ACCUMULATION: "4"
     secret_environment:
-      DATABASE_PASSWORD: "payment_db_password"
-      STRIPE_SECRET_KEY: "dummy_stripe_secret_key"
-      JWT_SECRET: "payment_service_jwt_secret"
-    network: "microservices"
+      CLUSTER_TOKEN: "secure_cluster_token"
+    network: "distributed-training"
     requires:
-      - user-service: "RUNNING"
+      - parameter-server: "RUNNING"
     resources:
-      max_memory: 1024
+      max_memory: 8192
 
-  api-gateway:
-    command: "node"
-    args: ["gateway.js"]
+  worker-node-1:
+    command: "python3"
+    args: ["worker.py"]
     environment:
-      NODE_ENV: "production"
-      PORT: "8080"
-      USER_SERVICE_URL: "http://user-service:8081"
-      PAYMENT_SERVICE_URL: "http://payment-service:8082"
-      RATE_LIMIT_REQUESTS: "1000"
+      ROLE: "worker"
+      WORKER_ID: "1"
+      PS_HOST: "parameter-server"
+      PS_PORT: "2222"
+      BATCH_SIZE: "64"
+      GRADIENT_ACCUMULATION: "4"
       RATE_LIMIT_WINDOW: "60000"
     secret_environment:
       API_SECRET: "gateway_api_secret"
