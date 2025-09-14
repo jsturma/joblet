@@ -15,7 +15,7 @@ examples/
 
 ### JavaRuntimeTest.java
 
-Comprehensive Java runtime test that validates:
+Java runtime test that validates:
 
 - Java version and system properties
 - File I/O operations
@@ -29,7 +29,7 @@ Usage:
 rnx run --runtime=openjdk-21 --upload=examples/java/JavaRuntimeTest.java javac JavaRuntimeTest.java
 rnx run --runtime=openjdk-21 java JavaRuntimeTest
 
-# Or using GraalVM for high performance
+# Or using GraalVM
 rnx run --runtime=graalvmjdk-21 --upload=examples/java/JavaRuntimeTest.java javac JavaRuntimeTest.java
 rnx run --runtime=graalvmjdk-21 java JavaRuntimeTest
 ```
@@ -42,7 +42,7 @@ Simple "Hello World" Java program for quick testing.
 
 ### comprehensive-python-test.py
 
-Complete Python runtime test that validates:
+Python runtime test that validates:
 
 - Python version and system info
 - NumPy, pandas, scikit-learn functionality
@@ -79,7 +79,7 @@ Example scripts for multi-job workflows demonstrating data processing pipelines.
 - ✅ Data science with NumPy/Pandas
 - ✅ Statistical analysis
 - ✅ Scientific computing
-- ✅ Complex HTTP operations
+- ✅ HTTP operations
 
 ### **Choose `openjdk-21` for:**
 
@@ -90,7 +90,7 @@ Example scripts for multi-job workflows demonstrating data processing pipelines.
 
 ### **Choose `graalvmjdk-21` for:**
 
-- ✅ High-performance Java applications
+- ✅ Java applications
 - ✅ Native binary compilation
 - ✅ Microservices with fast startup
 - ✅ Resource-constrained environments

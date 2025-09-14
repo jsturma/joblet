@@ -1,10 +1,10 @@
 # Advanced Joblet Examples
 
-Advanced patterns for orchestrating multiple jobs with dependencies and data flow.
+Patterns for orchestrating multiple jobs with dependencies and data flow.
 
 ## 📚 Overview
 
-This example demonstrates sophisticated job coordination patterns using Joblet's isolated execution environment.
+This example demonstrates job coordination patterns using Joblet's isolated execution environment.
 
 | Example                               | File                  | Description                           | Complexity | Resources |
 |---------------------------------------|-----------------------|---------------------------------------|------------|-----------|
@@ -21,7 +21,7 @@ This example works with Python 3 standard library only - no external dependencie
 
 ## 🔗 Job Coordination
 
-Advanced patterns for orchestrating multiple jobs with dependencies and data flow.
+Patterns for orchestrating multiple jobs with dependencies and data flow.
 
 ### File Included
 

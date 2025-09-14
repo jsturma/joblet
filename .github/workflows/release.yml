@@ -99,7 +99,7 @@ jobs:
 
           # Build RNX CLI
           echo "Building RNX CLI for ${{ matrix.platform }}..."
-          ./scripts/build-version.sh rnx
+          ./scripts/build-version.sh rnx bin
           # Only rename if extension is needed
           if [ -n "${{ matrix.ext }}" ]; then
             mv bin/rnx bin/rnx${{ matrix.ext }}
@@ -108,7 +108,7 @@ jobs:
           # Build Joblet Server (Linux only)
           if [ "${{ matrix.goos }}" = "linux" ]; then
             echo "Building Joblet Server for ${{ matrix.platform }}..."
-            ./scripts/build-version.sh joblet
+            ./scripts/build-version.sh joblet bin
             # Only rename if extension is needed
             if [ -n "${{ matrix.ext }}" ]; then
               mv bin/joblet bin/joblet${{ matrix.ext }}

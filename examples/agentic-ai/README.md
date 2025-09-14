@@ -1,6 +1,6 @@
-# Agentic AI Foundation Examples
+# AI Examples
 
-Examples demonstrating how to use Joblet for agentic AI systems, LLM workflows, and intelligent agent coordination.
+Examples demonstrating how to use Joblet for AI systems, LLM workflows, and agent coordination.
 
 ## 🤖 Examples Overview
 
@@ -79,12 +79,12 @@ rnx run --upload=llm_inference.py \
 
 ### Service Features
 
-- **Intelligent Caching**: MD5-based prompt caching for efficiency
+- **Caching**: MD5-based prompt caching
 - **Batch Processing**: Handle multiple requests in parallel
-- **Performance Metrics**: Track requests, tokens, cache hit rates
-- **LLM Simulation**: Realistic response generation for demonstration
+- **Metrics**: Track requests, tokens, cache hit rates
+- **LLM Simulation**: Response generation for demonstration
 - **Response Types**: Code generation, analysis, and general Q&A
-- **Persistent Storage**: Cache and results saved to volumes
+- **Storage**: Cache and results saved to volumes
 
 ### Expected Output
 
@@ -158,7 +158,7 @@ rnx run --upload=multi_agent_system.py \
 - **Task Distribution**: Automatic assignment based on agent capabilities
 - **Performance Metrics**: Track agent utilization and task completion times
 - **Result Aggregation**: Combine outputs from multiple agents
-- **Comprehensive Logging**: Detailed execution logs and metrics
+- **Logging**: Detailed execution logs and metrics
 
 ### Expected Output
 
@@ -285,9 +285,9 @@ rnx run --upload=distributed_training.py \
 
 - **Multi-Worker Coordination**: 4 parallel training workers
 - **Parameter Synchronization**: Simulated gradient averaging
-- **Performance Monitoring**: Real-time metrics collection
+- **Monitoring**: Real-time metrics collection
 - **Early Stopping**: Automatic termination when target accuracy reached
-- **Comprehensive Reporting**: Training statistics and model artifacts
+- **Reporting**: Training statistics and model artifacts
 - **Resource Efficiency**: Optimized memory and CPU usage
 
 ### Expected Output
@@ -408,7 +408,7 @@ rnx run --volume=ai-models cat /volumes/ai-models/pipeline/model_info.json
 
 ### Production Readiness
 
-- **Metrics Collection**: Comprehensive performance monitoring across all components
+- **Metrics Collection**: Performance monitoring across all components
 - **Error Handling**: Robust error recovery and graceful degradation
 - **Scalability**: Patterns for scaling from single agents to distributed systems
 - **Persistence**: Proper use of volumes for model artifacts, cache, and results

@@ -23,14 +23,14 @@ Joblet supports two types of environment variables:
 
 ### Key Features
 
-- ✅ **Dual environment variable types** (regular vs secret)
-- ✅ **Multiple input methods** (command line flags, workflow YAML)
-- ✅ **Workflow inheritance** (global variables inherited by jobs with override support)
-- ✅ **Variable templating** (`${VAR_NAME}` syntax for referencing other variables)
-- ✅ **Status display masking** (secret variables shown as `***` in status output)
-- ✅ **Comprehensive validation** (name format, value size, conflict detection)
-- ✅ **Security-first design** (secret variables hidden from logs)
-- ✅ **Reserved variable warnings** (system variables like PATH, HOME)
+- **Dual environment variable types** (regular vs secret)
+- **Multiple input methods** (command line flags, workflow YAML)
+- **Workflow inheritance** (global variables inherited by jobs with override support)
+- **Variable templating** (`${VAR_NAME}` syntax for referencing other variables)
+- **Status display masking** (secret variables shown as `***` in status output)
+- **Variable validation** (name format, value size, conflict detection)
+- **Security design** (secret variables hidden from logs)
+- **Reserved variable warnings** (system variables like PATH, HOME)
 
 ## CLI Usage
 

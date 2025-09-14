@@ -93,7 +93,7 @@ Builder Chroot: /opt/joblet/jobs/{BUILD_ID}/
 
 ## Critical Security Analysis
 
-### 1. Recursion Prevention ✅ SECURE
+### 1. Recursion Prevention - SECURE
 
 **Problem:** Builder chroot could mount `/opt/joblet/jobs/` creating infinite recursion
 
@@ -110,7 +110,7 @@ func (f *JobFilesystem) mountOptDirectory(hostOptPath, targetOptPath string) err
         // Skip joblet directory to prevent recursion
         if dirName == "joblet" {
             log.Debug("skipping /opt/joblet to prevent recursion")
-            continue  // ✅ CRITICAL SECURITY CHECK
+            continue  // - CRITICAL SECURITY CHECK
         }
         // ... mount other /opt contents
     }
@@ -125,7 +125,7 @@ func (f *JobFilesystem) mountRuntimesDirectory() error {
     if err := f.platform.Mount(hostRuntimesPath, targetRuntimesPath, "", uintptr(syscall.MS_BIND), ""); err != nil {
         return fmt.Errorf("failed to bind mount runtimes directory: %w", err)
     }
-    // ✅ PRECISE MOUNTING - only runtimes directory accessible
+    // - PRECISE MOUNTING - only runtimes directory accessible
 }
 ```
 
@@ -136,7 +136,7 @@ func (f *JobFilesystem) mountRuntimesDirectory() error {
 - `/opt/joblet/logs/` (system logs)
 - Any other `/opt/joblet/` subdirectories
 
-### 2. Filesystem Write Isolation ✅ SECURE
+### 2. Filesystem Write Isolation - SECURE
 
 **Concern:** Builder jobs could contaminate production job filesystems
 
@@ -155,11 +155,11 @@ func (i *Isolator) CreateBuilderFilesystem(jobID string) (*JobFilesystem, error)
     jobRootDir := filepath.Join(i.config.BaseDir, jobID)  // /opt/joblet/jobs/{BUILD_ID}/
     jobTmpDir := strings.Replace(i.config.TmpDir, "{JOB_ID}", jobID, -1)  // /tmp/job-{BUILD_ID}/
     
-    // ✅ BUILD_ID != JOB_ID - complete separation
+    // - BUILD_ID != JOB_ID - complete separation
 }
 ```
 
-### 3. Service-Based Routing Security ✅ SECURE
+### 3. Service-Based Routing Security - SECURE
 
 **Concern:** Jobs could be misrouted between isolation levels
 
@@ -177,7 +177,7 @@ func (i *Isolator) CreateBuilderFilesystem(jobID string) (*JobFilesystem, error)
 - **Environment Isolation**: Job type passed through secure environment variables
 - **Fail-Safe Default**: Unknown/missing job types default to production isolation
 
-### 4. Process Isolation Parity ✅ SECURE
+### 4. Process Isolation Parity - SECURE
 
 Both job types use identical process isolation:
 
@@ -197,17 +197,17 @@ func (i *Isolator) validateJobContext() error {
     // Both job types must pass same safety checks
     jobID := i.platform.Getenv("JOB_ID")
     if jobID == "" {
-        return fmt.Errorf("not in job context - JOB_ID not set")  // ✅ SAFETY CHECK
+        return fmt.Errorf("not in job context - JOB_ID not set")  // - SAFETY CHECK
     }
 
     if i.platform.Getpid() != 1 {
-        return fmt.Errorf("not in isolated PID namespace - refusing filesystem isolation")  // ✅ NAMESPACE VERIFICATION
+        return fmt.Errorf("not in isolated PID namespace - refusing filesystem isolation")  // - NAMESPACE VERIFICATION
     }
     return nil
 }
 ```
 
-### 5. Temporary Space Isolation ✅ SECURE
+### 5. Temporary Space Isolation - SECURE
 
 **Concern:** Shared `/tmp` could leak data between job types
 
@@ -226,10 +226,10 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- ✅ **Read-only host mounts**: Cannot modify system binaries
-- ✅ **No package managers**: Cannot install escape tools
-- ✅ **Minimal attack surface**: Limited binaries available
-- ✅ **Process isolation**: Cannot see other namespaces
+- - **Read-only host mounts**: Cannot modify system binaries
+- - **No package managers**: Cannot install escape tools
+- - **Minimal attack surface**: Limited binaries available
+- - **Process isolation**: Cannot see other namespaces
 
 ### 2. Privilege Escalation
 
@@ -237,10 +237,10 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- ✅ **Same user context**: Runs as same unprivileged user as production jobs
-- ✅ **No setuid binaries**: Host mounts are read-only
-- ✅ **Cgroup limits**: Resource restrictions prevent DoS attacks
-- ✅ **Network isolation**: Cannot access privileged network services
+- - **Same user context**: Runs as same unprivileged user as production jobs
+- - **No setuid binaries**: Host mounts are read-only
+- - **Cgroup limits**: Resource restrictions prevent DoS attacks
+- - **Network isolation**: Cannot access privileged network services
 
 ### 3. Data Exfiltration Between Job Types
 
@@ -248,10 +248,10 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- ✅ **Separate filesystem trees**: No shared writable space
-- ✅ **Isolated temp directories**: Different UUID-based paths
-- ✅ **Read-only runtime access**: Production jobs can only read completed runtimes
-- ✅ **No job directory access**: Cannot access other jobs' workspaces
+- - **Separate filesystem trees**: No shared writable space
+- - **Isolated temp directories**: Different UUID-based paths
+- - **Read-only runtime access**: Production jobs can only read completed runtimes
+- - **No job directory access**: Cannot access other jobs' workspaces
 
 ### 4. Resource Exhaustion
 
@@ -259,10 +259,10 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- ✅ **Same cgroup limits**: Both job types subject to identical resource controls
-- ✅ **Independent quotas**: Each job gets separate CPU/memory/I/O allocation
-- ✅ **Process limits**: Same process count restrictions
-- ✅ **Cleanup guarantees**: Failed jobs are cleaned up automatically
+- - **Same cgroup limits**: Both job types subject to identical resource controls
+- - **Independent quotas**: Each job gets separate CPU/memory/I/O allocation
+- - **Process limits**: Same process count restrictions
+- - **Cleanup guarantees**: Failed jobs are cleaned up automatically
 
 ## Recommended Additional Hardening
 
@@ -352,15 +352,15 @@ mounts:
 
 ### Implementation Status
 
-- ✅ **Runtime Cleanup System**: Implemented in `internal/joblet/core/runtime_cleanup.go`
-- ✅ **Setup Script Integration**: Updated `runtimes/openjdk-21/setup-ubuntu-amd64.sh`
-- ✅ **Isolated Structure**: Creates `isolated/` directory with runtime files
-- ✅ **Configuration Update**: Rewrites `runtime.yml` with isolated paths
+- - **Runtime Cleanup System**: Implemented in `internal/joblet/core/runtime_cleanup.go`
+- - **Setup Script Integration**: Updated `runtimes/openjdk-21/setup-ubuntu-amd64.sh`
+- - **Isolated Structure**: Creates `isolated/` directory with runtime files
+- - **Configuration Update**: Rewrites `runtime.yml` with isolated paths
 - 🔄 **Additional Runtimes**: Python and Node.js runtimes need similar updates
 
 ## Security Conclusion
 
-**VERDICT: ✅ SECURE - No isolation leaks detected + Enhanced runtime isolation**
+**VERDICT: - SECURE - No isolation leaks detected + Enhanced runtime isolation**
 
 The service-based dual chroot implementation provides:
 

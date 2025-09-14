@@ -7,7 +7,7 @@ Joblet features.
 
 ### 1. `ml-pipeline/`
 
-Complete machine learning pipeline with real ML scripts.
+Machine learning pipeline with real ML scripts.
 
 - **Location**: `examples/workflows/ml-pipeline/`
 - **Commands**: `python3` with actual ML processing scripts
@@ -85,7 +85,7 @@ Advanced ETL pipeline with job dependencies.
 
 - **Location**: `examples/workflows/etl-processing/`
 - **Commands**: `python3`, `bash`, `rsync`, `pg_dump`
-- **Features**: Complex ETL → validation → compression → reporting workflow
+- **Features**: ETL → validation → compression → reporting workflow
 - **Scripts**: ETL processing scripts with dependency chain
 - **Test**: `cd examples/workflows/etl-processing && rnx run --workflow=etl-pipeline.yaml:etl`
 

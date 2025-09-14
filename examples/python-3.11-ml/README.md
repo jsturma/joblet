@@ -49,7 +49,7 @@ rnx run --runtime=python-3.11 --upload-dir=. python example_data_analysis.py
 
 ## 📦 Example Included
 
-### `example_data_analysis.py` - Complete ML Pipeline
+### `example_data_analysis.py` - ML Pipeline
 
 Works with **both runtime approaches**:
 
@@ -75,7 +75,7 @@ Works with **both runtime approaches**:
 ### `python-3.11` + Packaged Dependencies
 
 ✅ **Exact versions** - Use precisely the packages you need  
-✅ **Perfect reproducibility** - Dependencies travel with code  
+✅ **Reproducibility** - Dependencies travel with code  
 ✅ **No version conflicts** - Each project has isolated dependencies  
 ✅ **Lighter host** - 50MB runtime footprint  
 ❌ **Setup required** - Must package dependencies first  
@@ -109,13 +109,13 @@ rnx run --runtime=python:3.11 --upload-dir=. python example_data_analysis.py
 
 ## 📊 What the Example Does
 
-The `example_data_analysis.py` script demonstrates a complete ML workflow:
+The `example_data_analysis.py` script demonstrates an ML workflow:
 
 ### 🔢 Data Generation & Analysis
 
 - Creates synthetic dataset (1000 samples, 5 features)
 - Generates binary classification target
-- Displays comprehensive dataset statistics using Pandas
+- Displays dataset statistics using Pandas
 
 ### 🤖 Machine Learning Pipeline
 
@@ -167,7 +167,7 @@ python-3.11-ml/
 ### Use `python:3.11` + packaged deps when:
 
 - Need specific package versions
-- Want perfect reproducibility
+- Want reproducibility
 - Deploying to production environments
 - Multiple projects with different requirements
 - Want isolated, controlled environments

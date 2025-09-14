@@ -1,47 +1,43 @@
-# Joblet: Enterprise-Grade Job Execution Platform
+# Joblet: Linux Job Execution Platform
 
-> **A Lightweight Container Alternative Built for Production Workloads**
->
-> Joblet is a native Linux job execution platform that provides secure process isolation, comprehensive resource
-> management, and enterprise-ready orchestration without the overhead of traditional container solutions.
+Joblet is a Linux job execution platform that uses namespaces and cgroups for process isolation and resource management.
 
-## 🚀 Why Joblet?
+## Overview
 
-### **Lightweight Container Alternative for Modern Infrastructure**
+Joblet runs jobs in isolated Linux namespaces with configurable resource limits. It provides job scheduling, workflow orchestration, and monitoring through a gRPC API and CLI client.
 
-Unlike traditional containerization solutions, Joblet leverages Linux namespaces and cgroups directly, providing:
+### Key Features
 
-- **🔒 Better Security**: Process-level isolation without container escape vulnerabilities
-- **⚡ Superior Performance**: Direct syscall execution without container runtime overhead
-- **💰 Cost Efficiency**: Lower resource consumption and faster startup times compared to traditional containers
-- **🎯 Simpler Operations**: No image management, registries, or container complexity
+- **Process Isolation**: Jobs run in separate PID, network, mount, IPC, and UTS namespaces
+- **Resource Control**: CPU, memory, and I/O limits using cgroups v2
+- **Job Scheduling**: Time-based scheduling and dependency management
+- **Network Management**: Custom networks with isolation and traffic control
+- **Volume Management**: Persistent storage with size and type controls
+- **Monitoring**: Built-in metrics collection and log streaming
 
-### **Enterprise Production Ready**
+### Authentication & Security
 
-- **🏢 mTLS Authentication**: Certificate-based security with role-based access control
-- **📊 Advanced Monitoring**: Real-time metrics with comprehensive system observability
-- **🌐 Network Isolation**: Custom networks with traffic control and bandwidth limiting
-- **💾 Persistent Storage**: Volume management with size limits and type flexibility
-- **🔄 Workflow Orchestration**: YAML-based job dependencies with validation
+- mTLS with certificate-based authentication
+- Role-based access control (admin, user, readonly)
+- Process isolation prevents privilege escalation
+- Network isolation between jobs
 
-### **Developer Experience First**
+### Client & Interface
 
-- **🖥️ Cross-Platform CLI**: RNX client works on Linux, macOS, and Windows (server requires Linux)
-- **🎨 Modern Web UI**: React-based interface for visual workflow management (available via Homebrew on macOS)
-- **📱 Real-Time Logs**: Live log streaming with filtering and search
-- **🛠️ Runtime System**: Pre-built environments for Python, Python ML, and Java applications
+- **RNX CLI**: Cross-platform client (Linux, macOS, Windows)
+- **Web UI**: React-based management interface
+- **Log Streaming**: Real-time log output with filtering
+- **Runtime Environments**: Pre-built Python, Python ML, and Java runtimes
 
-## 🎨 Visual Interface
+## Web Interface
 
-### **Comprehensive System Monitoring**
-
+### System Monitoring
 ![System Monitoring](./AdminUI-SystemMonitoring1.png)
 
-### **Advanced Workflow Management**
-
+### Workflow Management
 ![Workflow Management](./AdminUI-Workflow1.png)
 
-## 🎯 Industry Use Cases
+## Use Cases
 
 ### **CI/CD & DevOps**
 
@@ -139,32 +135,21 @@ rnx run --max-memory=1024 --runtime=python-3.11-ml \
         python monitoring_agent.py
 ```
 
-## 📊 Performance Advantages
+## Architecture
 
-| Feature             | Traditional Containers  | Joblet                         |
-|---------------------|-------------------------|--------------------------------|
-| **Startup Time**    | Image pull + startup    | Faster with pre-built runtimes |
-| **Memory Overhead** | Container runtime layer | Direct process execution       |
-| **Security**        | Container escape risks  | Direct process isolation       |
-| **Networking**      | Complex bridge setup    | Native Linux networking        |
-| **Storage**         | Image layers & volumes  | Direct filesystem access       |
-| **Monitoring**      | External tools required | Built-in comprehensive metrics |
+### Linux Integration
 
-## 🏗️ Architecture Benefits
-
-### **Native Linux Integration**
-
-- **Cgroups v2**: Advanced resource control and accounting
+- **Cgroups v2**: Resource control and accounting
 - **Namespaces**: PID, network, mount, IPC, UTS isolation
-- **No Virtualization**: Direct hardware access for maximum performance
-- **System Integration**: Seamless integration with existing infrastructure
+- **Direct Execution**: Jobs run as native Linux processes
+- **System Integration**: Uses standard Linux interfaces
 
-### **Enterprise Security Model**
+### Security Model
 
-- **mTLS Everywhere**: Certificate-based authentication for all communications
-- **Role-Based Access**: Granular permissions (admin, operator, viewer)
-- **Process Isolation**: Each job runs in isolated namespace
-- **Resource Boundaries**: Hard limits prevent resource exhaustion
+- **mTLS**: Certificate-based authentication for all communications
+- **Role-Based Access**: Admin, user, and readonly permissions
+- **Process Isolation**: Jobs run in separate namespaces
+- **Resource Limits**: Configurable CPU, memory, and I/O constraints
 
 ### **Scalable Design**
 
@@ -293,35 +278,36 @@ rnx run --network=my-network --volume=data-vol app
 - **Cost Savings**: Lower resource overhead and operational complexity
 - **Native Integration**: Works with existing Linux infrastructure
 
-### **For Development Teams**
+### Development
 
-- **Faster Iteration**: Instant job startup without image builds
-- **Better Debugging**: Direct access to processes and filesystems
-- **Flexible Environments**: Runtime system with pre-built environments
-- **Modern Tooling**: CLI and web UI designed for developer productivity
+- Job startup without container image builds
+- Direct process and filesystem access for debugging
+- Pre-built runtime environments (Python, Java, ML)
+- CLI and web UI tools
 
-### **For Operations Teams**
+### Operations
 
-- **Comprehensive Monitoring**: Built-in metrics and real-time observability
-- **Enterprise Security**: mTLS and role-based access control
-- **Workflow Management**: Visual interface for complex job orchestration
-- **Production Ready**: Designed for enterprise scale and reliability
+- Built-in metrics and monitoring
+- mTLS authentication and RBAC
+- Web interface for job management
+- Resource limit enforcement
 
-### **For SRE Teams**
+### Site Reliability
 
-- **Reliability Engineering**: Process isolation prevents cascading failures
-- **Resource Governance**: Hard limits prevent resource exhaustion incidents
-- **Observability**: Built-in metrics and alerting for proactive monitoring
-- **Incident Response**: Direct process access for faster debugging and resolution
+- Process isolation prevents failure cascade
+- Configurable resource limits
+- Monitoring and alerting integration
+- Direct process access for debugging
 
-### **For AI Agent Developers**
+### AI/ML Workloads
 
-- **Agent Isolation**: Run multiple AI agents safely with process boundaries
-- **Resource Control**: Prevent AI workloads from consuming excessive resources
-- **Model Execution**: Pre-built ML runtimes with comprehensive package management
-- **Workflow Orchestration**: Chain AI agents with dependencies and data flow control
+- Isolated execution for multiple agents
+- Resource controls for ML workloads
+- Pre-built ML environments with common packages
+- Workflow orchestration for agent chains
 
 ---
 
-**Ready to modernize your job execution infrastructure?** Start with our [Quick Start Guide](./QUICKSTART.md) and
-experience the Joblet difference.
+## Getting Started
+
+See the [Quick Start Guide](./QUICKSTART.md) for installation and basic usage.

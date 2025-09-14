@@ -26,7 +26,7 @@ resource-hungry processes.
 - **Real-time Monitoring**: Live logs, system metrics, and job status tracking
 - **mTLS Security**: Certificate-based authentication with role-based access control
 - **Pre-built Runtimes**: Python (basic + ML), Java, GraalVM environments for faster job startup
-- **Web Admin UI**: React-based interface for comprehensive system management (macOS)
+- **Web Admin UI**: React-based interface for system management (macOS)
 
 ## 📦 Quick Start
 
