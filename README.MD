@@ -173,19 +173,7 @@ Available on macOS via Homebrew with `--with-admin`:
 - **[Security Guide](docs/SECURITY.md)**
 - **[Examples](examples/)**
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
-
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
----
-
-**Quick Links:
-** [Releases](https://github.com/ehsaniara/joblet/releases) | [Examples](examples/) | [Issues](https://github.com/ehsaniara/joblet/issues)
