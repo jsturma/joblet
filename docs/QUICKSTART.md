@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get Joblet up and running in 5 minutes! This guide covers the essential steps to install and start using Joblet.
+Installation and setup guide for Joblet.
 
 ## 🚀 Installation
 

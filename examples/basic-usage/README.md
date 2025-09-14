@@ -1,6 +1,6 @@
 # Basic Usage Examples
 
-Learn Joblet fundamentals with simple, practical examples covering core features and concepts.
+Basic examples of Joblet features.
 
 ## 📚 Examples Overview
 
@@ -63,10 +63,10 @@ Learn the basics of running commands with Joblet.
 
 ### What It Demonstrates
 
-- Running simple shell commands in isolated environments
-- Understanding how jobs are submitted and executed
-- Getting familiar with the basic `rnx run` syntax
-- Viewing job output and status
+- Running shell commands in isolated environments
+- Job submission and execution
+- Basic `rnx run` syntax
+- Job output and status
 
 ### Key Concepts
 
@@ -245,10 +245,10 @@ All basic Joblet concepts in a structured learning path:
 
 ### Key Features
 
-- **Interactive Learning**: Pauses between sections for understanding
-- **Comprehensive Coverage**: All basic concepts in one script
-- **Progressive Complexity**: Builds from simple to advanced concepts
-- **Practical Examples**: Real-world usage patterns
+- **Interactive**: Pauses between sections
+- **Coverage**: All basic concepts in one script
+- **Progression**: Builds from simple to advanced
+- **Examples**: Usage patterns
 
 ### Usage
 
@@ -256,15 +256,15 @@ All basic Joblet concepts in a structured learning path:
 ./run_demos.sh
 ```
 
-The script provides an interactive learning experience with explanations and examples for each concept.
+The script runs through examples for each concept.
 
 ## 💡 Best Practices Demonstrated
 
 ### Command Execution
 
-- **Start Simple**: Begin with basic commands before complex operations
-- **Test Connectivity**: Always verify connection to Joblet server first
-- **Use Appropriate Resources**: Set memory and CPU limits based on job needs
+- **Start Simple**: Begin with basic commands
+- **Test Connectivity**: Verify server connection first
+- **Resources**: Set memory and CPU limits based on needs
 
 ### File Management
 
@@ -274,15 +274,15 @@ The script provides an interactive learning experience with explanations and exa
 
 ### Resource Planning
 
-- **Right-Size Jobs**: Use appropriate resource limits for each job
-- **Monitor Usage**: Track resource consumption to optimize limits
-- **Prevent Exhaustion**: Set limits to protect system resources
+- **Size Jobs**: Set resource limits for each job
+- **Monitor Usage**: Track resource consumption
+- **Set Limits**: Protect system resources
 
 ### Data Persistence
 
-- **Use Volumes Wisely**: Create volumes for data that needs persistence
-- **Volume Types**: Choose filesystem for persistence, memory for speed
-- **Clean Up**: Remove unused volumes to free resources
+- **Volumes**: Create for persistent data
+- **Types**: Filesystem for persistence, memory for speed
+- **Clean Up**: Remove unused volumes
 
 ### Job Management
 
@@ -292,10 +292,10 @@ The script provides an interactive learning experience with explanations and exa
 
 ## 🚀 Next Steps
 
-1. **Master the Basics**: Work through all examples in order
-2. **Experiment**: Try variations of the examples with your own data
-3. **Scale Up**: Move to advanced examples when comfortable with basics
-4. **Production Use**: Apply concepts to real-world workflows
+1. **Basics**: Work through examples in order
+2. **Experiment**: Try variations with your data
+3. **Scale Up**: Move to advanced examples
+4. **Production**: Apply to workflows
 
 ## 📚 Additional Resources
 

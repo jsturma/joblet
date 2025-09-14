@@ -31,8 +31,8 @@ import (
 // network setup, monitoring services, and the gRPC server. Handles graceful shutdown
 // when receiving termination signals.
 //
-// The server supports multiple storage backends (currently memory only) and provides
-// comprehensive job execution, resource management, and monitoring capabilities.
+// The server supports multiple storage backends (currently memory only) with
+// job execution, resource management, and monitoring.
 //
 // Parameters:
 //   - cfg: Complete configuration object with all server settings

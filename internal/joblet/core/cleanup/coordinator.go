@@ -36,8 +36,7 @@ type Coordinator struct {
 	networkStore adapters.NetworkStorer
 }
 
-// CleanupStatus tracks the status of a cleanup operation.
-// Comprehensive status tracking for cleanup progress with error collection,
+// CleanupStatus tracks the status of a cleanup operation with error collection,
 // timestamps, and completion flags for each cleanup phase.
 type CleanupStatus struct {
 	JobID         string

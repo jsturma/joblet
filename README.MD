@@ -6,27 +6,23 @@
 
 <img align="right" width="159px" src="docs/joblet-thumbnail.png">
 
-**Joblet** provides **secure, isolated job execution** on Linux systems. Run commands remotely with complete process
-isolation, resource limits, real-time monitoring, and network isolation - protecting your host system from malicious or
-resource-hungry processes.
+**Joblet** executes jobs on Linux systems with process isolation, resource limits, monitoring, and network isolation.
 
-> **📚 For comprehensive documentation and detailed features, see [/docs/README.md](docs/README.md)**
+> **📚 Documentation: [/docs/README.md](docs/README.md)**
 
-> **🤖 AI Agent Support:** Secure sandboxed code execution with resource controls and process isolation - enabling AI
-> agents
-> to safely execute code without compromising host security.
+> **🤖 AI Agent Support:** Sandboxed code execution with resource controls and process isolation.
 
 ## 🎯 Key Features
 
-- **Process Isolation**: Jobs run in separate PID namespaces with limited filesystem access
-- **Resource Control**: CPU, memory, I/O bandwidth limits with specific core binding
+- **Process Isolation**: Separate PID namespaces with limited filesystem access
+- **Resource Control**: CPU, memory, I/O bandwidth limits with core binding
 - **Network Isolation**: Custom networks with traffic segmentation
-- **Volume Management**: Persistent storage with filesystem and memory-based volumes
-- **Job Scheduling**: Future execution with flexible time specifications
-- **Real-time Monitoring**: Live logs, system metrics, and job status tracking
-- **mTLS Security**: Certificate-based authentication with role-based access control
-- **Pre-built Runtimes**: Python (basic + ML), Java, GraalVM environments for faster job startup
-- **Web Admin UI**: React-based interface for system management (macOS)
+- **Volume Management**: Persistent storage (filesystem and memory-based)
+- **Job Scheduling**: Delayed execution with time specifications
+- **Monitoring**: Logs, metrics, and status tracking
+- **mTLS Security**: Certificate-based authentication with RBAC
+- **Pre-built Runtimes**: Python, Java, GraalVM environments
+- **Web Admin UI**: React interface (macOS)
 
 ## 📦 Quick Start
 
@@ -119,7 +115,7 @@ rnx status --workflow <workflow-uuid>
 rnx run echo "Hello World"
 rnx run --max-cpu=50 --max-memory=512 python3 script.py
 
-# Pre-built runtimes for instant startup
+# Pre-built runtimes
 rnx run --runtime=python-3.11-ml python analysis.py    # 2-3 seconds
 rnx run --runtime=openjdk-21 java App.java
 rnx run --runtime=graalvmjdk-21 java GraalApp.java
@@ -145,14 +141,14 @@ rnx run --schedule="1hour" backup.sh
 rnx run --schedule="2025-12-25T00:00:00" maintenance.py
 ```
 
-## 🎨 Web Admin UI Features
+## 🎨 Web Admin UI
 
 Available on macOS via Homebrew with `--with-admin`:
 
-- **System Monitoring**: Real-time CPU, memory, disk, network metrics
-- **Job Management**: List, filter, start/stop jobs with live logs
-- **Workflow Visualization**: Dependency graphs and execution timelines
-- **Administration**: Volume and network management, runtime configuration
+- **System Monitoring**: CPU, memory, disk, network metrics
+- **Job Management**: List, filter, start/stop jobs with logs
+- **Workflow Visualization**: Dependency graphs and timelines
+- **Administration**: Volume, network, and runtime configuration
 
 ## 📊 System Requirements
 
@@ -170,12 +166,12 @@ Available on macOS via Homebrew with `--with-admin`:
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](docs/QUICKSTART.md)** - Get running in 5 minutes
-- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup for all platforms
-- **[Job Execution Guide](docs/JOB_EXECUTION.md)** - Complete job management
-- **[RNX CLI Reference](docs/RNX_CLI_REFERENCE.md)** - All commands and options
-- **[Security Guide](docs/SECURITY.md)** - mTLS, RBAC, best practices
-- **[Examples](examples/)** - Working code samples
+- **[Quick Start Guide](docs/QUICKSTART.md)**
+- **[Installation Guide](docs/INSTALLATION.md)**
+- **[Job Execution Guide](docs/JOB_EXECUTION.md)**
+- **[RNX CLI Reference](docs/RNX_CLI_REFERENCE.md)**
+- **[Security Guide](docs/SECURITY.md)**
+- **[Examples](examples/)**
 
 ## 🤝 Contributing
 
