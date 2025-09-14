@@ -77,7 +77,7 @@ rnx run [flags] <command> [args...]
 | `--volume`         | Volume to mount (can be specified multiple times)          | none           |
 | `--upload`         | Upload file to workspace (can be specified multiple times) | none           |
 | `--upload-dir`     | Upload directory to workspace                              | none           |
-| `--runtime`         | Use pre-built runtime (e.g., openjdk-21, python-3.11-ml)   | none           |
+| `--runtime`        | Use pre-built runtime (e.g., openjdk-21, python-3.11-ml)   | none           |
 | `--env, -e`        | Environment variable (KEY=VALUE, visible in logs)          | none           |
 | `--secret-env, -s` | Secret environment variable (KEY=VALUE, hidden from logs)  | none           |
 | `--schedule`       | Schedule job execution (duration or RFC3339 time)          | immediate      |
@@ -297,11 +297,11 @@ rnx status --workflow --detail <workflow-uuid>  # Get workflow status with YAML 
 
 #### Flags
 
-| Flag              | Description                    | Default | Notes                            |
-|-------------------|--------------------------------|---------|----------------------------------|
-| `--workflow`, `-w`| Explicitly get workflow status | false   | Required for workflow operations |
-| `--detail`, `-d`  | Show original YAML content     | false   | Only works with `--workflow`     |
-| `--json`          | Output in JSON format          | false   | Available for jobs and workflows |
+| Flag               | Description                    | Default | Notes                            |
+|--------------------|--------------------------------|---------|----------------------------------|
+| `--workflow`, `-w` | Explicitly get workflow status | false   | Required for workflow operations |
+| `--detail`, `-d`   | Show original YAML content     | false   | Only works with `--workflow`     |
+| `--json`           | Output in JSON format          | false   | Available for jobs and workflows |
 
 #### Examples
 
@@ -459,7 +459,8 @@ Delete a job completely from the system.
 rnx delete <job-uuid>
 ```
 
-Permanently removes the specified job including logs, metadata, and all associated resources. The job must be in a completed, failed, or stopped state - running jobs cannot be deleted directly and must be stopped first.
+Permanently removes the specified job including logs, metadata, and all associated resources. The job must be in a
+completed, failed, or stopped state - running jobs cannot be deleted directly and must be stopped first.
 
 #### Examples
 
@@ -479,9 +480,11 @@ Delete all non-running jobs from the system.
 rnx delete-all [flags]
 ```
 
-Permanently removes all jobs that are not currently running or scheduled. Jobs in completed, failed, or stopped states will be deleted. Running and scheduled jobs are preserved and will not be affected.
+Permanently removes all jobs that are not currently running or scheduled. Jobs in completed, failed, or stopped states
+will be deleted. Running and scheduled jobs are preserved and will not be affected.
 
 Complete deletion includes:
+
 - Job records and metadata
 - Log files and buffers
 - Subscriptions and streams
@@ -502,6 +505,7 @@ rnx delete-all --json
 ```
 
 **Example JSON Output:**
+
 ```json
 {
   "success": true,
@@ -511,7 +515,8 @@ rnx delete-all --json
 }
 ```
 
-**Note:** This operation is irreversible. Once deleted, job information and logs cannot be recovered. Only non-running jobs are affected.
+**Note:** This operation is irreversible. Once deleted, job information and logs cannot be recovered. Only non-running
+jobs are affected.
 
 ## Volume Commands
 
@@ -671,10 +676,10 @@ rnx runtime list [flags]
 
 #### Flags
 
-| Flag               | Description                                                            | Default |
-|--------------------|------------------------------------------------------------------------|---------|
-| `--json`           | Output in JSON format                                                   | false   |
-| `--github-repo`    | List runtimes from GitHub repository (owner/repo/tree/branch/path)     | none    |
+| Flag            | Description                                                        | Default |
+|-----------------|--------------------------------------------------------------------|---------|
+| `--json`        | Output in JSON format                                              | false   |
+| `--github-repo` | List runtimes from GitHub repository (owner/repo/tree/branch/path) | none    |
 
 #### Examples
 
@@ -715,10 +720,10 @@ rnx runtime install <runtime-spec> [flags]
 
 #### Flags
 
-| Flag                | Short | Description                                            | Default |
-|---------------------|-------|--------------------------------------------------------|---------|
-| `--force`           | `-f`  | Force reinstall by deleting existing runtime           | false   |
-| `--github-repo`     |       | Install from GitHub repository (owner/repo/tree/branch/path) | none    |
+| Flag            | Short | Description                                                  | Default |
+|-----------------|-------|--------------------------------------------------------------|---------|
+| `--force`       | `-f`  | Force reinstall by deleting existing runtime                 | false   |
+| `--github-repo` |       | Install from GitHub repository (owner/repo/tree/branch/path) | none    |
 
 #### Description
 
@@ -763,7 +768,6 @@ rnx runtime test <runtime-spec>
 rnx runtime test python-3.11-ml
 rnx runtime test openjdk:21
 ```
-
 
 ### `rnx runtime remove`
 

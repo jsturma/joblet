@@ -37,9 +37,9 @@ echo "Installation path: $RUNTIME_BASE_DIR"
 
 safety_check() {
     echo "Performing safety checks to prevent host contamination..."
-    
+
     # Verify we're in a controlled environment
-    if [ "$JOBLET_CHROOT" != "true" ] && [ -z "$BUILD_ID" ]; then
+    if [ "${JOBLET_CHROOT:-false}" != "true" ] && [ -z "${BUILD_ID:-}" ]; then
         echo "⚠ WARNING: Not running in joblet build environment"
         echo "This script should only run within joblet runtime installation"
     fi
@@ -227,24 +227,71 @@ install_python() {
 # =============================================================================
 
 install_ml_packages() {
-    echo "Installing ML packages in chroot environment (per design)..."
-    
-    local venv_dir="$ISOLATED_DIR/opt/venv"
+    echo "Installing ML packages using pip in system environment first..."
+
     local site_packages="$ISOLATED_DIR/usr/local/lib/python3.11/dist-packages"
-    local ml_packages=(numpy pandas matplotlib scipy scikit-learn seaborn)
-    
-    # Create ML package stubs for basic functionality
-    echo "Installing ML packages via simplified approach..."
-    echo "  Python version: $(python3 --version 2>/dev/null || echo 'python3 not found')"
-    
+    local ml_packages=(numpy pandas matplotlib scipy scikit-learn seaborn requests)
+
+    echo "Installing Python packages: ${ml_packages[*]}"
+
     mkdir -p "$site_packages"
-    
-    # First try to copy from host if available
-    copy_packages_from_host "$site_packages" "${ml_packages[@]}"
-    
-    # Always create minimal stubs to ensure imports don't fail
-    create_ml_stubs "$site_packages"
-    
+
+    # First install packages in system to download them
+    echo "Installing packages in system environment..."
+    local installed_packages=()
+    local failed_packages=()
+
+    # Update pip first
+    python3 -m pip install --upgrade pip --quiet 2>/dev/null || echo "  ⚠ Could not upgrade pip"
+
+    for package in "${ml_packages[@]}"; do
+        echo "Installing $package..."
+        if python3 -m pip install "$package" --quiet 2>/dev/null; then
+            installed_packages+=("$package")
+            echo "  ✓ $package installed in system"
+        else
+            failed_packages+=("$package")
+            echo "  ✗ Failed to install $package"
+        fi
+    done
+
+    # Now copy installed packages to isolated environment
+    echo ""
+    echo "Copying installed packages to isolated environment..."
+
+    # Copy system site-packages to isolated environment
+    for python_path in /usr/local/lib/python3*/dist-packages /usr/lib/python3/dist-packages /usr/local/lib/python3*/site-packages; do
+        if [ -d "$python_path" ]; then
+            echo "Copying from $python_path..."
+            cp -r "$python_path"/* "$site_packages/" 2>/dev/null || echo "  ⚠ Some files couldn't be copied from $python_path"
+        fi
+    done
+
+    # Also copy from user site-packages if exists
+    local user_site=$(python3 -c "import site; print(site.getusersitepackages())" 2>/dev/null || echo "")
+    if [ -n "$user_site" ] && [ -d "$user_site" ]; then
+        echo "Copying from user site-packages: $user_site"
+        cp -r "$user_site"/* "$site_packages/" 2>/dev/null || echo "  ⚠ Some files couldn't be copied from user site"
+    fi
+
+    # Report installation results
+    echo ""
+    echo "📊 ML Package Installation Results:"
+    echo "  Successfully installed: ${#installed_packages[@]} packages"
+    [ ${#installed_packages[@]} -gt 0 ] && echo "    ${installed_packages[*]}"
+    echo "  Failed to install: ${#failed_packages[@]} packages"
+    [ ${#failed_packages[@]} -gt 0 ] && echo "    ${failed_packages[*]}"
+
+    # Create minimal stubs only for failed packages
+    if [ ${#failed_packages[@]} -gt 0 ]; then
+        echo "Creating stubs for failed packages..."
+        create_minimal_stubs "$site_packages" "${failed_packages[@]}"
+    fi
+
+    # Count final files
+    local final_files=$(find "$site_packages" -name "*.py" -type f 2>/dev/null | wc -l)
+    echo "  Final Python files in isolated packages: $final_files"
+
     echo "✓ ML packages installation completed"
 }
 
@@ -399,92 +446,76 @@ copy_package_from_host() {
     return 0  # Don't fail the entire script if a package isn't found
 }
 
-create_ml_stubs() {
+create_minimal_stubs() {
     local site_packages=$1
-    
-    echo "Creating ML package stubs to ensure imports work..."
-    
-    # Create numpy stub
-    if [ ! -d "$site_packages/numpy" ]; then
-        mkdir -p "$site_packages/numpy"
-        cat > "$site_packages/numpy/__init__.py" << 'EOF'
+    shift
+    local failed_packages=("$@")
+
+    echo "Creating minimal stubs for failed packages..."
+
+    for package in "${failed_packages[@]}"; do
+        case "$package" in
+            numpy)
+                if [ ! -d "$site_packages/numpy" ]; then
+                    mkdir -p "$site_packages/numpy"
+                    cat > "$site_packages/numpy/__init__.py" << 'EOF'
 """
-Minimal numpy stub - actual numpy not available in this runtime.
-This stub provides basic structure to prevent import errors.
+Minimal numpy stub - installation failed.
 """
 __version__ = "stub.1.0.0"
 
 def array(*args, **kwargs):
-    raise RuntimeError("NumPy is not available in this runtime environment. Please install it: pip install numpy")
+    raise RuntimeError("NumPy installation failed in this runtime environment")
 
 class ndarray:
     pass
 EOF
-        echo "  ✓ Created numpy stub"
-    fi
-    
-    # Create pandas stub  
-    if [ ! -d "$site_packages/pandas" ]; then
-        mkdir -p "$site_packages/pandas"
-        cat > "$site_packages/pandas/__init__.py" << 'EOF'
+                    echo "  ✓ Created numpy stub"
+                fi
+                ;;
+            pandas)
+                if [ ! -d "$site_packages/pandas" ]; then
+                    mkdir -p "$site_packages/pandas"
+                    cat > "$site_packages/pandas/__init__.py" << 'EOF'
 """
-Minimal pandas stub - actual pandas not available in this runtime.
+Minimal pandas stub - installation failed.
 """
 __version__ = "stub.1.0.0"
 
 def DataFrame(*args, **kwargs):
-    raise RuntimeError("Pandas is not available in this runtime environment. Please install it: pip install pandas")
+    raise RuntimeError("Pandas installation failed in this runtime environment")
 EOF
-        echo "  ✓ Created pandas stub"
-    fi
-    
-    # Create sklearn stub
-    if [ ! -d "$site_packages/sklearn" ]; then
-        mkdir -p "$site_packages/sklearn"
-        cat > "$site_packages/sklearn/__init__.py" << 'EOF'
+                    echo "  ✓ Created pandas stub"
+                fi
+                ;;
+            "scikit-learn")
+                if [ ! -d "$site_packages/sklearn" ]; then
+                    mkdir -p "$site_packages/sklearn"
+                    cat > "$site_packages/sklearn/__init__.py" << 'EOF'
 """
-Minimal sklearn stub - actual scikit-learn not available in this runtime.
+Minimal sklearn stub - installation failed.
 """
 __version__ = "stub.1.0.0"
 EOF
-        echo "  ✓ Created sklearn stub"
-    fi
-    
-    # Create matplotlib stub
-    if [ ! -d "$site_packages/matplotlib" ]; then
-        mkdir -p "$site_packages/matplotlib"
-        cat > "$site_packages/matplotlib/__init__.py" << 'EOF'
+                    echo "  ✓ Created sklearn stub"
+                fi
+                ;;
+            *)
+                # Generic stub for other packages
+                local pkg_dir="$site_packages/$package"
+                if [ ! -d "$pkg_dir" ]; then
+                    mkdir -p "$pkg_dir"
+                    cat > "$pkg_dir/__init__.py" << EOF
 """
-Minimal matplotlib stub - actual matplotlib not available in this runtime.
-"""
-__version__ = "stub.1.0.0"
-EOF
-        echo "  ✓ Created matplotlib stub"
-    fi
-    
-    # Create scipy stub
-    if [ ! -d "$site_packages/scipy" ]; then
-        mkdir -p "$site_packages/scipy"
-        cat > "$site_packages/scipy/__init__.py" << 'EOF'
-"""
-Minimal scipy stub - actual scipy not available in this runtime.
+Minimal $package stub - installation failed.
 """
 __version__ = "stub.1.0.0"
 EOF
-        echo "  ✓ Created scipy stub"
-    fi
-    
-    # Create seaborn stub
-    if [ ! -d "$site_packages/seaborn" ]; then
-        mkdir -p "$site_packages/seaborn"
-        cat > "$site_packages/seaborn/__init__.py" << 'EOF'
-"""
-Minimal seaborn stub - actual seaborn not available in this runtime.
-"""
-__version__ = "stub.1.0.0"
-EOF
-        echo "  ✓ Created seaborn stub"
-    fi
+                    echo "  ✓ Created $package stub"
+                fi
+                ;;
+        esac
+    done
 }
 
 # =============================================================================

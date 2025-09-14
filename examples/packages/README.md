@@ -185,11 +185,12 @@ rnx run --runtime=python-3.11-ml python -c "import numpy as np; import pandas as
 
 ## 📊 Performance Comparison
 
-| Operation       | Traditional Setup | Pre-built Package | Speedup      |
-|-----------------|-------------------|-------------------|--------------|
-| Java 17 Setup   | 30-120 seconds    | 2-5 seconds       | **15-40x**   |
-| Java 21 Setup   | 30-120 seconds    | 2-5 seconds       | **15-40x**   |
-| Python ML Setup | 5-45 minutes      | 2-5 seconds       | **100-500x** |
+| Operation   | Traditional Setup | Current Method | Performance                      |
+|-------------|-------------------|----------------|----------------------------------|
+| Python 3.11 | 5-15 minutes      | 2-5 seconds    | **Built from source, optimized** |
+| Python ML   | 5-45 minutes      | 3-8 seconds    | **Real packages, not stubs**     |
+| OpenJDK 21  | 30-120 seconds    | 2-5 seconds    | **Fixed security config**        |
+| GraalVM 21  | 2-10 minutes      | 3-8 seconds    | **Java-only, no Node.js**        |
 
 ## 🔧 Building New Packages
 

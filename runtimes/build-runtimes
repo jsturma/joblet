@@ -206,14 +206,14 @@ OPENJDK_EOF
       },
       "requirements": { "min_ram_mb": 1024, "min_disk_mb": 200, "gpu_required": false },
       "provides": {
-        "executables": ["java", "javac", "jar", "native-image", "gu", "js", "node", "npm"],
+        "executables": ["java", "javac", "jar", "native-image", "gu"],
         "environment_vars": { "JAVA_HOME": "/usr/lib/jvm/graalvm-21", "GRAALVM_HOME": "/usr/lib/jvm/graalvm-21", "PATH": "/usr/lib/jvm/graalvm-21/bin:\$PATH" }
       },
       "documentation": {
         "usage": "Use with: rnx run --runtime=graalvmjdk-21 java MyApp.java or native-image",
-        "examples": ["rnx run --runtime=graalvmjdk-21 java -version", "rnx run --runtime=graalvmjdk-21 native-image --version", "rnx run --runtime=graalvmjdk-21 js --version"]
+        "examples": ["rnx run --runtime=graalvmjdk-21 java -version", "rnx run --runtime=graalvmjdk-21 native-image --version"]
       },
-      "tags": ["java", "graalvm", "native-image", "polyglot", "performance", "aot"]
+      "tags": ["java", "graalvm", "native-image", "performance", "aot"]
     }
 GRAALVM_EOF
                 ;;

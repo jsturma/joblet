@@ -1,0 +1,8 @@
+version: 1
+jobs:
+  python-basic-test:
+    runtime: python-3.11
+    command: python3
+    args: [ "comprehensive-python-test.py" ]
+    uploads:
+      files: [ "comprehensive-python-test.py" ]

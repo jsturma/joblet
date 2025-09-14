@@ -1,6 +1,7 @@
 # Process Isolation in Joblet
 
-Joblet provides complete process isolation using Linux PID namespaces, ensuring that jobs run in their own isolated process environment with complete separation from the host system.
+Joblet provides complete process isolation using Linux PID namespaces, ensuring that jobs run in their own isolated
+process environment with complete separation from the host system.
 
 ## How Process Isolation Works
 
@@ -14,6 +15,7 @@ When you run a job with `rnx run`, Joblet:
 ## Process Hierarchy
 
 In the isolated namespace:
+
 - **PID 1**: Your main job command (acts as init)
 - **PID 2+**: Any child processes spawned by your job
 - **No system processes**: Host system processes are completely hidden
@@ -29,6 +31,7 @@ rnx run --runtime=python-3.11-ml bash -c "sleep 30 & sleep 40 & ps aux"
 ```
 
 **Output:**
+
 ```
 USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 0              1  1.0  0.1   4364  2916 ?        S    05:40   0:00 /usr/bin/bash -c sleep 30 & sleep 40 & ps aux
@@ -38,6 +41,7 @@ USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 ```
 
 **Process Tree:**
+
 - **PID 1**: Main bash process (parent)
 - **PID 7**: First sleep process (child)
 - **PID 8**: Second sleep process (child)
@@ -52,6 +56,7 @@ rnx run --runtime=python-3.11-ml bash -c "echo 'Starting processes...' && sleep 
 ```
 
 **Process Tree Shows:**
+
 - **PID 1**: Main bash process (parent)
 - **PID 6-7**: Subshell processes
 - **PID 8**: sleep 60 (background child)
@@ -67,6 +72,7 @@ rnx run --runtime=python-3.11-ml bash -c "(sleep 10; echo 'Child 1 done') & (sle
 ```
 
 This demonstrates:
+
 - Background processes with subshells
 - Process synchronization using `wait`
 - Complete process lifecycle visibility
@@ -74,21 +80,25 @@ This demonstrates:
 ## Key Benefits
 
 ### 1. **Authentic Isolated Experience**
+
 - Job process naturally becomes PID 1
 - Child processes get sequential PIDs (2, 3, 4, etc.)
 - No fake process renumbering or filtering
 
 ### 2. **Complete Process Tree Visibility**
+
 - See all processes spawned by your job
 - Parent-child relationships are preserved
 - Real-time process monitoring with `ps`, `top`, etc.
 
 ### 3. **Perfect Isolation**
+
 - No host system processes visible
 - Cannot see other jobs' processes
 - Complete process namespace separation
 
 ### 4. **Standard Process Management**
+
 - Use standard tools: `ps`, `kill`, `jobs`, `wait`
 - Signal handling works normally
 - Process groups and sessions work as expected
@@ -125,21 +135,23 @@ Joblet achieves process isolation through:
 
 ## Comparison with Container Solutions
 
-| Feature | Joblet | Traditional Containers |
-|---------|--------|----------------------|
-| Process becomes PID 1 | ✅ | ✅ |
-| Child process visibility | ✅ | ✅ |
-| Host process isolation | ✅ | ✅ |
-| Standard process tools | ✅ | ✅ |
-| Resource limits | ✅ | ✅ |
-| Network isolation | ✅ | ✅ |
-| Lightweight execution | ✅ | ❌ |
-| No image management | ✅ | ❌ |
+| Feature                  | Joblet | Traditional Containers |
+|--------------------------|--------|------------------------|
+| Process becomes PID 1    | ✅      | ✅                      |
+| Child process visibility | ✅      | ✅                      |
+| Host process isolation   | ✅      | ✅                      |
+| Standard process tools   | ✅      | ✅                      |
+| Resource limits          | ✅      | ✅                      |
+| Network isolation        | ✅      | ✅                      |
+| Lightweight execution    | ✅      | ❌                      |
+| No image management      | ✅      | ❌                      |
 
 ## Best Practices
 
 ### 1. **Process Cleanup**
+
 Always ensure child processes are cleaned up:
+
 ```bash
 # Good: Wait for all background processes
 rnx run --runtime=python-3.11-ml bash -c "task1 & task2 & wait"
@@ -149,14 +161,18 @@ rnx run --runtime=python-3.11-ml bash -c "trap 'kill $(jobs -p)' EXIT; task1 & t
 ```
 
 ### 2. **Resource Management**
+
 Monitor process resource usage:
+
 ```bash
 # Monitor memory and CPU usage
 rnx run --runtime=python-3.11-ml bash -c "memory-intensive-task & top -p \$!"
 ```
 
 ### 3. **Error Handling**
+
 Handle process failures gracefully:
+
 ```bash
 # Check background process status
 rnx run --runtime=python-3.11-ml bash -c "risky-task & wait \$! || echo 'Task failed'"
@@ -167,7 +183,7 @@ rnx run --runtime=python-3.11-ml bash -c "risky-task & wait \$! || echo 'Task fa
 Process isolation provides strong security boundaries:
 
 - **No process interference**: Jobs cannot affect other jobs' processes
-- **No host visibility**: Cannot see or interact with host system processes  
+- **No host visibility**: Cannot see or interact with host system processes
 - **Resource isolation**: Process limits are enforced at the cgroup level
 - **Signal isolation**: Cannot send signals to processes outside the namespace
 

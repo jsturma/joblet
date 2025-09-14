@@ -2,7 +2,7 @@ version: "1.0"
 
 # Java 17 Examples - Modern Java Development
 defaults:
-  runtime: "java:17"
+  runtime: "openjdk-21"
   resources:
     max_memory: 1024
     max_cpu: 50

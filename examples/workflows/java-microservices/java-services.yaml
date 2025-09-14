@@ -3,7 +3,7 @@ jobs:
   api-gateway:
     command: "java"
     args: [ "-jar", "api-gateway.jar", "--spring.profiles.active=production" ]
-    runtime: "java:17"
+    runtime: "openjdk-21"
     uploads:
       files: [ "api-gateway.jar", "application.yml" ]
     volumes: [ "config", "logs" ]
@@ -15,7 +15,7 @@ jobs:
   user-service:
     command: "java"
     args: [ "-Xmx768m", "-jar", "user-service.jar" ]
-    runtime: "java:17"
+    runtime: "openjdk-21"
     uploads:
       files: [ "user-service.jar" ]
     volumes: [ "user-data", "logs" ]
@@ -26,7 +26,7 @@ jobs:
   order-service:
     command: "java"
     args: [ "-Xmx768m", "-jar", "order-service.jar" ]
-    runtime: "java:17"
+    runtime: "openjdk-21"
     uploads:
       files: [ "order-service.jar" ]
     volumes: [ "order-data", "logs" ]
@@ -37,7 +37,7 @@ jobs:
   payment-service:
     command: "java"
     args: [ "-Xmx1536m", "-XX:+UseG1GC", "-jar", "payment-service.jar" ]
-    runtime: "java:17"
+    runtime: "openjdk-21"
     uploads:
       files: [ "payment-service.jar", "payment-config.properties" ]
     volumes: [ "payment-data", "logs", "secure-keys" ]
@@ -50,7 +50,7 @@ jobs:
   db-migration:
     command: "java"
     args: [ "-jar", "flyway.jar", "migrate", "-url=jdbc:postgresql://db:5432/myapp", "-schemas=public" ]
-    runtime: "java:17"
+    runtime: "openjdk-21"
     uploads:
       files: [ "flyway.jar", "migrations/" ]
     resources:
@@ -60,7 +60,7 @@ jobs:
   batch-processor:
     command: "java"
     args: [ "-Xmx2g", "-jar", "batch-processor.jar", "--job.name=dailyReport" ]
-    runtime: "java:21"
+    runtime: "openjdk-21"
     uploads:
       files: [ "batch-processor.jar" ]
     volumes: [ "batch-input", "batch-output", "logs" ]

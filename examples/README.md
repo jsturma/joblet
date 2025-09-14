@@ -25,8 +25,13 @@ Comprehensive Java runtime test that validates:
 Usage:
 
 ```bash
-rnx run --runtime=openjdk:21 --upload=examples/java/JavaRuntimeTest.java javac JavaRuntimeTest.java
-rnx run --runtime=openjdk:21 java JavaRuntimeTest
+# Compile and run Java program
+rnx run --runtime=openjdk-21 --upload=examples/java/JavaRuntimeTest.java javac JavaRuntimeTest.java
+rnx run --runtime=openjdk-21 java JavaRuntimeTest
+
+# Or using GraalVM for high performance
+rnx run --runtime=graalvmjdk-21 --upload=examples/java/JavaRuntimeTest.java javac JavaRuntimeTest.java
+rnx run --runtime=graalvmjdk-21 java JavaRuntimeTest
 ```
 
 ### SimpleTest.java
@@ -47,12 +52,48 @@ Complete Python runtime test that validates:
 Usage:
 
 ```bash
+# Run with ML runtime (full NumPy, Pandas support)
 rnx run --runtime=python-3.11-ml --upload=examples/python/comprehensive-python-test.py python3 comprehensive-python-test.py
+
+# Run with basic runtime (lightweight, essential packages only)
+rnx run --runtime=python-3.11 --upload=examples/python/comprehensive-python-test.py python3 comprehensive-python-test.py
 ```
 
 ### data-processor.py & data-analyzer.py
 
 Example scripts for multi-job workflows demonstrating data processing pipelines.
+
+## 🎯 Runtime Selection Guide
+
+### **Choose `python-3.11` for:**
+
+- ✅ Lightweight AI agents
+- ✅ Quick utility scripts
+- ✅ Fast startup required (1 second)
+- ✅ Basic HTTP operations (with urllib)
+- ✅ File processing and JSON handling
+
+### **Choose `python-3.11-ml` for:**
+
+- ✅ Machine learning workloads
+- ✅ Data science with NumPy/Pandas
+- ✅ Statistical analysis
+- ✅ Scientific computing
+- ✅ Complex HTTP operations
+
+### **Choose `openjdk-21` for:**
+
+- ✅ Standard Java applications
+- ✅ Enterprise development
+- ✅ Spring Boot applications
+- ✅ Web services
+
+### **Choose `graalvmjdk-21` for:**
+
+- ✅ High-performance Java applications
+- ✅ Native binary compilation
+- ✅ Microservices with fast startup
+- ✅ Resource-constrained environments
 
 ## Workflow Examples
 

@@ -106,7 +106,7 @@ install_graalvm() {
     done
     
     # Create GraalVM specific binaries symlinks
-    for binary in native-image gu js node npm; do
+    for binary in native-image gu; do
         if [ -f "$GRAALVM_DIR/bin/$binary" ]; then
             ln -sf "../lib/jvm/graalvm-21/bin/$binary" "isolated/usr/bin/$binary"
             ln -sf "../usr/lib/jvm/graalvm-21/bin/$binary" "isolated/bin/$binary"

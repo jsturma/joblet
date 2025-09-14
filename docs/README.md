@@ -77,15 +77,15 @@ rnx run --network=test-env --runtime=python-3.11-ml ./service-b
 jobs:
   data-extraction:
     command: "python3"
-    args: ["extract.py"]
+    args: [ "extract.py" ]
     runtime: "python-3.11-ml"
     resources:
       max_memory: 2048
       max_cpu: 100
-    
+
   model-training:
-    command: "python3" 
-    args: ["train.py"]
+    command: "python3"
+    args: [ "train.py" ]
     runtime: "python-3.11-ml"
     requires:
       - data-extraction: "COMPLETED"

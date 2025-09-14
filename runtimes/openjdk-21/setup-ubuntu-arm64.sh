@@ -115,11 +115,26 @@ copy_java_runtime() {
             echo "WARNING: Failed to copy complete Java home, copying essentials..."
             mkdir -p "isolated/usr/lib/jvm/$(basename "$JAVA_HOME")"
             # Copy essential directories
-            for dir in bin lib jmods conf legal; do
+            for dir in bin lib jmods legal; do
                 if [ -d "$JAVA_HOME/$dir" ]; then
                     cp -r "$JAVA_HOME/$dir" "isolated/usr/lib/jvm/$(basename "$JAVA_HOME")/" || echo "Warning: Failed to copy $dir"
                 fi
             done
+
+        # Special handling for conf directory - dereference symlinks
+        if [ -d "$JAVA_HOME/conf" ]; then
+            echo "Copying conf directory (dereferencing symlinks)..."
+            cp -rL "$JAVA_HOME/conf" "isolated/usr/lib/jvm/$(basename "$JAVA_HOME")/" 2>/dev/null || echo "Warning: Failed to copy conf"
+            
+            # Verify critical security file exists
+            if [ -f "isolated/usr/lib/jvm/$(basename "$JAVA_HOME")/conf/security/java.security" ]; then
+                echo "✓ Java security configuration verified"
+            else
+                echo "⚠ WARNING: java.security file missing - trying direct copy..."
+                mkdir -p "isolated/usr/lib/jvm/$(basename "$JAVA_HOME")/conf/security"
+                [ -f "$JAVA_HOME/conf/security/java.security" ] && cp "$JAVA_HOME/conf/security/java.security" "isolated/usr/lib/jvm/$(basename "$JAVA_HOME")/conf/security/"
+            fi
+        fi
         }
     fi
     

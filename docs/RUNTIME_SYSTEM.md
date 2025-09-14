@@ -68,7 +68,7 @@ rnx runtime info python-3.11-ml  # See all packages and details
 - **Python**: 3.11.9 (lightweight installation)
 - **Pre-installed Packages**: Essential packages for development
     - pip, requests, urllib3
-- **Package Size**: ~200MB 
+- **Package Size**: ~200MB
 - **Use Cases**: General scripting, automation, lightweight microservices
 
 ```bash

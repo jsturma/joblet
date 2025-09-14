@@ -70,7 +70,7 @@ Before the job process is created:
 
 ```go
 // Allocate IP address from network pool
-ip := networkStore.AllocateIP("bridge")  // e.g., 172.20.0.19
+ip := networkStore.AllocateIP("bridge") // e.g., 172.20.0.19
 
 // Store allocation for later retrieval
 networkStore.AssignJobToNetwork(jobID, "bridge", allocation)
@@ -97,9 +97,9 @@ ip link add veth-h-{jobID} type veth peer name veth-p-{jobID}
 ip link set veth-p-{jobID} netns {pid}
 
 // Configure IP and routes inside namespace
-nsenter --net=/proc/{pid}/ns/net ip addr add {ip}/16 dev veth-p-{jobID}
-nsenter --net=/proc/{pid}/ns/net ip link set veth-p-{jobID} up
-nsenter --net=/proc/{pid}/ns/net ip route add default via {gateway}
+nsenter --net = /proc/{pid}/ns/net ip addr add {ip}/16 dev veth-p-{jobID}
+nsenter --net = /proc/{pid}/ns/net ip link set veth-p-{jobID} up
+nsenter --net = /proc/{pid}/ns/net ip route add default via {gateway}
 
 // Signal to job that network is ready
 echo "ready" > {networkReadyFile}
@@ -112,20 +112,20 @@ The job process waits for network setup before continuing:
 ```go
 // Job init process (server.go)
 func waitForNetworkReady() {
-    networkFile := os.Getenv("NETWORK_READY_FILE")
-    if networkFile == "" {
-        return // No network setup needed (e.g., "none" network)
-    }
-    
-    // Wait for signal file
-    for i := 0; i < 100; i++ {
-        if _, err := os.Stat(networkFile); err == nil {
-            os.Remove(networkFile)  // Clean up
-            return  // Network ready!
-        }
-        time.Sleep(100 * time.Millisecond)
-    }
-    panic("timeout waiting for network setup")
+networkFile := os.Getenv("NETWORK_READY_FILE")
+if networkFile == "" {
+return // No network setup needed (e.g., "none" network)
+}
+
+// Wait for signal file
+for i := 0; i < 100; i++ {
+if _, err := os.Stat(networkFile); err == nil {
+os.Remove(networkFile) // Clean up
+return                 // Network ready!
+}
+time.Sleep(100 * time.Millisecond)
+}
+panic("timeout waiting for network setup")
 }
 ```
 

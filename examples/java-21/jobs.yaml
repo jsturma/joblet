@@ -2,7 +2,7 @@ version: "1.0"
 
 # Java 21 Examples - Latest LTS with Virtual Threads
 defaults:
-  runtime: "java:21"
+  runtime: "openjdk-21"
   resources:
     max_memory: 1024
     max_cpu: 50

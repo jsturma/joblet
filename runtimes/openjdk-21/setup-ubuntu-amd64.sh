@@ -125,13 +125,46 @@ copy_java_runtime() {
         # Create the full JVM directory structure in isolated environment
         mkdir -p "isolated/usr/lib/jvm/$java_basename"
         
-        # Copy all essential directories
-        for dir in bin lib jmods conf legal include; do
+        # Copy all essential directories (dereference symlinks for conf)
+        for dir in bin lib jmods legal include; do
             if [ -d "$JAVA_HOME/$dir" ]; then
                 echo "Copying $dir directory..."
                 cp -r "$JAVA_HOME/$dir" "isolated/usr/lib/jvm/$java_basename/" 2>/dev/null || echo "Warning: Failed to copy $dir"
             fi
         done
+
+        # Special handling for conf directory - dereference symlinks
+        if [ -d "$JAVA_HOME/conf" ]; then
+            echo "Copying conf directory (dereferencing symlinks)..."
+            cp -rL "$JAVA_HOME/conf" "isolated/usr/lib/jvm/$java_basename/" 2>/dev/null || echo "Warning: Failed to copy conf"
+        fi
+
+        # Ensure conf directory is copied (critical for Java security)
+        if [ -d "$JAVA_HOME/conf" ]; then
+            echo "✓ Verifying Java configuration files..."
+            if [ ! -d "isolated/usr/lib/jvm/$java_basename/conf" ]; then
+                echo "⚠ conf directory not copied, attempting again..."
+                mkdir -p "isolated/usr/lib/jvm/$java_basename/conf"
+                cp -r "$JAVA_HOME/conf/"* "isolated/usr/lib/jvm/$java_basename/conf/" 2>/dev/null || echo "ERROR: Failed to copy conf directory"
+            fi
+
+            # Verify critical security file exists
+            if [ -f "isolated/usr/lib/jvm/$java_basename/conf/security/java.security" ]; then
+                echo "✓ Java security configuration verified"
+            else
+                echo "❌ ERROR: java.security file missing - Java will not work properly!"
+                echo "  Attempting to copy from: $JAVA_HOME/conf/security/"
+                mkdir -p "isolated/usr/lib/jvm/$java_basename/conf/security"
+                if [ -f "$JAVA_HOME/conf/security/java.security" ]; then
+                    cp "$JAVA_HOME/conf/security/java.security" "isolated/usr/lib/jvm/$java_basename/conf/security/"
+                    echo "  ✓ java.security copied successfully"
+                else
+                    echo "  ❌ java.security not found in $JAVA_HOME/conf/security/"
+                fi
+            fi
+        else
+            echo "❌ WARNING: No conf directory found in $JAVA_HOME - Java may not work properly"
+        fi
         
         # Copy critical Java libraries to system library locations
         echo "Copying Java libraries to system locations..."
@@ -156,6 +189,24 @@ copy_java_runtime() {
     fi
     
     echo "✓ Java runtime files copied"
+}
+
+# Generate symlink inventory for debugging (optional)
+generate_symlink_inventory() {
+    local symlink_file="$RUNTIME_BASE_DIR/symlinks-debug.txt"
+
+    echo "Generating symlink inventory for debugging..."
+
+    # Find all symlinks in the isolated environment
+    find "$RUNTIME_BASE_DIR/isolated" -type l 2>/dev/null > "$symlink_file" || true
+
+    # Count total symlinks
+    local symlink_count=$(wc -l < "$symlink_file" 2>/dev/null || echo "0")
+    echo "✓ Found $symlink_count symlinks in runtime environment"
+
+    if [ "$symlink_count" -gt 0 ]; then
+        echo "✓ Symlink inventory saved to symlinks-debug.txt"
+    fi
 }
 
 # Generate platform-specific runtime.yml
@@ -505,7 +556,10 @@ WRAPPER_EOF
     # Step 6: Copy essential system files
     copy_system_files
     
-    # Step 7: Generate runtime configuration
+    # Step 7: Generate symlink inventory
+    generate_symlink_inventory
+
+    # Step 8: Generate runtime configuration
     generate_runtime_yml "21"
     
     # Step 8: Print installation summary

@@ -86,21 +86,21 @@ version: "3.0"
 jobs:
   my-job:
     command: "python"
-    args: ["app.py"]
-    
+    args: [ "app.py" ]
+
     # Regular environment variables (visible in logs)
     environment:
       APP_NAME: "my-application"
       NODE_ENV: "production"
       PORT: "8080"
       DEBUG_MODE: "false"
-    
+
     # Secret environment variables (hidden from logs)
     secret_environment:
       DATABASE_PASSWORD: "super_secret_password"
       API_KEY: "dummy_api_key_example"
       JWT_SECRET: "your_jwt_signing_secret"
-    
+
     resources:
       max_memory: 512
 ```
@@ -113,7 +113,7 @@ Environment variables support shell expansion in workflow commands:
 jobs:
   process-data:
     command: "bash"
-    args: ["-c", "echo \"Processing $INPUT_FILE to $OUTPUT_DIR\""]
+    args: [ "-c", "echo \"Processing $INPUT_FILE to $OUTPUT_DIR\"" ]
     environment:
       INPUT_FILE: "data.csv"
       OUTPUT_DIR: "/results"
@@ -127,7 +127,7 @@ Use shell parameter expansion for conditional logic:
 jobs:
   conditional-job:
     command: "bash"
-    args: ["-c", "echo \"Debug mode: ${DEBUG_MODE:+enabled}\"; echo \"Secret configured: ${SECRET_KEY:+yes}\""]
+    args: [ "-c", "echo \"Debug mode: ${DEBUG_MODE:+enabled}\"; echo \"Secret configured: ${SECRET_KEY:+yes}\"" ]
     environment:
       DEBUG_MODE: "true"
     secret_environment:
@@ -160,14 +160,14 @@ secret_environment:
 jobs:
   setup:
     command: "python"
-    args: ["setup.py"]
+    args: [ "setup.py" ]
     # Inherits: PIPELINE_ID, SHARED_CONFIG, BASE_URL, PIPELINE_SECRET, SHARED_API_KEY
     environment:
       STAGE: "setup"           # Job-specific variable
-    
+
   process:
     command: "python"
-    args: ["process.py"]
+    args: [ "process.py" ]
     # Inherits all global variables
     environment:
       STAGE: "processing"      # Job-specific variable
@@ -202,26 +202,26 @@ secret_environment:
 jobs:
   extract:
     command: "python"
-    args: ["extract.py"]
+    args: [ "extract.py" ]
     # Inherits all global variables
     environment:
       STAGE: "extract"
       DATA_SOURCE: "production_db"
     secret_environment:
       DB_PASSWORD: "extract-db-secret"
-      
+
   transform:
     command: "python"
-    args: ["transform.py"]
+    args: [ "transform.py" ]
     # Inherits global variables, overrides some
     environment:
       STAGE: "transform"
       BATCH_SIZE: "500"        # Override global batch size
       VALIDATION_LEVEL: "strict"
-    
+
   load:
     command: "python"
-    args: ["load.py"]
+    args: [ "load.py" ]
     environment:
       STAGE: "load"
       TARGET_TABLE: "processed_data"
@@ -244,18 +244,18 @@ Use `${VARIABLE_NAME}` to reference other environment variables:
 jobs:
   templating-example:
     command: "bash"
-    args: ["-c", "echo Processing $INPUT_FILE to $OUTPUT_FILE"]
+    args: [ "-c", "echo Processing $INPUT_FILE to $OUTPUT_FILE" ]
     environment:
       BASE_PATH: "/opt/data"
       PROJECT: "analytics"
       VERSION: "1.0.0"
-      
+
       # Variables using templating
       WORK_DIR: "${BASE_PATH}/work"
       INPUT_FILE: "${BASE_PATH}/${PROJECT}/input.csv"
       OUTPUT_DIR: "${BASE_PATH}/${PROJECT}/v${VERSION}/output"
       CONFIG_FILE: "${BASE_PATH}/${PROJECT}/config.yml"
-      
+
     secret_environment:
       API_KEY: "secret-api-key"
       # Secret variables can also use templating
@@ -268,22 +268,22 @@ jobs:
 jobs:
   advanced-templating:
     command: "python"
-    args: ["process.py"]
+    args: [ "process.py" ]
     environment:
       # Base configuration
       ENVIRONMENT: "production"
       SERVICE_NAME: "data-processor"
       VERSION: "2.1.0"
-      
+
       # Templated paths and URLs
       LOG_FILE: "/var/log/${SERVICE_NAME}/${ENVIRONMENT}.log"
       CONFIG_PATH: "/etc/${SERVICE_NAME}/${ENVIRONMENT}/config.yml"
       METRICS_ENDPOINT: "https://metrics.${ENVIRONMENT}.company.com/${SERVICE_NAME}"
-      
+
       # Version-specific paths
       BINARY_PATH: "/opt/${SERVICE_NAME}/v${VERSION}/bin"
       LIB_PATH: "/opt/${SERVICE_NAME}/v${VERSION}/lib"
-      
+
     secret_environment:
       DB_HOST: "db.${ENVIRONMENT}.internal"
       SECRET_KEY_FILE: "/secrets/${SERVICE_NAME}/${ENVIRONMENT}/key.pem"
@@ -302,7 +302,7 @@ jobs:
       ENVIRONMENT: "production"
       # Can reference secret variables
       CONFIG_FILE: "/config/${APP_NAME}/${DB_NAME}.yml"
-      
+
     secret_environment:
       DB_NAME: "payments_prod"
       # Can reference regular variables  
@@ -365,7 +365,7 @@ rnx run --secret-env="DB_PASSWORD=secret123" --secret-env="API_KEY=dummy_api_key
 jobs:
   secure-job:
     command: "python"
-    args: ["secure_app.py"]
+    args: [ "secure_app.py" ]
     secret_environment:
       DATABASE_URL: "postgresql://user:password@db:5432/app"
       STRIPE_SECRET_KEY: "dummy_stripe_key_example"
@@ -498,7 +498,7 @@ environment:
   DB_HOST: "localhost"
   DB_PORT: "5432"
   DB_NAME: "myapp"
-  
+
   # API configuration
   API_BASE_URL: "https://api.example.com"
   API_TIMEOUT: "30"
@@ -507,7 +507,7 @@ environment:
 secret_environment:
   # Database secrets
   DB_PASSWORD: "secret123"
-  
+
   # API secrets
   API_KEY: "dummy_key_..."
 ```
@@ -518,7 +518,7 @@ secret_environment:
 jobs:
   flexible-job:
     command: "bash"
-    args: ["-c", "echo \"Debug: ${DEBUG_MODE:-false}\"; echo \"Port: ${PORT:-8080}\""]
+    args: [ "-c", "echo \"Debug: ${DEBUG_MODE:-false}\"; echo \"Port: ${PORT:-8080}\"" ]
     environment:
       NODE_ENV: "production"
       # DEBUG_MODE and PORT can be overridden by user
@@ -534,7 +534,7 @@ version: "3.0"
 jobs:
   ml-training:
     command: "python3"
-    args: ["train.py"]
+    args: [ "train.py" ]
     environment:
       MODEL_NAME: "bert-base-uncased"
       BATCH_SIZE: "32"
@@ -560,7 +560,7 @@ version: "3.0"
 jobs:
   extract-data:
     command: "python3"
-    args: ["extract.py"]
+    args: [ "extract.py" ]
     environment:
       DATA_SOURCE: "api"
       OUTPUT_FORMAT: "parquet"
@@ -569,18 +569,18 @@ jobs:
     secret_environment:
       API_KEY: "your_api_key_here"
       DATABASE_PASSWORD: "extraction_db_password"
-    volumes: ["data-pipeline"]
+    volumes: [ "data-pipeline" ]
     resources:
       max_memory: 1024
 
   transform-data:
     command: "python3"
-    args: ["transform.py"]
+    args: [ "transform.py" ]
     environment:
       INPUT_FORMAT: "parquet"
       OUTPUT_FORMAT: "json"
       VALIDATION_LEVEL: "strict"
-    volumes: ["data-pipeline"]
+    volumes: [ "data-pipeline" ]
     requires:
       - extract-data: "COMPLETED"
     resources:
@@ -588,7 +588,7 @@ jobs:
 
   load-data:
     command: "python3"
-    args: ["load.py"]
+    args: [ "load.py" ]
     environment:
       TARGET_DATABASE: "warehouse"
       BATCH_SIZE: "500"
@@ -596,7 +596,7 @@ jobs:
     secret_environment:
       WAREHOUSE_PASSWORD: "warehouse_secret"
       WAREHOUSE_CONNECTION_STRING: "postgresql://..."
-    volumes: ["data-pipeline"]
+    volumes: [ "data-pipeline" ]
     requires:
       - transform-data: "COMPLETED"
     resources:
@@ -611,7 +611,7 @@ version: "3.0"
 jobs:
   train-model:
     command: "python3"
-    args: ["train.py"]
+    args: [ "train.py" ]
     environment:
       MODEL_TYPE: "xgboost"
       TRAINING_EPOCHS: "100"
@@ -622,7 +622,7 @@ jobs:
     secret_environment:
       WANDB_API_KEY: "your_wandb_api_key"
       MLFLOW_TRACKING_TOKEN: "your_mlflow_token"
-    volumes: ["ml-data", "models"]
+    volumes: [ "ml-data", "models" ]
     runtime: "python-3.11-ml"
     resources:
       max_memory: 4096
@@ -630,13 +630,13 @@ jobs:
 
   evaluate-model:
     command: "python3"
-    args: ["evaluate.py"]
+    args: [ "evaluate.py" ]
     environment:
       MODEL_PATH: "/volumes/models/trained_model.pkl"
       TEST_DATA_PATH: "/volumes/ml-data/test.csv"
       METRICS_OUTPUT: "/volumes/models/metrics.json"
       EVALUATION_MODE: "comprehensive"
-    volumes: ["ml-data", "models"]
+    volumes: [ "ml-data", "models" ]
     runtime: "python:3.11-ml"
     requires:
       - train-model: "COMPLETED"
@@ -645,7 +645,7 @@ jobs:
 
   deploy-model:
     command: "python3"
-    args: ["deploy.py"]
+    args: [ "deploy.py" ]
     environment:
       MODEL_PATH: "/volumes/models/trained_model.pkl"
       DEPLOYMENT_TARGET: "production"
@@ -654,7 +654,7 @@ jobs:
     secret_environment:
       DEPLOYMENT_API_KEY: "production_deployment_key"
       MODEL_REGISTRY_TOKEN: "model_registry_secret"
-    volumes: ["models"]
+    volumes: [ "models" ]
     requires:
       - evaluate-model: "COMPLETED"
     resources:
@@ -669,7 +669,7 @@ version: "3.0"
 jobs:
   parameter-server:
     command: "python3"
-    args: ["parameter_server.py"]
+    args: [ "parameter_server.py" ]
     environment:
       ROLE: "ps"
       PS_HOST: "0.0.0.0"
@@ -686,7 +686,7 @@ jobs:
 
   worker-node-0:
     command: "python3"
-    args: ["worker.py"]
+    args: [ "worker.py" ]
     environment:
       ROLE: "worker"
       WORKER_ID: "0"
@@ -704,7 +704,7 @@ jobs:
 
   worker-node-1:
     command: "python3"
-    args: ["worker.py"]
+    args: [ "worker.py" ]
     environment:
       ROLE: "worker"
       WORKER_ID: "1"
@@ -734,19 +734,19 @@ Use shell parameter expansion for advanced variable manipulation:
 jobs:
   advanced-variables:
     command: "bash"
-    args: ["-c", |
-      echo "App: ${APP_NAME:-default-app}"
-      echo "Debug enabled: ${DEBUG_MODE:+yes}"
-      echo "Port: ${PORT:-8080}"
-      echo "Config file: ${CONFIG_FILE:-/app/config.yml}"
-      echo "Log level: $LOG_LEVEL"
-      echo "Environment: $NODE_ENV"
-    ]
-    environment:
-      APP_NAME: "my-application"
-      DEBUG_MODE: "true"
-      LOG_LEVEL: "info"
-      NODE_ENV: "PRODUCTION"
+    args: [ "-c", |
+                    echo "App: ${APP_NAME:-default-app}"
+                    echo "Debug enabled: ${DEBUG_MODE:+yes}"
+                    echo "Port: ${PORT:-8080}"
+                    echo "Config file: ${CONFIG_FILE:-/app/config.yml}"
+                    echo "Log level: $LOG_LEVEL"
+                    echo "Environment: $NODE_ENV"
+                    ]
+                    environment:
+                    APP_NAME: "my-application"
+                    DEBUG_MODE: "true"
+                    LOG_LEVEL: "info"
+                    NODE_ENV: "PRODUCTION"
 ```
 
 ### Conditional Job Execution
@@ -757,23 +757,23 @@ Use environment variables to control job behavior:
 jobs:
   conditional-job:
     command: "bash"
-    args: ["-c", |
-      if [ "$SKIP_PROCESSING" = "true" ]; then
-        echo "Skipping processing as requested"
-        exit 0
-      fi
-      
-      if [ "$ENVIRONMENT" = "production" ]; then
-        echo "Running in production mode"
-        python app.py --production
-      else
-        echo "Running in development mode"
-        python app.py --debug
-      fi
-    ]
-    environment:
-      ENVIRONMENT: "production"
-      SKIP_PROCESSING: "false"
+    args: [ "-c", |
+                    if [ "$SKIP_PROCESSING" = "true" ]; then
+                    echo "Skipping processing as requested"
+                    exit 0
+                    fi
+
+                    if [ "$ENVIRONMENT" = "production" ]; then
+                    echo "Running in production mode"
+                    python app.py --production
+                    else
+                    echo "Running in development mode"
+                    python app.py --debug
+                    fi
+                    ]
+                    environment:
+                    ENVIRONMENT: "production"
+                    SKIP_PROCESSING: "false"
 ```
 
 ### Multi-Environment Configurations
@@ -787,7 +787,7 @@ version: "3.0"
 jobs:
   app:
     command: "python"
-    args: ["app.py"]
+    args: [ "app.py" ]
     environment:
       NODE_ENV: "development"
       DEBUG: "true"
@@ -804,7 +804,7 @@ version: "3.0"
 jobs:
   app:
     command: "python"
-    args: ["app.py"]
+    args: [ "app.py" ]
     environment:
       NODE_ENV: "production"
       DEBUG: "false"
@@ -821,20 +821,20 @@ jobs:
 jobs:
   config-loader:
     command: "bash"
-    args: ["-c", |
-      # Load configuration based on environment
-      CONFIG_FILE="/configs/${ENVIRONMENT:-development}.json"
-      if [ -f "$CONFIG_FILE" ]; then
-        echo "Loading config from $CONFIG_FILE"
-        export $(cat "$CONFIG_FILE" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
-      fi
-      
-      # Run the actual application
-      python app.py
-    ]
-    environment:
-      ENVIRONMENT: "production"
-    volumes: ["configs"]
+    args: [ "-c", |
+                    # Load configuration based on environment
+                    CONFIG_FILE="/configs/${ENVIRONMENT:-development}.json"
+                    if [ -f "$CONFIG_FILE" ]; then
+                    echo "Loading config from $CONFIG_FILE"
+                    export $(cat "$CONFIG_FILE" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
+                    fi
+
+                    # Run the actual application
+                    python app.py
+                    ]
+                    environment:
+                    ENVIRONMENT: "production"
+                    volumes: ["configs"]
 ```
 
 ---

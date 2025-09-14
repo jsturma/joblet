@@ -12,7 +12,8 @@ resource-hungry processes.
 
 > **📚 For comprehensive documentation and detailed features, see [/docs/README.md](docs/README.md)**
 
-> **🤖 AI Agent Support:** Secure sandboxed code execution with resource controls and process isolation - enabling AI agents
+> **🤖 AI Agent Support:** Secure sandboxed code execution with resource controls and process isolation - enabling AI
+> agents
 > to safely execute code without compromising host security.
 
 ## 🎯 Key Features
@@ -24,7 +25,7 @@ resource-hungry processes.
 - **Job Scheduling**: Future execution with flexible time specifications
 - **Real-time Monitoring**: Live logs, system metrics, and job status tracking
 - **mTLS Security**: Certificate-based authentication with role-based access control
-- **Pre-built Runtimes**: Python, Python ML, Java environments for faster job startup
+- **Pre-built Runtimes**: Python (basic + ML), Java, GraalVM environments for faster job startup
 - **Web Admin UI**: React-based interface for comprehensive system management (macOS)
 
 ## 📦 Quick Start

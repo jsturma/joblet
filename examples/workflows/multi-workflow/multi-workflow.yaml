@@ -9,7 +9,7 @@ workflows:
       data-prep:
         command: "python3"
         args: [ "prepare_data.py" ]
-        runtime: "python:3.11"
+        runtime: "python-3.11-ml"
         uploads:
           files: [ "prepare_data.py" ]
         volumes: [ "ml-pipeline" ]
@@ -17,7 +17,7 @@ workflows:
       feature-selection:
         command: "python3"
         args: [ "select_features.py" ]
-        runtime: "python:3.11"
+        runtime: "python-3.11-ml"
         uploads:
           files: [ "select_features.py" ]
         volumes: [ "ml-pipeline" ]
@@ -27,7 +27,7 @@ workflows:
       train-model:
         command: "python3"
         args: [ "train.py" ]
-        runtime: "python:3.11"
+        runtime: "python-3.11-ml"
         uploads:
           files: [ "train.py" ]
         volumes: [ "ml-pipeline" ]
@@ -37,7 +37,7 @@ workflows:
       evaluate-model:
         command: "python3"
         args: [ "evaluate.py" ]
-        runtime: "python:3.11"
+        runtime: "python-3.11-ml"
         uploads:
           files: [ "evaluate.py" ]
         volumes: [ "ml-pipeline" ]
@@ -56,7 +56,7 @@ workflows:
       test-model:
         command: "python3"
         args: [ "test_model.py" ]
-        runtime: "python:3.11"
+        runtime: "python-3.11-ml"
         uploads:
           files: [ "test_model.py" ]
         volumes: [ "ml-pipeline" ]
