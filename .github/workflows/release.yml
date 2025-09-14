@@ -100,21 +100,29 @@ jobs:
           # Build RNX CLI
           echo "Building RNX CLI for ${{ matrix.platform }}..."
           ./scripts/build-version.sh rnx dist/
-          mv dist/rnx dist/rnx${{ matrix.ext }}
+          # Only rename if extension is needed
+          if [ -n "${{ matrix.ext }}" ]; then
+            mv dist/rnx dist/rnx${{ matrix.ext }}
+          fi
 
           # Build Joblet Server (Linux only)
           if [ "${{ matrix.goos }}" = "linux" ]; then
             echo "Building Joblet Server for ${{ matrix.platform }}..."
             ./scripts/build-version.sh joblet dist/
-            mv dist/joblet dist/joblet${{ matrix.ext }}
+            # Only rename if extension is needed
+            if [ -n "${{ matrix.ext }}" ]; then
+              mv dist/joblet dist/joblet${{ matrix.ext }}
+            fi
           fi
 
           # Test version output (Linux only for simplicity)
           if [ "${{ matrix.goos }}" = "linux" ] && [ "${{ matrix.goarch }}" = "amd64" ]; then
             echo "Testing version output:"
-            ./dist/rnx${{ matrix.ext }} version
+            ./dist/rnx version
             echo "---"
-            ./dist/rnx${{ matrix.ext }} --version
+            ./dist/rnx --version
+            echo "---"
+            ./dist/rnx version --json
           fi
 
       - name: Create release package
