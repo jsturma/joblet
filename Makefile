@@ -76,7 +76,7 @@ help:
 rnx:
 	@echo "Building RNX CLI with version info..."
 	@chmod +x ./scripts/build-version.sh
-	./scripts/build-version.sh rnx bin/
+	./scripts/build-version.sh rnx bin
 
 admin-server: admin-ui
 	@echo "Installing Admin Server dependencies..."
@@ -86,7 +86,7 @@ admin-server: admin-ui
 joblet:
 	@echo "Building Joblet with version info..."
 	@chmod +x ./scripts/build-version.sh
-	GOOS=linux GOARCH=$(REMOTE_ARCH) ./scripts/build-version.sh joblet bin/
+	GOOS=linux GOARCH=$(REMOTE_ARCH) ./scripts/build-version.sh joblet bin
 
 admin-ui:
 	@echo "Building Admin UI..."
@@ -120,6 +120,7 @@ live-log:
 clean:
 	@echo "🧹 Cleaning build artifacts..."
 	rm -rf bin/
+	rm -rf dist/
 	rm -rf config/
 	rm -rf web/ui/dist/
 	rm -rf web/ui/node_modules/

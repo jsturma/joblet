@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build script with version injection for unified or separate builds
 # Usage: ./scripts/build-version.sh [component] [output-dir]
-# Example: ./scripts/build-version.sh rnx dist/
+# Example: ./scripts/build-version.sh rnx
 
 set -e
 

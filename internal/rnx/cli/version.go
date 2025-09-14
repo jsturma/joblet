@@ -145,26 +145,44 @@ func AddVersionFlag(rootCmd *cobra.Command) {
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		if versionFlag, _ := cmd.Flags().GetBool("version"); versionFlag {
 			// Show both client and server versions like the version command
+			clientInfo := version.GetBuildInfo()
 			serverInfo, serverErr := getServerVersion()
 
-			// Display client version
-			fmt.Printf("RNX Client:\n")
-			fmt.Print(version.GetLongVersion())
+			if common.JSONOutput {
+				versionInfo := VersionInfo{
+					Client: &clientInfo,
+					Server: serverInfo,
+				}
+				if serverErr != nil {
+					versionInfo.Error = serverErr.Error()
+				}
 
-			// Display server version if available
-			if serverInfo != nil {
-				fmt.Printf("\nJoblet Server (%s):\n", common.NodeName)
-				fmt.Printf("joblet version %s (%s)\n", serverInfo.Version, shortenCommit(serverInfo.GitCommit))
-				if serverInfo.BuildDate != "unknown" {
-					fmt.Printf("Built: %s\n", serverInfo.BuildDate)
+				jsonOutput, err := json.MarshalIndent(versionInfo, "", "  ")
+				if err != nil {
+					fmt.Printf("Error formatting version info: %v\n", err)
+					return
 				}
-				if serverInfo.GitCommit != "unknown" {
-					fmt.Printf("Commit: %s\n", serverInfo.GitCommit)
+				fmt.Println(string(jsonOutput))
+			} else {
+				// Display client version
+				fmt.Printf("RNX Client:\n")
+				fmt.Print(version.GetLongVersion())
+
+				// Display server version if available
+				if serverInfo != nil {
+					fmt.Printf("\nJoblet Server (%s):\n", common.NodeName)
+					fmt.Printf("joblet version %s (%s)\n", serverInfo.Version, shortenCommit(serverInfo.GitCommit))
+					if serverInfo.BuildDate != "unknown" {
+						fmt.Printf("Built: %s\n", serverInfo.BuildDate)
+					}
+					if serverInfo.GitCommit != "unknown" {
+						fmt.Printf("Commit: %s\n", serverInfo.GitCommit)
+					}
+					fmt.Printf("Go: %s\n", serverInfo.GoVersion)
+					fmt.Printf("Platform: %s\n", serverInfo.Platform)
+				} else if serverErr != nil {
+					fmt.Printf("\nJoblet Server: %v\n", serverErr)
 				}
-				fmt.Printf("Go: %s\n", serverInfo.GoVersion)
-				fmt.Printf("Platform: %s\n", serverInfo.Platform)
-			} else if serverErr != nil {
-				fmt.Printf("\nJoblet Server: %v\n", serverErr)
 			}
 			return
 		}

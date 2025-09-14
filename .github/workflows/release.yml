@@ -94,35 +94,35 @@ jobs:
           # Make build script executable
           chmod +x ./scripts/build-version.sh
 
-          # Create dist directory
-          mkdir -p dist
+          # Create bin directory
+          mkdir -p bin
 
           # Build RNX CLI
           echo "Building RNX CLI for ${{ matrix.platform }}..."
-          ./scripts/build-version.sh rnx dist/
+          ./scripts/build-version.sh rnx
           # Only rename if extension is needed
           if [ -n "${{ matrix.ext }}" ]; then
-            mv dist/rnx dist/rnx${{ matrix.ext }}
+            mv bin/rnx bin/rnx${{ matrix.ext }}
           fi
 
           # Build Joblet Server (Linux only)
           if [ "${{ matrix.goos }}" = "linux" ]; then
             echo "Building Joblet Server for ${{ matrix.platform }}..."
-            ./scripts/build-version.sh joblet dist/
+            ./scripts/build-version.sh joblet
             # Only rename if extension is needed
             if [ -n "${{ matrix.ext }}" ]; then
-              mv dist/joblet dist/joblet${{ matrix.ext }}
+              mv bin/joblet bin/joblet${{ matrix.ext }}
             fi
           fi
 
           # Test version output (Linux only for simplicity)
           if [ "${{ matrix.goos }}" = "linux" ] && [ "${{ matrix.goarch }}" = "amd64" ]; then
             echo "Testing version output:"
-            ./dist/rnx version
+            ./bin/rnx version
             echo "---"
-            ./dist/rnx --version
+            ./bin/rnx --version
             echo "---"
-            ./dist/rnx version --json
+            ./bin/rnx version --json
           fi
 
       - name: Create release package
@@ -133,11 +133,11 @@ jobs:
           
           # Copy binaries
           mkdir -p release/rnx-${{ matrix.platform }}/bin
-          cp dist/rnx${{ matrix.ext }} release/rnx-${{ matrix.platform }}/bin/
-          
+          cp bin/rnx${{ matrix.ext }} release/rnx-${{ matrix.platform }}/bin/
+
           # Copy joblet for Linux only
           if [ "${{ matrix.goos }}" = "linux" ]; then
-            cp dist/joblet${{ matrix.ext }} release/rnx-${{ matrix.platform }}/bin/
+            cp bin/joblet${{ matrix.ext }} release/rnx-${{ matrix.platform }}/bin/
           
             # Copy admin files for Linux releases only
             cp -r admin release/rnx-${{ matrix.platform }}/

@@ -657,6 +657,15 @@ func (a *jobStoreAdapter) DeleteJobLogs(jobID string) error {
 	if err := a.completeTaskCleanup(resolvedUuid); err != nil {
 		return fmt.Errorf("failed to delete job logs: %w", err)
 	}
+
+	// Also delete log files from disk
+	if a.asyncLogSystem != nil {
+		if err := a.asyncLogSystem.DeleteJobLogFiles(resolvedUuid); err != nil {
+			a.logger.Warn("failed to delete log files from disk", "jobId", resolvedUuid, "error", err)
+			// Don't return error as buffer cleanup succeeded
+		}
+	}
+
 	return nil
 }
 

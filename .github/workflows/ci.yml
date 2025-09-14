@@ -68,9 +68,9 @@ jobs:
 
       - name: Build binaries
         run: |
-          # Build both binaries for Linux (CI runs on Ubuntu)
-          GOOS=linux GOARCH=amd64 go build -o bin/joblet ./cmd/joblet
-          GOOS=linux GOARCH=amd64 go build -o bin/rnx ./cmd/rnx
+          # Build both binaries for Linux (CI runs on Ubuntu) with version injection
+          GOOS=linux GOARCH=amd64 ./scripts/build-version.sh joblet bin
+          GOOS=linux GOARCH=amd64 ./scripts/build-version.sh rnx bin
           chmod +x bin/*
 
       - name: Setup test certificates

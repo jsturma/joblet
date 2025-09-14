@@ -429,6 +429,13 @@ func (j *Joblet) DeleteAllJobs(ctx context.Context, req interfaces.DeleteAllJobs
 			continue
 		}
 
+		// Also delete logs for delete-all operations to match documented behavior
+		err = j.store.DeleteJobLogs(job.Uuid)
+		if err != nil {
+			log.Warn("failed to delete logs for job", "jobID", job.Uuid, "error", err)
+			// Continue with deletion even if log cleanup fails
+		}
+
 		deletedCount++
 		log.Debug("job deleted", "jobID", job.Uuid)
 	}

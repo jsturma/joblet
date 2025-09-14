@@ -542,6 +542,11 @@ func (a *AsyncLogSystem) Close() error {
 	return a.diskWriter.Close()
 }
 
+// DeleteJobLogFiles deletes all log files for a specific job from disk
+func (a *AsyncLogSystem) DeleteJobLogFiles(jobID string) error {
+	return a.diskWriter.DeleteJobLogFiles(jobID)
+}
+
 // DiskWriter methods
 
 // getLogFile gets or creates a log file for a job
@@ -594,5 +599,39 @@ func (dw *DiskWriter) Close() error {
 	}
 
 	dw.logFiles = make(map[string]*os.File)
+	return nil
+}
+
+// DeleteJobLogFiles removes all log files for a specific job from disk
+func (dw *DiskWriter) DeleteJobLogFiles(jobID string) error {
+	dw.filesMutex.Lock()
+	defer dw.filesMutex.Unlock()
+
+	// Close the file if it's open
+	if file, exists := dw.logFiles[jobID]; exists {
+		if err := file.Close(); err != nil {
+			dw.logger.Warn("failed to close log file before deletion", "jobId", jobID, "error", err)
+		}
+		delete(dw.logFiles, jobID)
+	}
+
+	// Find and delete all log files for this job
+	// Log files follow the pattern: {jobID}_{timestamp}.log
+	pattern := filepath.Join(dw.baseDir, fmt.Sprintf("%s_*.log", jobID))
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("failed to find log files for job %s: %w", jobID, err)
+	}
+
+	for _, logFile := range matches {
+		if err := os.Remove(logFile); err != nil {
+			dw.logger.Warn("failed to delete log file", "jobId", jobID, "file", logFile, "error", err)
+			// Continue deleting other files even if one fails
+		} else {
+			dw.logger.Debug("deleted log file", "jobId", jobID, "file", logFile)
+		}
+	}
+
+	dw.logger.Info("job log files deleted", "jobId", jobID, "filesDeleted", len(matches))
 	return nil
 }
