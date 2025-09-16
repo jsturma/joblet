@@ -9,6 +9,7 @@ import (
 	"joblet/internal/joblet/core/interfaces"
 	"joblet/internal/joblet/domain"
 	"joblet/internal/joblet/mappers"
+	"joblet/pkg/errors"
 	"joblet/pkg/logger"
 	"strings"
 
@@ -40,6 +41,43 @@ func NewJobServiceServer(auth auth2.GRPCAuthorization, jobStore adapters.JobStor
 	}
 }
 
+// convertErrorToGRPCStatus converts structured errors to appropriate gRPC status codes
+func (s *JobServiceServer) convertErrorToGRPCStatus(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Handle context errors
+	if errors.IsContextError(err) {
+		return status.Errorf(codes.DeadlineExceeded, "operation timeout: %v", err)
+	}
+
+	// Handle specific error types
+	switch {
+	case errors.IsNotFoundError(err):
+		return status.Errorf(codes.NotFound, "%v", err)
+	case errors.IsPermissionError(err):
+		return status.Errorf(codes.PermissionDenied, "%v", err)
+	case errors.IsResourceError(err):
+		return status.Errorf(codes.ResourceExhausted, "%v", err)
+	case errors.IsConfigError(err):
+		return status.Errorf(codes.InvalidArgument, "configuration error: %v", err)
+	case errors.IsTimeoutError(err):
+		return status.Errorf(codes.DeadlineExceeded, "%v", err)
+	default:
+		// Get severity to determine appropriate code
+		severity := errors.GetSeverity(err)
+		switch severity {
+		case errors.SeverityCritical:
+			return status.Errorf(codes.Internal, "critical system error: %v", err)
+		case errors.SeverityHigh:
+			return status.Errorf(codes.Internal, "internal error: %v", err)
+		default:
+			return status.Errorf(codes.Internal, "%v", err)
+		}
+	}
+}
+
 // RunJob implements the gRPC service using the new request object pattern
 func (s *JobServiceServer) RunJob(ctx context.Context, req *pb.RunJobRequest) (*pb.RunJobResponse, error) {
 	log := s.logger.WithFields(
@@ -61,8 +99,10 @@ func (s *JobServiceServer) RunJob(ctx context.Context, req *pb.RunJobRequest) (*
 	// Convert protobuf request to domain request object
 	jobRequest, err := s.convertToJobRequest(req)
 	if err != nil {
-		log.Error("failed to convert request", "error", err)
-		return nil, status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
+		// Wrap as config error since it's a request validation issue
+		wrappedErr := errors.WrapConfigError("job-request", "conversion", err)
+		log.Error("failed to convert request", "error", wrappedErr)
+		return nil, s.convertErrorToGRPCStatus(wrappedErr)
 	}
 
 	// Log the cleaned request structure (excluding sensitive environment variables)
@@ -88,7 +128,7 @@ func (s *JobServiceServer) RunJob(ctx context.Context, req *pb.RunJobRequest) (*
 	newJob, err := s.joblet.StartJob(ctx, *jobRequest)
 	if err != nil {
 		log.Error("job creation failed", "error", err)
-		return nil, status.Errorf(codes.Internal, "job run failed: %v", err)
+		return nil, s.convertErrorToGRPCStatus(err)
 	}
 
 	// Log success
@@ -132,7 +172,7 @@ func (s *JobServiceServer) StopJob(ctx context.Context, req *pb.StopJobReq) (*pb
 	err := s.joblet.StopJob(ctx, stopRequest)
 	if err != nil {
 		log.Error("job stop failed", "error", err)
-		return nil, status.Errorf(codes.Internal, "job stop failed: %v", err)
+		return nil, s.convertErrorToGRPCStatus(err)
 	}
 
 	log.Info("job stopped successfully", "jobUuid", stopRequest.JobID)

@@ -210,15 +210,15 @@ func (a *jobStoreAdapter) UpdateJob(job *domain.Job) {
 
 	a.tasksMutex.RLock()
 	task, exists := a.tasks[job.Uuid]
-	a.tasksMutex.RUnlock()
-
 	if !exists {
+		a.tasksMutex.RUnlock()
 		a.logger.Warn("attempted to update non-existent job", "jobId", job.Uuid)
 		return
 	}
 
 	oldStatus := string(task.job.Status)
 	newStatus := string(job.Status)
+	a.tasksMutex.RUnlock()
 
 	// Update in store
 	ctx := context.Background()

@@ -75,7 +75,7 @@ func (l *Logger) SetMode(mode string) {
 	l.mode = mode
 }
 
-// GetMode returns the current mode
+// GetMode tells you what mode this logger is running in (like "server" or "init")
 func (l *Logger) GetMode() string {
 	return l.mode
 }
@@ -103,12 +103,14 @@ func (l *Logger) WithFields(keyVals ...interface{}) *Logger {
 	return newLogger
 }
 
-// WithField returns a new logger with a single additional context field
+// WithField creates a new logger that includes an extra bit of context.
+// Handy for adding things like "component=job-runner" to your logs.
 func (l *Logger) WithField(key string, value interface{}) *Logger {
 	return l.WithFields(key, value)
 }
 
-// WithMode returns a new logger with the specified mode
+// WithMode creates a new logger set to a specific mode.
+// Useful when you want different logging behavior for different parts of your app.
 func (l *Logger) WithMode(mode string) *Logger {
 	newLogger := &Logger{
 		level:  l.level,

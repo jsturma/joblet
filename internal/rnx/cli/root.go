@@ -42,17 +42,17 @@ Note: Job and workflow UUIDs support short-form usage (first 8 characters)
 if they uniquely identify the resource.
 
 Use 'rnx <command> --help' for detailed information about any command.`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip config loading for run command since it has DisableFlagParsing and handles config loading manually
 		if cmd.Name() == "run" {
-			return
+			return nil
 		}
 
 		// Check if --version flag is used - version commands can work without config
 		if versionFlag, _ := cmd.Flags().GetBool("version"); versionFlag || cmd.Name() == "version" {
 			// Try to load config but don't exit on failure
 			common.NodeConfig, _ = config.LoadClientConfig(common.ConfigPath)
-			return
+			return nil
 		}
 
 		// Load client configuration - REQUIRED (no direct server connections)
@@ -62,8 +62,9 @@ Use 'rnx <command> --help' for detailed information about any command.`,
 			fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
 			fmt.Fprintf(os.Stderr, "Please create a rnx-config.yml file with embedded certificates.\n")
 			fmt.Fprintf(os.Stderr, "Use 'rnx config-help' for examples.\n")
-			os.Exit(1)
+			return fmt.Errorf("failed to load client configuration from %s: %w", common.ConfigPath, err)
 		}
+		return nil
 	},
 }
 

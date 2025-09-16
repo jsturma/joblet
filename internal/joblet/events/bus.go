@@ -2,8 +2,8 @@ package events
 
 import (
 	"context"
-	"fmt"
 	"joblet/internal/joblet/domain"
+	"joblet/pkg/errors"
 	"sync"
 )
 
@@ -65,7 +65,7 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, event Event) error {
 		return nil
 	}
 	var wg sync.WaitGroup
-	errors := make([]error, 0)
+	errs := make([]error, 0)
 	errorMutex := sync.Mutex{}
 
 	for _, handler := range handlers {
@@ -74,7 +74,7 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, event Event) error {
 			defer wg.Done()
 			if err := h.Handle(ctx, event); err != nil {
 				errorMutex.Lock()
-				errors = append(errors, err)
+				errs = append(errs, err)
 				errorMutex.Unlock()
 			}
 		}(handler)
@@ -82,8 +82,8 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, event Event) error {
 
 	wg.Wait()
 
-	if len(errors) > 0 {
-		return fmt.Errorf("event handling errors: %v", errors)
+	if len(errs) > 0 {
+		return errors.JoinErrors(errs...)
 	}
 
 	return nil

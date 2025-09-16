@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"joblet/internal/joblet/monitoring/domain"
+	"joblet/pkg/constants"
 	"joblet/pkg/logger"
 )
 
@@ -285,9 +286,8 @@ func (c *ProcessCollector) readProcessInfo(pid int) (proc *processInfo, err erro
 		startTime = bootTime.Add(time.Duration(startTimeJiffies) * 10 * time.Millisecond)
 	}
 
-	// Convert RSS from pages to bytes (assuming 4KB pages)
-	const pageSize = 4096
-	memoryBytes := rss * pageSize
+	// Convert RSS from pages to bytes
+	memoryBytes := rss * constants.DefaultPageSize
 
 	process := &processInfo{
 		ProcessInfo: domain.ProcessInfo{

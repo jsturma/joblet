@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"joblet/pkg/config"
+	"joblet/pkg/errors"
 	"joblet/pkg/logger"
 	"joblet/pkg/platform"
 )
@@ -49,7 +50,7 @@ func (i *Isolator) Setup() error {
 	case "darwin":
 		return i.setupDarwin()
 	default:
-		return fmt.Errorf("unsupported platform for job isolation: %s", runtime.GOOS)
+		return fmt.Errorf("%w: %s", errors.ErrUnsupportedPlatform, runtime.GOOS)
 	}
 }
 
@@ -73,13 +74,13 @@ func (i *Isolator) setupLinux() error {
 	// Setup filesystem isolation BEFORE remounting /proc
 	if err := i.setupFilesystemIsolation(); err != nil {
 		i.logger.Error("filesystem isolation setup failed", "error", err)
-		return fmt.Errorf("filesystem isolation failed: %w", err)
+		return errors.WrapFilesystemError("", "isolation", err)
 	}
 
 	// Remount /proc (this will now be inside the chroot)
 	if err := i.remountProc(); err != nil {
 		i.logger.Error("failed to remount /proc", "error", err)
-		return fmt.Errorf("proc remount failed: %w", err)
+		return errors.WrapFilesystemError("/proc", "remount", err)
 	}
 
 	// Verify isolation
@@ -105,14 +106,14 @@ func (i *Isolator) setupFilesystemIsolation() error {
 
 	jobID := i.platform.Getenv("JOB_ID")
 	if jobID == "" {
-		return fmt.Errorf("JOB_ID not set - cannot setup filesystem isolation")
+		return errors.WrapConfigError("isolation", "JOB_ID", fmt.Errorf("environment variable not set"))
 	}
 
 	// Create isolated filesystem for this job
 	// Creating job filesystem
 	jobFS, e := i.filesystem.CreateJobFilesystem(jobID)
 	if e != nil {
-		return fmt.Errorf("failed to create job filesystem: %w", e)
+		return errors.WrapFilesystemError(jobID, "create", e)
 	}
 	// Job filesystem created
 
@@ -124,7 +125,7 @@ func (i *Isolator) setupFilesystemIsolation() error {
 	if isBuilderJob {
 		i.logger.Info("setting up builder filesystem for runtime build job", "jobID", jobID)
 		if err := jobFS.SetupBuilder(); err != nil {
-			return fmt.Errorf("failed to setup builder filesystem isolation: %w", err)
+			return errors.WrapFilesystemError("builder", "setup", err)
 		}
 		// Builder filesystem setup completed
 	} else {
@@ -132,7 +133,7 @@ func (i *Isolator) setupFilesystemIsolation() error {
 		// Note: jobFS.Setup() handles runtime mounting internally before chroot
 		// Setting up standard job filesystem
 		if err := jobFS.Setup(); err != nil {
-			return fmt.Errorf("failed to setup filesystem isolation: %w", err)
+			return errors.WrapFilesystemError(jobID, "setup", err)
 		}
 		// Filesystem setup completed
 	}
@@ -148,7 +149,7 @@ func (i *Isolator) makePrivate() error {
 	// Use platform constants and helper method
 	err := i.platform.Mount("", "/", "", 0x40000|0x4000, "") // 0x40000|0x4000 for platform.MountPrivate|platform.MountRecursive
 	if err != nil {
-		return fmt.Errorf("platform mount syscall failed: %w", err)
+		return errors.WrapFilesystemError("", "mount", err)
 	}
 
 	// Mounts made private
@@ -173,7 +174,7 @@ func (i *Isolator) remountProc() error {
 	// Mount new proc using platform abstraction
 	if err := i.platform.Mount("proc", "/proc", "proc", 0, ""); err != nil {
 		i.logger.Error("platform proc mount failed (within chroot)", "error", err)
-		return fmt.Errorf("platform proc mount failed: %w", err)
+		return errors.WrapFilesystemError("/proc", "mount", err)
 	}
 
 	// /proc remounted successfully
@@ -214,7 +215,7 @@ func (i *Isolator) verifyIsolation() error {
 	// Count visible processes using platform abstraction
 	entries, err := i.readProcDir()
 	if err != nil {
-		return fmt.Errorf("cannot read /proc: %w", err)
+		return errors.WrapFilesystemError("/proc", "read", err)
 	}
 
 	pidCount := 0

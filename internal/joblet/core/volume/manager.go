@@ -15,17 +15,18 @@ import (
 	"time"
 )
 
-// Manager handles volume creation, management, and cleanup
+// Manager takes care of creating, managing, and cleaning up volumes.
+// Think of it as our volume caretaker that handles all the storage needs.
 type Manager struct {
 	volumeStore adapters.VolumeStorer
 	platform    platform.Platform
 	logger      *logger.Logger
-	basePath    string // Base directory for volume storage (e.g., /opt/joblet/volumes)
+	basePath    string // Where we store all our volumes on disk
 }
 
-// NewManager creates a new volume manager instance with the provided dependencies.
-// It initializes the manager with a volume store for state management, platform abstraction
-// for OS operations, and a base path where volumes will be stored on disk.
+// NewManager creates a new volume manager. Give it a volume store to track state,
+// a platform interface for OS stuff, and tell it where to put volumes on disk.
+// Pretty straightforward setup!
 func NewManager(volumeStore adapters.VolumeStorer, platform platform.Platform, basePath string) *Manager {
 	return &Manager{
 		volumeStore: volumeStore,

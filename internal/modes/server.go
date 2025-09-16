@@ -15,6 +15,7 @@ import (
 	"joblet/internal/modes/isolation"
 	"joblet/internal/modes/jobexec"
 	"joblet/pkg/config"
+	"joblet/pkg/constants"
 	"joblet/pkg/logger"
 	"joblet/pkg/platform"
 	"os"
@@ -518,21 +519,26 @@ func waitForNetworkReady(logger *logger.Logger, platform platform.Platform) erro
 
 // waitForNetworkReadyFile waits for the network ready signal file to be created
 func waitForNetworkReadyFile(logger *logger.Logger, filePath string) error {
-	// Waiting for network ready signal file
+	// Waiting for network ready signal file with proper context-based timeout
+	ctx, cancel := context.WithTimeout(context.Background(), constants.NetworkReadyTimeout*time.Second)
+	defer cancel()
 
-	// Poll for the file to exist with a timeout
-	for i := 0; i < 100; i++ { // 10 second timeout (100 * 100ms)
-		if _, err := os.Stat(filePath); err == nil {
-			logger.Debug("network ready")
-			// Clean up the signal file
-			os.Remove(filePath)
-			return nil
+	ticker := time.NewTicker(constants.DefaultPollInterval * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for network ready signal file: %s", filePath)
+		case <-ticker.C:
+			if _, err := os.Stat(filePath); err == nil {
+				logger.Debug("network ready")
+				// Clean up the signal file
+				os.Remove(filePath)
+				return nil
+			}
 		}
-		// Sleep 100ms between checks
-		time.Sleep(100 * time.Millisecond)
 	}
-
-	return fmt.Errorf("timeout waiting for network ready signal file: %s", filePath)
 }
 
 // assignToCgroup assigns the current process to the specified cgroup.

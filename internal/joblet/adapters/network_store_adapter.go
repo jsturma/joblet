@@ -81,11 +81,11 @@ func (a *networkStoreAdapter) CreateNetwork(config *NetworkConfig) error {
 	a.closeMutex.RUnlock()
 
 	if config == nil {
-		return fmt.Errorf("network config cannot be nil")
+		return fmt.Errorf("network creation failed: config cannot be nil")
 	}
 
 	if config.Name == "" {
-		return fmt.Errorf("network name cannot be empty")
+		return fmt.Errorf("network creation failed: name cannot be empty")
 	}
 
 	if err := a.validateNetworkConfig(config); err != nil {
@@ -100,7 +100,7 @@ func (a *networkStoreAdapter) CreateNetwork(config *NetworkConfig) error {
 	ctx := context.Background()
 	if err := a.networkStore.Create(ctx, config.Name, config); err != nil {
 		if IsConflictError(err) {
-			return fmt.Errorf("network already exists: %s", config.Name)
+			return fmt.Errorf("network creation failed: network %s already exists", config.Name)
 		}
 		a.logger.Error("failed to create network in store", "networkName", config.Name, "error", err)
 		return fmt.Errorf("failed to create network: %w", err)

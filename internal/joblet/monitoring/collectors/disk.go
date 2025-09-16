@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"joblet/internal/joblet/monitoring/domain"
+	"joblet/pkg/constants"
 	"joblet/pkg/logger"
 )
 
@@ -260,14 +261,12 @@ func (c *DiskCollector) readDiskStats() (map[string]*diskIOStats, error) {
 		ioTime, _ := strconv.ParseUint(fields[12], 10, 64)
 		weightedIOTime, _ := strconv.ParseUint(fields[13], 10, 64)
 
-		// Convert sectors to bytes (assuming 512 bytes per sector)
-		const sectorSize = 512
-
+		// Convert sectors to bytes
 		stats[deviceName] = &diskIOStats{
 			readsCompleted:  readCompleted,
 			writesCompleted: writeCompleted,
-			readBytes:       readSectors * sectorSize,
-			writeBytes:      writeSectors * sectorSize,
+			readBytes:       readSectors * constants.DefaultSectorSize,
+			writeBytes:      writeSectors * constants.DefaultSectorSize,
 			readTime:        readTime,
 			writeTime:       writeTime,
 			ioTime:          ioTime,

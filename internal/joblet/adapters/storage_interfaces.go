@@ -9,11 +9,12 @@ import (
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
-// JobStoreAdapter provides job storage with buffer management and pub-sub capabilities.
+// JobStorer handles all the job storage stuff - keeping track of jobs, their logs,
+// and making sure everyone who cares about job updates gets notified.
 //
 //counterfeiter:generate . JobStorer
 type JobStorer interface {
-	// Core job management operations
+	// Basic job stuff - create, update, find, list
 	CreateNewJob(job *domain.Job)
 	UpdateJob(job *domain.Job)
 	Job(id string) (*domain.Job, bool)
@@ -23,32 +24,34 @@ type JobStorer interface {
 	Output(id string) ([]byte, bool, error)
 	SendUpdatesToClient(ctx context.Context, id string, stream interfaces.DomainStreamer) error
 
-	// Log management
+	// Taking care of job logs
 	DeleteJobLogs(jobID string) error
 
-	// Job cleanup - complete job deletion including logs and metadata
+	// Cleanup - get rid of jobs and all their stuff when we're done
 	DeleteJob(jobID string) error
 
-	// Lifecycle management
+	// Shutting down gracefully
 	Close() error
 }
 
-// VolumeStoreAdapter provides volume storage.
+// VolumeStorer handles all our volume storage needs - creating them, tracking them,
+// and cleaning them up when we're done.
 //
 //counterfeiter:generate . VolumeStorer
 type VolumeStorer interface {
-	// Embed the standard VolumeStore interface
+	// All the basic volume operations
 	interfaces.VolumeStore
 
-	// Lifecycle management
+	// Cleanup when done
 	Close() error
 }
 
-// NetworkStoreAdapter provides network storage.
+// NetworkStorer manages network configurations and job network allocations.
+// Keeps track of which jobs are using which networks and how they're connected.
 //
 //counterfeiter:generate . NetworkStorer
 type NetworkStorer interface {
-	// Network configuration management
+	// Setting up and managing network configs
 	CreateNetwork(config *NetworkConfig) error
 	Network(name string) (*NetworkConfig, bool)
 	NetworkConfig(name string) (*network.NetworkConfig, error)    // For network.NetworkSetup compatibility

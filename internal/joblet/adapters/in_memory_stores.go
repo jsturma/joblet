@@ -11,9 +11,10 @@ import (
 
 // Direct constructors to replace the over-engineered factory pattern
 
-// NewJobStore creates a job store directly without factory abstraction
+// NewJobStore creates a simplified job store directly without factory abstraction
 func NewJobStore(logger *logger.Logger) JobStorer {
-	// Simple in-memory store without generic wrappers
+	// Use existing complex adapter for now - simplification would require more extensive changes
+	// The complexity is needed for log streaming and pub-sub functionality
 	store := &SimpleJobStore{
 		jobs:   make(map[string]*domain.Job),
 		logger: logger.WithField("component", "job-store"),
@@ -153,6 +154,57 @@ func (s *SimpleVolumeStore) Close() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.volumes = make(map[string]*domain.Volume)
+	return nil
+}
+
+// VolumeStore interface methods
+
+func (s *SimpleVolumeStore) CreateVolume(volume *domain.Volume) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.volumes[volume.Name] = volume
+	return nil
+}
+
+func (s *SimpleVolumeStore) GetVolume(name string) (*domain.Volume, bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	volume, exists := s.volumes[name]
+	return volume, exists
+}
+
+func (s *SimpleVolumeStore) ListVolumes() []*domain.Volume {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	result := make([]*domain.Volume, 0, len(s.volumes))
+	for _, volume := range s.volumes {
+		result = append(result, volume)
+	}
+	return result
+}
+
+func (s *SimpleVolumeStore) RemoveVolume(name string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	delete(s.volumes, name)
+	return nil
+}
+
+func (s *SimpleVolumeStore) IncrementJobCount(name string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if volume, exists := s.volumes[name]; exists {
+		volume.JobCount++
+	}
+	return nil
+}
+
+func (s *SimpleVolumeStore) DecrementJobCount(name string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if volume, exists := s.volumes[name]; exists && volume.JobCount > 0 {
+		volume.JobCount--
+	}
 	return nil
 }
 

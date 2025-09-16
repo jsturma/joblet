@@ -13,7 +13,8 @@ import (
 	"joblet/pkg/logger"
 )
 
-// VolumeManagerAdapter adapts the volume manager interface for monitoring
+// VolumeManagerAdapter is a bridge that lets our monitoring system
+// talk to the volume manager and get stats about volume usage.
 type VolumeManagerAdapter struct {
 	volumeManager interface {
 		ListVolumes() []*volumeDomain.Volume
@@ -21,7 +22,8 @@ type VolumeManagerAdapter struct {
 	}
 }
 
-// ListVolumes adapts the volume manager's ListVolumes method
+// ListVolumes gets all volumes from the volume manager and converts them
+// to a format our monitoring system can understand.
 func (v *VolumeManagerAdapter) ListVolumes() []*collectors.Volume {
 	if v.volumeManager == nil {
 		return nil

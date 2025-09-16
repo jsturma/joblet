@@ -15,15 +15,17 @@ import (
 	"joblet/pkg/platform"
 )
 
-// ComponentFactory handles creation and wiring of all system components
-// This centralizes dependency injection and reduces coupling
+// ComponentFactory is like a smart assembler that knows how to build and connect
+// all the different parts of our system. It keeps everything organized so components
+// don't need to know about each other directly.
 type ComponentFactory struct {
 	config   *config.Config
 	platform platform.Platform
 	logger   *logger.Logger
 }
 
-// ServiceComponents contains all the core services needed by the application
+// ServiceComponents is our collection of essential services that make the app work.
+// Think of it as gathering all the key players in one place.
 type ServiceComponents struct {
 	Joblet            interfaces.Joblet
 	WorkflowManager   *workflow.WorkflowManager
@@ -36,7 +38,8 @@ type ServiceComponents struct {
 	EventBus          events.EventBus
 }
 
-// NewComponentFactory creates a new component factory for dependency injection
+// NewComponentFactory sets up a new factory that can build all our system components.
+// Just give it some config and platform info, and it'll handle the rest!
 func NewComponentFactory(cfg *config.Config, platform platform.Platform) *ComponentFactory {
 	factoryLogger := logger.New().WithField("component", "factory")
 	return &ComponentFactory{
@@ -46,7 +49,8 @@ func NewComponentFactory(cfg *config.Config, platform platform.Platform) *Compon
 	}
 }
 
-// CreateServices creates and wires all application services with proper dependency injection
+// CreateServices builds all the services we need and wires them together nicely.
+// It's like assembling a complex machine where each part knows how to talk to the others.
 func (f *ComponentFactory) CreateServices() (*ServiceComponents, error) {
 	f.logger.Debug("initializing application services")
 
@@ -90,40 +94,44 @@ func (f *ComponentFactory) CreateServices() (*ServiceComponents, error) {
 	}, nil
 }
 
-// createJobStore creates and configures the job storage adapter with in-memory backend
+// createJobStore sets up our job storage - this is where we keep track of all the jobs
+// running in the system. Think of it as our job memory bank.
 func (f *ComponentFactory) createJobStore() (JobStore, error) {
 	f.logger.Debug("creating job store adapter")
 
-	// Use simple constructor instead of complex factory pattern
+	// We're using a straightforward approach here - no need to overcomplicate things
 	adapter := adapters.NewJobStore(f.logger)
 
 	f.logger.Info("job store adapter created successfully")
 	return adapter, nil
 }
 
-// createNetworkStore creates and configures the network storage adapter for job networking
+// createNetworkStore builds our network storage - this manages all the networking
+// configurations for jobs so they can talk to each other and the outside world.
 func (f *ComponentFactory) createNetworkStore() (adapters.NetworkStorer, error) {
 	f.logger.Debug("creating network store adapter")
 
-	// Use simple constructor instead of complex factory pattern
+	// Keep it simple - just create what we need without any fancy patterns
 	adapter := adapters.NewNetworkStore(f.logger)
 
 	f.logger.Info("network store adapter created successfully")
 	return adapter, nil
 }
 
-// createVolumeStore creates and configures the volume storage adapter for persistent data
+// createVolumeStore sets up storage for persistent volumes - this is where we keep
+// data that needs to stick around even after jobs finish.
 func (f *ComponentFactory) createVolumeStore() (VolumeStore, error) {
 	f.logger.Debug("creating volume store adapter")
 
-	// Use simple constructor instead of complex factory pattern
+	// Simple and direct - just what we need
 	adapter := adapters.NewVolumeStore(f.logger)
 
 	f.logger.Info("volume store adapter created successfully")
 	return adapter, nil
 }
 
-// createVolumeManager creates a volume manager to handle persistent volume operations
+// createVolumeManager builds the volume manager that actually deals with creating,
+// mounting, and cleaning up volumes on the filesystem.
 func (f *ComponentFactory) createVolumeManager(volumeStore VolumeStore) *volume.Manager {
 	f.logger.Debug("creating volume manager")
 
@@ -137,25 +145,29 @@ func (f *ComponentFactory) createVolumeManager(volumeStore VolumeStore) *volume.
 	return manager
 }
 
-// createRuntimeComponents creates a runtime resolver to manage execution environments
+// createRuntimeComponents sets up the runtime resolver - this guy figures out
+// which runtime environment (like Python, Node.js, etc.) to use for each job.
 func (f *ComponentFactory) createRuntimeComponents() *runtime.Resolver {
 	f.logger.Debug("creating runtime resolver", "basePath", f.config.Runtime.BasePath)
 	return runtime.NewResolver(f.config.Runtime.BasePath, f.platform)
 }
 
-// createWorkflowManager creates a workflow manager to handle multi-job orchestration
+// createWorkflowManager builds the workflow manager that coordinates multiple jobs
+// working together, making sure they run in the right order and dependencies are handled.
 func (f *ComponentFactory) createWorkflowManager() *workflow.WorkflowManager {
 	f.logger.Debug("creating workflow manager")
 	return workflow.NewWorkflowManager()
 }
 
-// createMonitoringService creates a monitoring service for system and job metrics collection
+// createMonitoringService sets up our monitoring service that keeps an eye on
+// system health and job performance - basically our system's health checker.
 func (f *ComponentFactory) createMonitoringService() *monitoring.Service {
 	f.logger.Debug("creating monitoring service")
 	return monitoring.NewService(nil)
 }
 
-// configureVolumeMonitoring wires volume manager with monitoring service for disk usage tracking
+// configureVolumeMonitoring connects our volume manager to the monitoring service
+// so we can keep track of how much disk space our volumes are using.
 func (f *ComponentFactory) configureVolumeMonitoring(monitoringService *monitoring.Service, volumeManager *volume.Manager) {
 	f.logger.Debug("configuring volume monitoring integration")
 

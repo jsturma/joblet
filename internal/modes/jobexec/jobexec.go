@@ -8,6 +8,7 @@ import (
 	"joblet/internal/joblet/core/environment"
 	"joblet/internal/joblet/core/upload"
 	"joblet/pkg/config"
+	"joblet/pkg/errors"
 	"joblet/pkg/logger"
 	"joblet/pkg/platform"
 	"os"
@@ -45,7 +46,7 @@ func (je *JobExecutor) ExecuteInInitMode() error {
 	// Load job configuration from environment
 	config, err := je.envBuilder.LoadJobConfigFromEnvironment()
 	if err != nil {
-		return fmt.Errorf("failed to load job config: %w", err)
+		return errors.WrapConfigError("job", "config", err)
 	}
 
 	log := je.logger.WithField("jobID", config.JobID).
@@ -71,7 +72,7 @@ func Execute(logger *logger.Logger) error {
 	// Load configuration - this is needed for workspace directory
 	cfg, _, err := config.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return errors.WrapConfigError("joblet", "config", err)
 	}
 	executor := NewJobExecutor(p, logger, cfg)
 	return executor.ExecuteJob()
@@ -81,7 +82,7 @@ func (je *JobExecutor) ExecuteJob() error {
 	// Load configuration from environment
 	config, err := je.envBuilder.LoadJobConfigFromEnvironment()
 	if err != nil {
-		return fmt.Errorf("failed to load job configuration: %w", err)
+		return errors.WrapConfigError("job", "configuration", err)
 	}
 
 	// Check which phase we're in
@@ -90,7 +91,7 @@ func (je *JobExecutor) ExecuteJob() error {
 	switch phase {
 	case "upload":
 		// Upload phase is handled in server.go
-		return fmt.Errorf("upload phase should be handled by server.go")
+		return fmt.Errorf("%w: upload phase should be handled by server.go", errors.ErrInvalidConfig)
 
 	case "execute", "":
 		// Execute phase - just run the command
@@ -99,7 +100,7 @@ func (je *JobExecutor) ExecuteJob() error {
 		return je.executeCommand(config)
 
 	default:
-		return fmt.Errorf("unknown job phase: %s", phase)
+		return errors.WrapConfigError("job", "phase", fmt.Errorf("unknown phase: %s", phase))
 	}
 }
 
@@ -107,19 +108,19 @@ func (je *JobExecutor) ExecuteJob() error {
 func (je *JobExecutor) processUploads(config *environment.JobConfig) error {
 	workspaceDir := je.config.Filesystem.WorkspaceDir
 	if workspaceDir == "" {
-		return fmt.Errorf("workspace directory not configured")
+		return errors.WrapConfigError("job", "workspace", fmt.Errorf("directory not configured"))
 	}
 	// Processing uploads from pipe
 
 	// Create workspace
 	if err := je.platform.MkdirAll(workspaceDir, 0755); err != nil {
-		return fmt.Errorf("failed to create workspace: %w", err)
+		return errors.WrapFilesystemError(workspaceDir, "create", err)
 	}
 
 	// Create receiver and process files
 	receiver := upload.NewReceiver(je.platform, je.logger)
 	if err := receiver.ProcessAllFiles(config.UploadPipePath, workspaceDir); err != nil {
-		return fmt.Errorf("failed to process files from pipe: %w", err)
+		return errors.WrapFilesystemError("", "process_upload", err)
 	}
 
 	// Upload processing completed
@@ -131,18 +132,18 @@ func (je *JobExecutor) executeCommand(config *environment.JobConfig) error {
 	// Resolve command path
 	commandPath, err := je.resolveCommandPath(config.Command)
 	if err != nil {
-		return fmt.Errorf("failed to resolve command: %w", err)
+		return errors.WrapConfigError("job", "command", err)
 	}
 
 	// Change to workspace if uploads were processed (use os.Chdir since we're in isolated namespace)
 	if je.platform.Getenv("JOB_HAS_UPLOADS") == "true" {
 		workDir := je.config.Filesystem.WorkspaceDir
 		if workDir == "" {
-			return fmt.Errorf("workspace directory not configured")
+			return errors.WrapConfigError("job", "workspace", fmt.Errorf("directory not configured"))
 		}
 		if _, err := je.platform.Stat(workDir); err == nil {
 			if err := os.Chdir(workDir); err != nil {
-				return fmt.Errorf("failed to change to workspace directory: %w", err)
+				return errors.WrapFilesystemError(workDir, "chdir", err)
 			}
 			// Changed to workspace directory
 		}
@@ -164,7 +165,7 @@ func (je *JobExecutor) executeCommand(config *environment.JobConfig) error {
 	err = je.platform.Exec(commandPath, argv, envv)
 	// If we reach this point, exec failed
 	je.logger.Error("exec failed - job will not appear as PID 1", "error", err)
-	return fmt.Errorf("exec failed: %w", err)
+	return fmt.Errorf("execution failed: %w", err)
 }
 
 // resolveCommandPath resolves the full path for a command
@@ -198,7 +199,7 @@ func (je *JobExecutor) resolveCommandPath(command string) (string, error) {
 
 	// Log what we checked for debugging
 	je.logger.Debug("command not found in any location", "command", command, "checked", commonPaths)
-	return "", fmt.Errorf("command %s not found", command)
+	return "", fmt.Errorf("%w: %s", errors.ErrRuntimeNotFound, command)
 }
 
 // SetupCgroup sets up cgroup constraints (called before executing)
