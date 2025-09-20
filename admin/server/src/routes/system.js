@@ -3,12 +3,12 @@ import {execRnx} from '../utils/rnxExecutor.js';
 
 const router = express.Router();
 
-// Get detailed system info
+// Fetch comprehensive system information
 router.get('/system-info', async (req, res) => {
     try {
         const node = req.query.node;
 
-        // Get comprehensive system information using monitor status command
+        // Ask the monitor for detailed system stats
         const output = await execRnx(['monitor', 'status', '--json'], {
             node,
             maxBuffer: 1024 * 1024 * 10 // 10MB buffer
@@ -16,7 +16,7 @@ router.get('/system-info', async (req, res) => {
 
         const monitorData = JSON.parse(output);
 
-        // Transform the data to match the frontend DetailedSystemInfo interface
+        // Reorganize the data to match what the frontend expects
         const systemInfo = {
             hostInfo: {
                 hostname: monitorData.hostInfo?.hostname,
@@ -81,7 +81,7 @@ router.get('/system-info', async (req, res) => {
     }
 });
 
-// Get system metrics
+// Fetch system performance metrics
 router.get('/system-metrics', async (req, res) => {
     try {
         const node = req.query.node;
@@ -104,7 +104,7 @@ router.get('/volumes', async (req, res) => {
         if (output && output.trim()) {
             try {
                 result = JSON.parse(output);
-                // Ensure volumes field exists and is an array
+                // Make sure we have a proper volumes list
                 if (!result.volumes || !Array.isArray(result.volumes)) {
                     result = {volumes: [], message: 'No volumes found'};
                 }
@@ -169,7 +169,7 @@ router.get('/networks', async (req, res) => {
         if (output && output.trim()) {
             try {
                 result = JSON.parse(output);
-                // Ensure networks field exists and is an array
+                // Make sure we have a proper networks list
                 if (!result.networks || !Array.isArray(result.networks)) {
                     result = {
                         networks: [
@@ -262,10 +262,10 @@ router.get('/runtimes', async (req, res) => {
         if (output && output.trim()) {
             try {
                 const runtimeData = JSON.parse(output);
-                // rnx runtime list returns an array directly, not an object with runtimes property
+                // The RNX command gives us an array, not an object with a runtimes field
                 const rawRuntimes = Array.isArray(runtimeData) ? runtimeData : (runtimeData.runtimes || []);
 
-                // Transform to match UI expectations
+                // Reshape the data for the frontend
                 runtimes = rawRuntimes.map(runtime => ({
                     id: runtime.id,
                     name: runtime.name || runtime.id,
@@ -303,7 +303,7 @@ router.post('/runtimes/install', async (req, res) => {
 
         const output = await execRnx(args, {node});
 
-        // Extract build job ID from output
+        // Look for the job ID in the command output
         let buildJobId = null;
         const lines = output.split('\n');
         for (const line of lines) {
@@ -351,50 +351,76 @@ router.get('/monitor', async (req, res) => {
     }
 });
 
-// RNX native GitHub runtime listing with caching
+// Cache for GitHub runtime data to avoid repeated API calls
 let githubRuntimesCache = null;
 let githubCacheTimestamp = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // Keep cache for 5 minutes
 
 router.get('/github/runtimes', async (req, res) => {
     try {
-        // Check if we have valid cached data
+        // Use the repository path from the request, or default to the main joblet repo
+        const repoPath = req.query.repo || 'ehsaniara/joblet/tree/main/runtimes';
+
+        // If we already have fresh data for this repo, just return it
+        const cacheKey = `${repoPath}`;
         const now = Date.now();
-        if (githubRuntimesCache && (now - githubCacheTimestamp < CACHE_DURATION)) {
-            return res.json(githubRuntimesCache);
+        if (githubRuntimesCache &&
+            githubRuntimesCache.repo === cacheKey &&
+            (now - githubCacheTimestamp < CACHE_DURATION)) {
+            return res.json(githubRuntimesCache.data);
         }
 
-        // Use RNX native GitHub runtime listing
-        const node = req.query.node;
-        const output = await execRnx(['runtime', 'list', '--github-repo=ehsaniara/joblet/tree/main/runtimes', '--json'], {node});
+        // Get the runtime list directly from GitHub since the RNX command has issues
+        console.log('Fetching runtime manifest directly from GitHub...');
 
-        // Extract JSON from the output (skip status messages)
-        const lines = output.split('\n');
-        let jsonStart = -1;
-        for (let i = 0; i < lines.length; i++) {
-            if (lines[i].trim().startsWith('[')) {
-                jsonStart = i;
-                break;
+        // Break down the repo path to build the URL for the manifest file
+        const pathParts = repoPath.split('/');
+        let owner, repo, branch = 'main', path = '';
+
+        if (pathParts.length >= 2) {
+            owner = pathParts[0];
+            repo = pathParts[1];
+
+            // Handle the full GitHub URL format with branch and path
+            if (pathParts.length >= 4 && pathParts[2] === 'tree') {
+                branch = pathParts[3];
+                path = pathParts.slice(4).join('/');
             }
+        } else {
+            throw new Error('Invalid repository format. Expected: owner/repo or owner/repo/tree/branch/path');
         }
 
-        const jsonOutput = jsonStart >= 0 ? lines.slice(jsonStart).join('\n') : output;
-        const runtimeData = JSON.parse(jsonOutput);
+        const manifestUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}/runtime-manifest.json`;
 
-        // Transform RNX runtime data to match UI expectations
-        const runtimesWithPlatforms = runtimeData.map(runtime => {
-            // Extract platform list from the platforms object
-            const platforms = Object.keys(runtime.platforms || {})
-                .filter(platform => runtime.platforms[platform].supported)
-                .map(platform => platform.replace('-', '/'))
-                .sort();
+        const fetch = (await import('node-fetch')).default;
+        const response = await fetch(manifestUrl);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch manifest: ${response.statusText}`);
+        }
+
+        const manifest = await response.json();
+
+        // Convert the GitHub manifest data into the format our UI expects
+        const runtimesFromManifest = Object.entries(manifest.runtimes || {}).map(([name, runtime]) => {
+            // The manifest stores platforms as an array of strings like ['ubuntu-amd64', 'ubuntu-arm64']
+            let platforms = [];
+            if (Array.isArray(runtime.platforms)) {
+                // Change the format from "ubuntu-amd64" to "ubuntu/amd64" for display
+                platforms = runtime.platforms.map(p => p.replace('-', '/'));
+            }
+
+            // Build the GitHub link that users can click to view the runtime
+            const githubUrl = path
+                ? `https://github.com/${owner}/${repo}/tree/${branch}/${path}/${name}`
+                : `https://github.com/${owner}/${repo}/tree/${branch}/${name}`;
 
             return {
-                name: runtime.name,
+                name: name,
                 type: 'directory',
-                html_url: `https://github.com/ehsaniara/joblet/tree/main/runtimes/${runtime.name}`,
+                html_url: githubUrl,
                 platforms: platforms,
-                displayName: runtime.display_name || runtime.name,
+                displayName: runtime.display_name || name,
                 description: runtime.description,
                 category: runtime.category,
                 language: runtime.language,
@@ -405,53 +431,23 @@ router.get('/github/runtimes', async (req, res) => {
             };
         });
 
-        // Cache the result
-        githubRuntimesCache = runtimesWithPlatforms;
+        // Save this data so we don't have to fetch it again soon
+        githubRuntimesCache = {
+            repo: cacheKey,
+            data: runtimesFromManifest
+        };
         githubCacheTimestamp = now;
 
-        res.json(runtimesWithPlatforms);
+        res.json(runtimesFromManifest);
     } catch (error) {
-        console.error('Failed to fetch GitHub runtimes via RNX:', error);
+        console.error('Failed to fetch GitHub runtimes:', error);
 
-        // Return fallback static data when RNX GitHub listing is unavailable
-        const fallbackRuntimes = [
-            {
-                name: 'graalvmjdk-21',
-                type: 'directory',
-                html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/graalvmjdk-21',
-                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64'],
-                displayName: 'GraalVM JDK 21',
-                description: 'GraalVM Community Edition JDK 21 with native-image support',
-                category: 'language-runtime',
-                language: 'java'
-            },
-            {
-                name: 'openjdk-21',
-                type: 'directory',
-                html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/openjdk-21',
-                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64'],
-                displayName: 'OpenJDK 21',
-                description: 'OpenJDK 21 with Java development tools',
-                category: 'language-runtime',
-                language: 'java'
-            },
-            {
-                name: 'python-3.11-ml',
-                type: 'directory',
-                html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/python-3.11-ml',
-                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64'],
-                displayName: 'Python 3.11 ML',
-                description: 'Python 3.11 with machine learning libraries',
-                category: 'language-runtime',
-                language: 'python'
-            }
-        ];
-
-        // Cache the fallback data
-        githubRuntimesCache = fallbackRuntimes;
-        githubCacheTimestamp = Date.now();
-
-        res.json(fallbackRuntimes);
+        // If something went wrong, let the frontend know what happened
+        res.status(500).json({
+            error: 'Failed to fetch runtimes from GitHub',
+            message: error.message,
+            runtimes: []
+        });
     }
 });
 

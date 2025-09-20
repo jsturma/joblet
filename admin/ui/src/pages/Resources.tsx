@@ -213,26 +213,8 @@ const Resources: React.FC = () => {
                 throw new Error(t('resources.repositoryNoManifest'));
             }
 
-            // Parse repository path: "owner/repo/tree/branch/path"
-            const pathParts = repoPath.split('/');
-            const owner = pathParts[0];
-            const repo = pathParts[1];
-            const branch = pathParts[3]; // skip "tree"
-            const path = pathParts.slice(4).join('/');
-
-            // Try server-side proxy first to avoid rate limits (if using default repo)
-            let response;
-            if (repoPath === 'ehsaniara/joblet/tree/main/runtimes') {
-                response = await fetch('/api/github/runtimes');
-
-                // Fallback to direct GitHub API if proxy doesn't exist
-                if (!response.ok && response.status === 404) {
-                    response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`);
-                }
-            } else {
-                // For custom repositories, always use direct GitHub API
-                response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`);
-            }
+            // Always use server-side proxy to fetch from GitHub (avoids CORS and rate limits)
+            const response = await fetch(`/api/github/runtimes?repo=${encodeURIComponent(repoPath)}`);
 
             if (!response.ok) {
                 if (response.status === 403) {
@@ -243,65 +225,12 @@ const Resources: React.FC = () => {
 
             const data = await response.json();
 
-            // Handle server proxy response (already processed) vs direct GitHub API response
+            // Server proxy response - already processed
             let runtimesWithPlatforms;
-            if (Array.isArray(data) && data.length > 0 && data[0].platforms) {
-                // Server proxy response - already has platforms
+            if (Array.isArray(data)) {
                 runtimesWithPlatforms = data;
-            } else if (Array.isArray(data)) {
-                // Direct GitHub API response - need to process
-                const runtimeDirs = data.filter(item => item.type === 'dir');
-
-                runtimesWithPlatforms = await Promise.all(
-                    runtimeDirs.map(async (runtime) => {
-                        try {
-                            const platformResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}/${runtime.name}?ref=${branch}`);
-
-                            if (platformResponse.ok) {
-                                const platformData = await platformResponse.json();
-
-                                if (Array.isArray(platformData)) {
-                                    const setupFiles = platformData.filter(item =>
-                                        item.type === 'file' &&
-                                        item.name.startsWith('setup-') &&
-                                        item.name.endsWith('.sh')
-                                    );
-
-                                    const platforms = new Set<string>();
-
-                                    setupFiles.forEach(file => {
-                                        const match = file.name.match(/setup-([^-]+)-([^.]+)\.sh/);
-                                        if (match) {
-                                            const [, os, arch] = match;
-                                            platforms.add(`${os}/${arch}`);
-                                        }
-                                    });
-
-                                    return {
-                                        name: runtime.name,
-                                        type: 'directory',
-                                        html_url: runtime.html_url,
-                                        platforms: Array.from(platforms).sort()
-                                    };
-                                }
-                            }
-
-                            return {
-                                name: runtime.name,
-                                type: 'directory',
-                                html_url: runtime.html_url,
-                                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64']
-                            };
-                        } catch {
-                            return {
-                                name: runtime.name,
-                                type: 'directory',
-                                html_url: runtime.html_url,
-                                platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64']
-                            };
-                        }
-                    })
-                );
+            } else if (data.error) {
+                throw new Error(data.message || 'Failed to fetch runtimes');
             } else {
                 throw new Error('Invalid response format');
             }
@@ -319,39 +248,10 @@ const Resources: React.FC = () => {
                 loading: false
             }));
         } catch (err) {
-            // Fallback to known runtimes if GitHub API fails
-            const fallbackRuntimes = [
-                {
-                    name: 'graalvmjdk-21',
-                    type: 'directory',
-                    html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/graalvmjdk-21',
-                    platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64']
-                },
-                {
-                    name: 'openjdk-21',
-                    type: 'directory',
-                    html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/openjdk-21',
-                    platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64']
-                },
-                {
-                    name: 'python-3.11-ml',
-                    type: 'directory',
-                    html_url: 'https://github.com/ehsaniara/joblet/tree/main/runtimes/python-3.11-ml',
-                    platforms: ['ubuntu/amd64', 'ubuntu/arm64', 'rhel/amd64', 'rhel/arm64', 'amzn/amd64', 'amzn/arm64']
-                }
-            ];
-
-            // Compare with local runtimes for install status
-            const localRuntimeNames = runtimes.map(r => r.name.toLowerCase());
-            const fallbackWithStatus = fallbackRuntimes.map(runtime => ({
-                ...runtime,
-                isInstalled: localRuntimeNames.includes(runtime.name.toLowerCase())
-            }));
-
             setRuntimesDialog(prev => ({
                 ...prev,
-                runtimes: fallbackWithStatus,
-                error: 'GitHub API temporarily unavailable - showing known runtimes',
+                runtimes: [],
+                error: err instanceof Error ? err.message : 'Failed to fetch runtimes from repository',
                 loading: false
             }));
         }
