@@ -325,12 +325,14 @@ func (s *MonitoringServiceServer) serverVersionToProto() *pb.ServerVersionInfo {
 	buildInfo := version.GetBuildInfo()
 
 	return &pb.ServerVersionInfo{
-		Version:   version.GetVersion(),
-		GitCommit: buildInfo.GitCommit,
-		GitTag:    buildInfo.GitTag,
-		BuildDate: buildInfo.BuildDate,
-		Component: buildInfo.Component,
-		GoVersion: buildInfo.GoVersion,
-		Platform:  buildInfo.Platform + "/" + buildInfo.Architecture,
+		Version:     version.GetVersion(),
+		GitCommit:   buildInfo.GitCommit,
+		GitTag:      buildInfo.GitTag,
+		BuildDate:   buildInfo.BuildDate,
+		Component:   buildInfo.Component,
+		GoVersion:   buildInfo.GoVersion,
+		Platform:    buildInfo.Platform + "/" + buildInfo.Architecture,
+		ProtoCommit: buildInfo.ProtoCommit,
+		ProtoTag:    buildInfo.ProtoTag,
 	}
 }

@@ -3,7 +3,11 @@ REMOTE_USER ?= jay
 REMOTE_DIR ?= /opt/joblet
 REMOTE_ARCH ?= amd64
 
-.PHONY: all clean rnx joblet admin-ui deploy config-generate config-remote-generate config-download config-view help setup-remote-passwordless setup-dev service-status live-log test-connection validate-user-namespaces setup-user-namespaces check-kernel-support setup-subuid-subgid test-user-namespace-isolation debug-user-namespaces test-user-namespace-job release release-clean test test-unit test-visual test-automated
+# Proto generation variables
+PROTO_REPO ?= ../joblet-proto
+PROTO_GEN_DIR ?= api/gen
+
+.PHONY: all clean rnx joblet admin-ui deploy config-generate config-remote-generate config-download config-view help setup-remote-passwordless setup-dev service-status live-log test-connection validate-user-namespaces setup-user-namespaces check-kernel-support setup-subuid-subgid test-user-namespace-isolation debug-user-namespaces test-user-namespace-job release release-clean test test-unit test-visual test-automated proto proto-generate proto-copy
 
 all: rnx joblet admin-ui
 
@@ -25,6 +29,7 @@ help:
 	@echo "  make rnx               - Build RNX CLI for local development"
 	@echo "  make joblet            - Build joblet binary for Linux"
 	@echo "  make admin-ui          - Build admin UI (requires Node.js)"
+	@echo "  make proto             - Generate proto files from joblet-proto repository"
 	@echo "  make clean             - Remove build artifacts"
 	@echo ""
 	@echo "Release targets:"
@@ -73,7 +78,7 @@ help:
 	@echo "  make config-download"
 	@echo "  make setup-remote-passwordless"
 
-rnx:
+rnx: proto
 	@echo "Building RNX CLI with version info..."
 	@chmod +x ./scripts/build-version.sh
 	./scripts/build-version.sh rnx bin
@@ -83,7 +88,7 @@ admin-server: admin-ui
 	cd admin/server && npm install
 	@echo "✅ Admin Server ready"
 
-joblet:
+joblet: proto
 	@echo "Building Joblet with version info..."
 	@chmod +x ./scripts/build-version.sh
 	GOOS=linux GOARCH=$(REMOTE_ARCH) ./scripts/build-version.sh joblet bin
@@ -97,6 +102,25 @@ admin-ui:
 	@echo "Building React application..."
 	cd admin/ui && npm run build
 	@echo "✅ Admin UI built to admin/ui/dist/"
+
+proto: proto-generate proto-copy
+	@echo "✅ Proto files generated and copied successfully"
+
+proto-generate:
+	@echo "📦 Generating proto files from joblet-proto repository..."
+	@if [ ! -d "$(PROTO_REPO)" ]; then \
+		echo "❌ Error: joblet-proto repository not found at $(PROTO_REPO)"; \
+		echo "Please clone it first: git clone https://github.com/ehsaniara/joblet-proto.git $(PROTO_REPO)"; \
+		exit 1; \
+	fi
+	@echo "Generating Go proto files..."
+	cd $(PROTO_REPO) && ./generate.sh go
+
+proto-copy:
+	@echo "📋 Copying generated proto files to project..."
+	@mkdir -p $(PROTO_GEN_DIR)
+	@cp $(PROTO_REPO)/gen/*.pb.go $(PROTO_GEN_DIR)/
+	@echo "✅ Proto files copied to $(PROTO_GEN_DIR)/"
 
 deploy: joblet
 	@echo "🚀 Passwordless deployment to $(REMOTE_USER)@$(REMOTE_HOST)..."
@@ -123,6 +147,7 @@ clean:
 	rm -rf dist/
 	rm -rf config/
 	rm -rf web/ui/dist/
+	rm -rf api/gen/
 	rm -rf web/ui/node_modules/
 	rm -rf internal/rnx/admin/static/
 

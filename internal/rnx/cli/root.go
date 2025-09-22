@@ -93,8 +93,6 @@ func init() {
 	rootCmd.AddCommand(resources.NewVolumeCmd())
 	rootCmd.AddCommand(resources.NewRuntimeCmd())
 	rootCmd.AddCommand(NewAdminCmd())
-	rootCmd.AddCommand(NewVersionCmd())
-
 	// Add --version flag support
 	AddVersionFlag(rootCmd)
 }

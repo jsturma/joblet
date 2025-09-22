@@ -38,12 +38,24 @@ get_version_info() {
     # Build ID for uniqueness
     BUILD_ID="${GIT_COMMIT_SHORT}-$(date -u +%Y%m%d%H%M%S)"
 
+    # Get proto version directly from joblet-proto repository
+    PROTO_REPO_PATH="$REPO_ROOT/../joblet-proto"
+    if [ -d "$PROTO_REPO_PATH/.git" ]; then
+        PROTO_COMMIT=$(cd "$PROTO_REPO_PATH" && git rev-parse HEAD 2>/dev/null || echo "unknown")
+        PROTO_TAG=$(cd "$PROTO_REPO_PATH" && git describe --tags --exact-match 2>/dev/null || echo "unknown")
+    else
+        PROTO_COMMIT="unknown"
+        PROTO_TAG="unknown"
+    fi
+
     echo "Version Info:"
     echo "  Version: $VERSION"
     echo "  Git Tag: $GIT_TAG"
     echo "  Git Commit: $GIT_COMMIT"
     echo "  Build Date: $BUILD_DATE"
     echo "  Build ID: $BUILD_ID"
+    echo "  Proto Tag: $PROTO_TAG"
+    echo "  Proto Commit: $PROTO_COMMIT"
     echo
 }
 
@@ -55,7 +67,9 @@ build_ldflags() {
         -X joblet/pkg/version.GitCommit=$GIT_COMMIT \
         -X joblet/pkg/version.GitTag=$GIT_TAG \
         -X joblet/pkg/version.BuildDate=$BUILD_DATE \
-        -X joblet/pkg/version.Component=$component"
+        -X joblet/pkg/version.Component=$component \
+        -X joblet/pkg/version.ProtoCommit=$PROTO_COMMIT \
+        -X joblet/pkg/version.ProtoTag=$PROTO_TAG"
 }
 
 # Build specific component

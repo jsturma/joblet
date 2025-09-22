@@ -67,8 +67,8 @@ func (x *Jobs) GetJobs() []*Job {
 
 type Job struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Uuid              string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"` // Unique UUID identifier (replaces sequential id)
-	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Uuid              string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"` // Job UUID
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // Job name (optional for individual jobs)
 	Command           string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
 	Args              []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
 	MaxCPU            int32                  `protobuf:"varint,5,opt,name=maxCPU,proto3" json:"maxCPU,omitempty"`
@@ -79,10 +79,10 @@ type Job struct {
 	StartTime         string                 `protobuf:"bytes,10,opt,name=startTime,proto3" json:"startTime,omitempty"`
 	EndTime           string                 `protobuf:"bytes,11,opt,name=endTime,proto3" json:"endTime,omitempty"`
 	ExitCode          int32                  `protobuf:"varint,12,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
-	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // When the job should execute (RFC3339 format, empty if immediate)
-	Runtime           string                 `protobuf:"bytes,14,opt,name=runtime,proto3" json:"runtime,omitempty"`                                                                                                                        // Runtime specification used for the job
-	Environment       map[string]string      `protobuf:"bytes,15,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Regular environment variables (visible)
-	SecretEnvironment map[string]string      `protobuf:"bytes,16,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (masked)
+	ScheduledTime     string                 `protobuf:"bytes,13,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"`                                                                                                            // Schedule time (RFC3339, empty = immediate)
+	Runtime           string                 `protobuf:"bytes,14,opt,name=runtime,proto3" json:"runtime,omitempty"`                                                                                                                        // Runtime spec
+	Environment       map[string]string      `protobuf:"bytes,15,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`                                      // Environment variables
+	SecretEnvironment map[string]string      `protobuf:"bytes,16,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret env vars (masked in logs)
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -267,10 +267,10 @@ func (*EmptyRequest) Descriptor() ([]byte, []int) {
 
 type FileUpload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                // Relative path in job workspace
-	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`          // File content
-	Mode          uint32                 `protobuf:"varint,3,opt,name=mode,proto3" json:"mode,omitempty"`               // Unix file permissions (e.g., 0644)
-	IsDirectory   bool                   `protobuf:"varint,4,opt,name=isDirectory,proto3" json:"isDirectory,omitempty"` // True if this represents a directory
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                // Path in workspace
+	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`          // Content
+	Mode          uint32                 `protobuf:"varint,3,opt,name=mode,proto3" json:"mode,omitempty"`               // Unix permissions
+	IsDirectory   bool                   `protobuf:"varint,4,opt,name=isDirectory,proto3" json:"isDirectory,omitempty"` // Is directory
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -849,8 +849,8 @@ type DeleteAllJobsRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	DeletedCount  int32                  `protobuf:"varint,3,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"` // Number of jobs deleted
-	SkippedCount  int32                  `protobuf:"varint,4,opt,name=skipped_count,json=skippedCount,proto3" json:"skipped_count,omitempty"` // Number of jobs skipped (running/scheduled)
+	DeletedCount  int32                  `protobuf:"varint,3,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"` // Jobs deleted
+	SkippedCount  int32                  `protobuf:"varint,4,opt,name=skipped_count,json=skippedCount,proto3" json:"skipped_count,omitempty"` // Jobs skipped (still running)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1595,8 +1595,8 @@ func (x *Networks) GetNetworks() []*Network {
 type CreateVolumeReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Size          string                 `protobuf:"bytes,2,opt,name=size,proto3" json:"size,omitempty"` // Size limit (e.g., "1GB", "500MB")
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"` // "filesystem" or "memory"
+	Size          string                 `protobuf:"bytes,2,opt,name=size,proto3" json:"size,omitempty"` // Size (e.g., "1GB", "500MB")
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"` // Type: filesystem or memory
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1657,7 +1657,7 @@ type CreateVolumeRes struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Size          string                 `protobuf:"bytes,2,opt,name=size,proto3" json:"size,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"` // Host path where volume is stored
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"` // Host path
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1823,7 +1823,7 @@ type Volume struct {
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
 	CreatedTime   string                 `protobuf:"bytes,5,opt,name=createdTime,proto3" json:"createdTime,omitempty"`
-	JobCount      int32                  `protobuf:"varint,6,opt,name=jobCount,proto3" json:"jobCount,omitempty"` // Number of jobs currently using this volume
+	JobCount      int32                  `protobuf:"varint,6,opt,name=jobCount,proto3" json:"jobCount,omitempty"` // Jobs using this volume
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2369,7 +2369,7 @@ type CPUMetrics struct {
 	IdleTime      float64                `protobuf:"fixed64,5,opt,name=idleTime,proto3" json:"idleTime,omitempty"`
 	IoWaitTime    float64                `protobuf:"fixed64,6,opt,name=ioWaitTime,proto3" json:"ioWaitTime,omitempty"`
 	StealTime     float64                `protobuf:"fixed64,7,opt,name=stealTime,proto3" json:"stealTime,omitempty"`
-	LoadAverage   []float64              `protobuf:"fixed64,8,rep,packed,name=loadAverage,proto3" json:"loadAverage,omitempty"` // 1, 5, 15 minute averages
+	LoadAverage   []float64              `protobuf:"fixed64,8,rep,packed,name=loadAverage,proto3" json:"loadAverage,omitempty"` // 1, 5, 15 min load
 	PerCoreUsage  []float64              `protobuf:"fixed64,9,rep,packed,name=perCoreUsage,proto3" json:"perCoreUsage,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2719,8 +2719,8 @@ type NetworkMetrics struct {
 	ErrorsOut       int64                  `protobuf:"varint,7,opt,name=errorsOut,proto3" json:"errorsOut,omitempty"`
 	DropsIn         int64                  `protobuf:"varint,8,opt,name=dropsIn,proto3" json:"dropsIn,omitempty"`
 	DropsOut        int64                  `protobuf:"varint,9,opt,name=dropsOut,proto3" json:"dropsOut,omitempty"`
-	ReceiveRate     float64                `protobuf:"fixed64,10,opt,name=receiveRate,proto3" json:"receiveRate,omitempty"`   // bytes per second
-	TransmitRate    float64                `protobuf:"fixed64,11,opt,name=transmitRate,proto3" json:"transmitRate,omitempty"` // bytes per second
+	ReceiveRate     float64                `protobuf:"fixed64,10,opt,name=receiveRate,proto3" json:"receiveRate,omitempty"`   // bytes/sec
+	TransmitRate    float64                `protobuf:"fixed64,11,opt,name=transmitRate,proto3" json:"transmitRate,omitempty"` // bytes/sec
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2838,8 +2838,8 @@ type IOMetrics struct {
 	TotalWrites   int64                  `protobuf:"varint,2,opt,name=totalWrites,proto3" json:"totalWrites,omitempty"`
 	ReadBytes     int64                  `protobuf:"varint,3,opt,name=readBytes,proto3" json:"readBytes,omitempty"`
 	WriteBytes    int64                  `protobuf:"varint,4,opt,name=writeBytes,proto3" json:"writeBytes,omitempty"`
-	ReadRate      float64                `protobuf:"fixed64,5,opt,name=readRate,proto3" json:"readRate,omitempty"`   // bytes per second
-	WriteRate     float64                `protobuf:"fixed64,6,opt,name=writeRate,proto3" json:"writeRate,omitempty"` // bytes per second
+	ReadRate      float64                `protobuf:"fixed64,5,opt,name=readRate,proto3" json:"readRate,omitempty"`   // bytes/sec
+	WriteRate     float64                `protobuf:"fixed64,6,opt,name=writeRate,proto3" json:"writeRate,omitempty"` // bytes/sec
 	DiskIO        []*DiskIOMetrics       `protobuf:"bytes,7,rep,name=diskIO,proto3" json:"diskIO,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2931,10 +2931,10 @@ type DiskIOMetrics struct {
 	WritesCompleted int64                  `protobuf:"varint,3,opt,name=writesCompleted,proto3" json:"writesCompleted,omitempty"`
 	ReadBytes       int64                  `protobuf:"varint,4,opt,name=readBytes,proto3" json:"readBytes,omitempty"`
 	WriteBytes      int64                  `protobuf:"varint,5,opt,name=writeBytes,proto3" json:"writeBytes,omitempty"`
-	ReadTime        int64                  `protobuf:"varint,6,opt,name=readTime,proto3" json:"readTime,omitempty"`        // milliseconds
-	WriteTime       int64                  `protobuf:"varint,7,opt,name=writeTime,proto3" json:"writeTime,omitempty"`      // milliseconds
-	IoTime          int64                  `protobuf:"varint,8,opt,name=ioTime,proto3" json:"ioTime,omitempty"`            // milliseconds
-	Utilization     float64                `protobuf:"fixed64,9,opt,name=utilization,proto3" json:"utilization,omitempty"` // percentage
+	ReadTime        int64                  `protobuf:"varint,6,opt,name=readTime,proto3" json:"readTime,omitempty"`        // ms
+	WriteTime       int64                  `protobuf:"varint,7,opt,name=writeTime,proto3" json:"writeTime,omitempty"`      // ms
+	IoTime          int64                  `protobuf:"varint,8,opt,name=ioTime,proto3" json:"ioTime,omitempty"`            // ms
+	Utilization     float64                `protobuf:"fixed64,9,opt,name=utilization,proto3" json:"utilization,omitempty"` // percent
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3342,13 +3342,15 @@ func (x *CloudInfo) GetMetadata() map[string]string {
 
 type ServerVersionInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`                      // Version string (e.g., "v1.2.3" or "dev-abc1234")
-	GitCommit     string                 `protobuf:"bytes,2,opt,name=git_commit,json=gitCommit,proto3" json:"git_commit,omitempty"` // Git commit hash
-	GitTag        string                 `protobuf:"bytes,3,opt,name=git_tag,json=gitTag,proto3" json:"git_tag,omitempty"`          // Git tag if available
-	BuildDate     string                 `protobuf:"bytes,4,opt,name=build_date,json=buildDate,proto3" json:"build_date,omitempty"` // Build timestamp
-	Component     string                 `protobuf:"bytes,5,opt,name=component,proto3" json:"component,omitempty"`                  // Component name ("joblet")
-	GoVersion     string                 `protobuf:"bytes,6,opt,name=go_version,json=goVersion,proto3" json:"go_version,omitempty"` // Go version used for build
-	Platform      string                 `protobuf:"bytes,7,opt,name=platform,proto3" json:"platform,omitempty"`                    // OS/architecture (e.g., "linux/amd64")
+	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`                            // Version (e.g., "v1.2.3")
+	GitCommit     string                 `protobuf:"bytes,2,opt,name=git_commit,json=gitCommit,proto3" json:"git_commit,omitempty"`       // Git commit
+	GitTag        string                 `protobuf:"bytes,3,opt,name=git_tag,json=gitTag,proto3" json:"git_tag,omitempty"`                // Git tag
+	BuildDate     string                 `protobuf:"bytes,4,opt,name=build_date,json=buildDate,proto3" json:"build_date,omitempty"`       // Build date
+	Component     string                 `protobuf:"bytes,5,opt,name=component,proto3" json:"component,omitempty"`                        // Component ("joblet")
+	GoVersion     string                 `protobuf:"bytes,6,opt,name=go_version,json=goVersion,proto3" json:"go_version,omitempty"`       // Go version
+	Platform      string                 `protobuf:"bytes,7,opt,name=platform,proto3" json:"platform,omitempty"`                          // OS/arch (e.g., "linux/amd64")
+	ProtoCommit   string                 `protobuf:"bytes,8,opt,name=proto_commit,json=protoCommit,proto3" json:"proto_commit,omitempty"` // Proto repository commit hash
+	ProtoTag      string                 `protobuf:"bytes,9,opt,name=proto_tag,json=protoTag,proto3" json:"proto_tag,omitempty"`          // Proto repository tag
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3432,6 +3434,20 @@ func (x *ServerVersionInfo) GetPlatform() string {
 	return ""
 }
 
+func (x *ServerVersionInfo) GetProtoCommit() string {
+	if x != nil {
+		return x.ProtoCommit
+	}
+	return ""
+}
+
+func (x *ServerVersionInfo) GetProtoTag() string {
+	if x != nil {
+		return x.ProtoTag
+	}
+	return ""
+}
+
 // Runtime management messages
 type RuntimesRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -3479,13 +3495,13 @@ func (x *RuntimesRes) GetRuntimes() []*RuntimeInfo {
 
 type RuntimeInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`               // e.g., "python-3.11-ml"
-	Language      string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`       // e.g., "python"
-	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`         // e.g., "3.11"
-	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"` // Human readable description
-	SizeBytes     int64                  `protobuf:"varint,5,opt,name=sizeBytes,proto3" json:"sizeBytes,omitempty"`    // Runtime size in bytes
-	Packages      []string               `protobuf:"bytes,6,rep,name=packages,proto3" json:"packages,omitempty"`       // Pre-installed packages
-	Available     bool                   `protobuf:"varint,7,opt,name=available,proto3" json:"available,omitempty"`    // Whether runtime is ready for use
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`               // Runtime name (e.g., "python-3.11-ml")
+	Language      string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`       // Language (e.g., "python")
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`         // Version (e.g., "3.11")
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"` // Description
+	SizeBytes     int64                  `protobuf:"varint,5,opt,name=sizeBytes,proto3" json:"sizeBytes,omitempty"`    // Size in bytes
+	Packages      []string               `protobuf:"bytes,6,rep,name=packages,proto3" json:"packages,omitempty"`       // Installed packages
+	Available     bool                   `protobuf:"varint,7,opt,name=available,proto3" json:"available,omitempty"`    // Ready to use
 	Requirements  *RuntimeRequirements   `protobuf:"bytes,8,opt,name=requirements,proto3" json:"requirements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3579,8 +3595,8 @@ func (x *RuntimeInfo) GetRequirements() *RuntimeRequirements {
 
 type RuntimeRequirements struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Architectures []string               `protobuf:"bytes,1,rep,name=architectures,proto3" json:"architectures,omitempty"` // e.g., ["x86_64", "amd64"]
-	Gpu           bool                   `protobuf:"varint,2,opt,name=gpu,proto3" json:"gpu,omitempty"`                    // Whether GPU is required
+	Architectures []string               `protobuf:"bytes,1,rep,name=architectures,proto3" json:"architectures,omitempty"` // Supported archs
+	Gpu           bool                   `protobuf:"varint,2,opt,name=gpu,proto3" json:"gpu,omitempty"`                    // Needs GPU
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3839,7 +3855,7 @@ func (x *RuntimeTestRes) GetExitCode() int32 {
 
 type RunJobRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // Human-readable job name (for workflows, empty for individual jobs)
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // Job name
 	Command           string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
 	Args              []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
 	MaxCpu            int32                  `protobuf:"varint,4,opt,name=maxCpu,proto3" json:"maxCpu,omitempty"`
@@ -3853,10 +3869,10 @@ type RunJobRequest struct {
 	Runtime           string                 `protobuf:"bytes,12,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	WorkDir           string                 `protobuf:"bytes,13,opt,name=workDir,proto3" json:"workDir,omitempty"`
 	Environment       map[string]string      `protobuf:"bytes,14,rep,name=environment,proto3" json:"environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SecretEnvironment map[string]string      `protobuf:"bytes,18,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret environment variables (not logged)
-	// Workflow fields (optional - only used for workflow jobs)
-	WorkflowUuid  string            `protobuf:"bytes,15,opt,name=workflowUuid,proto3" json:"workflowUuid,omitempty"` // Workflow UUID identifier (for workflow jobs)
-	JobUuid       string            `protobuf:"bytes,16,opt,name=jobUuid,proto3" json:"jobUuid,omitempty"`           // Job UUID identifier (for workflow jobs)
+	SecretEnvironment map[string]string      `protobuf:"bytes,18,rep,name=secret_environment,json=secretEnvironment,proto3" json:"secret_environment,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Secret env vars
+	// Workflow fields (when job is part of workflow)
+	WorkflowUuid  string            `protobuf:"bytes,15,opt,name=workflowUuid,proto3" json:"workflowUuid,omitempty"` // Workflow UUID
+	JobUuid       string            `protobuf:"bytes,16,opt,name=jobUuid,proto3" json:"jobUuid,omitempty"`           // Job UUID
 	Requirements  []*JobRequirement `protobuf:"bytes,17,rep,name=requirements,proto3" json:"requirements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4031,7 +4047,7 @@ type RunJobResponse struct {
 	StartTime     string                 `protobuf:"bytes,9,opt,name=startTime,proto3" json:"startTime,omitempty"`
 	EndTime       string                 `protobuf:"bytes,10,opt,name=endTime,proto3" json:"endTime,omitempty"`
 	ExitCode      int32                  `protobuf:"varint,11,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
-	ScheduledTime string                 `protobuf:"bytes,12,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"` // When the job should execute (empty if immediate)
+	ScheduledTime string                 `protobuf:"bytes,12,opt,name=scheduledTime,proto3" json:"scheduledTime,omitempty"` // Schedule time
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4212,11 +4228,11 @@ func (x *JobRequirement) GetExpression() string {
 
 type RunWorkflowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workflow      string                 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"` // Workflow filename for reference
+	Workflow      string                 `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"` // Workflow filename
 	TotalJobs     int32                  `protobuf:"varint,2,opt,name=totalJobs,proto3" json:"totalJobs,omitempty"`
 	JobOrder      []string               `protobuf:"bytes,3,rep,name=jobOrder,proto3" json:"jobOrder,omitempty"`
-	YamlContent   string                 `protobuf:"bytes,4,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"`     // YAML content for client-side workflow execution
-	WorkflowFiles []*FileUpload          `protobuf:"bytes,5,rep,name=workflowFiles,proto3" json:"workflowFiles,omitempty"` // Files referenced in workflow jobs (uploaded by client)
+	YamlContent   string                 `protobuf:"bytes,4,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"`     // YAML content
+	WorkflowFiles []*FileUpload          `protobuf:"bytes,5,rep,name=workflowFiles,proto3" json:"workflowFiles,omitempty"` // Workflow files
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4622,7 +4638,7 @@ type WorkflowInfo struct {
 	CreatedAt     *Timestamp             `protobuf:"bytes,8,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
 	StartedAt     *Timestamp             `protobuf:"bytes,9,opt,name=startedAt,proto3" json:"startedAt,omitempty"`
 	CompletedAt   *Timestamp             `protobuf:"bytes,10,opt,name=completedAt,proto3" json:"completedAt,omitempty"`
-	YamlContent   string                 `protobuf:"bytes,11,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"` // Original YAML content for client access
+	YamlContent   string                 `protobuf:"bytes,11,opt,name=yamlContent,proto3" json:"yamlContent,omitempty"` // Original YAML
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4737,7 +4753,7 @@ func (x *WorkflowInfo) GetYamlContent() string {
 type WorkflowJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JobUuid       string                 `protobuf:"bytes,1,opt,name=jobUuid,proto3" json:"jobUuid,omitempty"` // Job UUID identifier
-	JobName       string                 `protobuf:"bytes,2,opt,name=jobName,proto3" json:"jobName,omitempty"` // Human-readable job name from workflow
+	JobName       string                 `protobuf:"bytes,2,opt,name=jobName,proto3" json:"jobName,omitempty"` // Job name from workflow
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	Dependencies  []string               `protobuf:"bytes,4,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
 	StartTime     *Timestamp             `protobuf:"bytes,5,opt,name=startTime,proto3" json:"startTime,omitempty"`
@@ -4880,11 +4896,11 @@ func (x *Timestamp) GetNanos() int32 {
 
 type InstallRuntimeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	RuntimeSpec    string                 `protobuf:"bytes,1,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`        // e.g., "python-3.11-ml"
-	Repository     string                 `protobuf:"bytes,2,opt,name=repository,proto3" json:"repository,omitempty"`          // GitHub repository (default: "joblet-org/runtimes")
-	Branch         string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`                  // Branch (default: "main")
-	Path           string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`                      // Path within repo (auto-detected if empty)
-	ForceReinstall bool                   `protobuf:"varint,5,opt,name=forceReinstall,proto3" json:"forceReinstall,omitempty"` // Force reinstall even if exists
+	RuntimeSpec    string                 `protobuf:"bytes,1,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`        // Runtime spec
+	Repository     string                 `protobuf:"bytes,2,opt,name=repository,proto3" json:"repository,omitempty"`          // GitHub repo
+	Branch         string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`                  // Branch
+	Path           string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`                      // Path in repo
+	ForceReinstall bool                   `protobuf:"varint,5,opt,name=forceReinstall,proto3" json:"forceReinstall,omitempty"` // Force reinstall
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -4956,12 +4972,12 @@ func (x *InstallRuntimeRequest) GetForceReinstall() bool {
 
 type InstallRuntimeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BuildJobUuid  string                 `protobuf:"bytes,1,opt,name=buildJobUuid,proto3" json:"buildJobUuid,omitempty"` // UUID of the installation job
-	RuntimeSpec   string                 `protobuf:"bytes,2,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`   // Runtime spec being installed
-	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`             // "queued", "installing", "completed", "failed"
-	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`           // Status message or error details
-	Repository    string                 `protobuf:"bytes,5,opt,name=repository,proto3" json:"repository,omitempty"`     // Repository used
-	ResolvedPath  string                 `protobuf:"bytes,6,opt,name=resolvedPath,proto3" json:"resolvedPath,omitempty"` // Resolved path within repository
+	BuildJobUuid  string                 `protobuf:"bytes,1,opt,name=buildJobUuid,proto3" json:"buildJobUuid,omitempty"` // Install job UUID
+	RuntimeSpec   string                 `protobuf:"bytes,2,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`   // Runtime spec
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`             // Status
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`           // Message
+	Repository    string                 `protobuf:"bytes,5,opt,name=repository,proto3" json:"repository,omitempty"`     // Repo
+	ResolvedPath  string                 `protobuf:"bytes,6,opt,name=resolvedPath,proto3" json:"resolvedPath,omitempty"` // Path in repo
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5040,9 +5056,9 @@ func (x *InstallRuntimeResponse) GetResolvedPath() string {
 
 type InstallRuntimeFromLocalRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	RuntimeSpec    string                 `protobuf:"bytes,1,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`        // e.g., "python-3.11-ml"
-	Files          []*RuntimeFile         `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`                    // Runtime files to upload
-	ForceReinstall bool                   `protobuf:"varint,3,opt,name=forceReinstall,proto3" json:"forceReinstall,omitempty"` // Force reinstall even if exists
+	RuntimeSpec    string                 `protobuf:"bytes,1,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`        // Runtime spec
+	Files          []*RuntimeFile         `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`                    // Files to upload
+	ForceReinstall bool                   `protobuf:"varint,3,opt,name=forceReinstall,proto3" json:"forceReinstall,omitempty"` // Force reinstall
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -5100,9 +5116,9 @@ func (x *InstallRuntimeFromLocalRequest) GetForceReinstall() bool {
 
 type RuntimeFile struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`              // Relative path within runtime directory
-	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`        // File content
-	Executable    bool                   `protobuf:"varint,3,opt,name=executable,proto3" json:"executable,omitempty"` // Whether file should be executable
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`              // Path in runtime dir
+	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`        // Content
+	Executable    bool                   `protobuf:"varint,3,opt,name=executable,proto3" json:"executable,omitempty"` // Make executable
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5204,10 +5220,10 @@ func (x *ValidateRuntimeSpecRequest) GetRuntimeSpec() string {
 
 type ValidateRuntimeSpecResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Valid          bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`                  // Whether the spec is valid
-	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`               // Validation message or error details
-	NormalizedSpec string                 `protobuf:"bytes,3,opt,name=normalizedSpec,proto3" json:"normalizedSpec,omitempty"` // Normalized/canonical spec format
-	SpecInfo       *RuntimeSpecInfo       `protobuf:"bytes,4,opt,name=specInfo,proto3" json:"specInfo,omitempty"`             // Parsed spec information
+	Valid          bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`                  // Is valid
+	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`               // Message
+	NormalizedSpec string                 `protobuf:"bytes,3,opt,name=normalizedSpec,proto3" json:"normalizedSpec,omitempty"` // Normalized spec
+	SpecInfo       *RuntimeSpecInfo       `protobuf:"bytes,4,opt,name=specInfo,proto3" json:"specInfo,omitempty"`             // Parsed spec
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -5272,7 +5288,7 @@ func (x *ValidateRuntimeSpecResponse) GetSpecInfo() *RuntimeSpecInfo {
 
 type RuntimeRemoveReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"` // Runtime spec to remove (e.g., "python-3.11-ml", "openjdk-21")
+	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"` // Runtime to remove
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5316,9 +5332,9 @@ func (x *RuntimeRemoveReq) GetRuntime() string {
 
 type RuntimeRemoveRes struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Success         bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`                 // Whether removal was successful
-	Message         string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`                  // Success message or error details
-	FreedSpaceBytes int64                  `protobuf:"varint,3,opt,name=freedSpaceBytes,proto3" json:"freedSpaceBytes,omitempty"` // Amount of disk space freed (in bytes)
+	Success         bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`                 // Success
+	Message         string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`                  // Message
+	FreedSpaceBytes int64                  `protobuf:"varint,3,opt,name=freedSpaceBytes,proto3" json:"freedSpaceBytes,omitempty"` // Space freed
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -5376,10 +5392,10 @@ func (x *RuntimeRemoveRes) GetFreedSpaceBytes() int64 {
 
 type RuntimeSpecInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Language      string                 `protobuf:"bytes,1,opt,name=language,proto3" json:"language,omitempty"`         // e.g., "python", "java", "golang"
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`           // e.g., "3.11", "21", "1.21"
-	Variants      []string               `protobuf:"bytes,3,rep,name=variants,proto3" json:"variants,omitempty"`         // e.g., ["ml", "gpu"], ["jdk"], ["alpine"]
-	Architecture  string                 `protobuf:"bytes,4,opt,name=architecture,proto3" json:"architecture,omitempty"` // e.g., "amd64", "arm64"
+	Language      string                 `protobuf:"bytes,1,opt,name=language,proto3" json:"language,omitempty"`         // Language
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`           // Version
+	Variants      []string               `protobuf:"bytes,3,rep,name=variants,proto3" json:"variants,omitempty"`         // Variants
+	Architecture  string                 `protobuf:"bytes,4,opt,name=architecture,proto3" json:"architecture,omitempty"` // Architecture
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5763,7 +5779,7 @@ const file_joblet_proto_rawDesc = "" +
 	"\bmetadata\x18\a \x03(\v2\x1f.joblet.CloudInfo.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdd\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9d\x02\n" +
 	"\x11ServerVersionInfo\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x1d\n" +
 	"\n" +
@@ -5774,7 +5790,9 @@ const file_joblet_proto_rawDesc = "" +
 	"\tcomponent\x18\x05 \x01(\tR\tcomponent\x12\x1d\n" +
 	"\n" +
 	"go_version\x18\x06 \x01(\tR\tgoVersion\x12\x1a\n" +
-	"\bplatform\x18\a \x01(\tR\bplatform\">\n" +
+	"\bplatform\x18\a \x01(\tR\bplatform\x12!\n" +
+	"\fproto_commit\x18\b \x01(\tR\vprotoCommit\x12\x1b\n" +
+	"\tproto_tag\x18\t \x01(\tR\bprotoTag\">\n" +
 	"\vRuntimesRes\x12/\n" +
 	"\bruntimes\x18\x01 \x03(\v2\x13.joblet.RuntimeInfoR\bruntimes\"\x92\x02\n" +
 	"\vRuntimeInfo\x12\x12\n" +

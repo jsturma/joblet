@@ -7,11 +7,13 @@ import (
 
 var (
 	// These values are set at build time via -ldflags
-	Version   = "dev"     // Version is the semantic version (e.g., v4.3.3)
-	GitCommit = "unknown" // GitCommit is the git commit hash
-	GitTag    = "unknown" // GitTag is the git tag if available
-	BuildDate = "unknown" // BuildDate is when the binary was built
-	Component = "unknown" // Component identifies which component this is (rnx, joblet, api)
+	Version     = "dev"     // Version is the semantic version (e.g., v4.3.3)
+	GitCommit   = "unknown" // GitCommit is the git commit hash
+	GitTag      = "unknown" // GitTag is the git tag if available
+	BuildDate   = "unknown" // BuildDate is when the binary was built
+	Component   = "unknown" // Component identifies which component this is (rnx, joblet, api)
+	ProtoCommit = "unknown" // ProtoCommit is the commit hash from joblet-proto repository
+	ProtoTag    = "unknown" // ProtoTag is the tag from joblet-proto repository
 )
 
 // BuildInfo represents the complete build information
@@ -25,6 +27,8 @@ type BuildInfo struct {
 	Compiler     string `json:"compiler"`
 	Platform     string `json:"platform"`
 	Architecture string `json:"architecture"`
+	ProtoCommit  string `json:"proto_commit"`
+	ProtoTag     string `json:"proto_tag"`
 }
 
 // GetBuildInfo returns complete build information
@@ -39,6 +43,8 @@ func GetBuildInfo() BuildInfo {
 		Compiler:     runtime.Compiler,
 		Platform:     runtime.GOOS,
 		Architecture: runtime.GOARCH,
+		ProtoCommit:  ProtoCommit,
+		ProtoTag:     ProtoTag,
 	}
 }
 
@@ -62,23 +68,10 @@ func GetShortVersion() string {
 	return version
 }
 
-// GetLongVersion returns detailed version information for --version output
-func GetLongVersion() string {
-	info := GetBuildInfo()
-
-	var output string
-	output += fmt.Sprintf("%s version %s\n", info.Component, GetShortVersion())
-
-	if info.BuildDate != "unknown" {
-		output += fmt.Sprintf("Built: %s\n", info.BuildDate)
+// FormatVersion formats a version with optional commit hash
+func FormatVersion(version, commit string) string {
+	if commit != "unknown" && commit != "" && len(commit) >= 7 {
+		return fmt.Sprintf("%s (%s)", version, commit[:7])
 	}
-
-	if info.GitCommit != "unknown" {
-		output += fmt.Sprintf("Commit: %s\n", info.GitCommit)
-	}
-
-	output += fmt.Sprintf("Go: %s\n", info.GoVersion)
-	output += fmt.Sprintf("Platform: %s/%s\n", info.Platform, info.Architecture)
-
-	return output
+	return version
 }

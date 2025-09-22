@@ -36,11 +36,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Unified job and workflow execution service
-// Handles all job operations (single jobs and workflows) and workflow management
-// Used by all rnx commands: run, status, stop, log, list, etc.
+// Main service for running jobs and workflows
 type JobServiceClient interface {
-	// Job execution and management
+	// Job operations
 	RunJob(ctx context.Context, in *RunJobRequest, opts ...grpc.CallOption) (*RunJobResponse, error)
 	GetJobStatus(ctx context.Context, in *GetJobStatusReq, opts ...grpc.CallOption) (*GetJobStatusRes, error)
 	StopJob(ctx context.Context, in *StopJobReq, opts ...grpc.CallOption) (*StopJobRes, error)
@@ -48,7 +46,7 @@ type JobServiceClient interface {
 	DeleteAllJobs(ctx context.Context, in *DeleteAllJobsReq, opts ...grpc.CallOption) (*DeleteAllJobsRes, error)
 	GetJobLogs(ctx context.Context, in *GetJobLogsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DataChunk], error)
 	ListJobs(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*Jobs, error)
-	// Workflow-based job and workflow execution
+	// Workflow operations
 	RunWorkflow(ctx context.Context, in *RunWorkflowRequest, opts ...grpc.CallOption) (*RunWorkflowResponse, error)
 	GetWorkflowStatus(ctx context.Context, in *GetWorkflowStatusRequest, opts ...grpc.CallOption) (*GetWorkflowStatusResponse, error)
 	ListWorkflows(ctx context.Context, in *ListWorkflowsRequest, opts ...grpc.CallOption) (*ListWorkflowsResponse, error)
@@ -186,11 +184,9 @@ func (c *jobServiceClient) GetWorkflowJobs(ctx context.Context, in *GetWorkflowJ
 // All implementations must embed UnimplementedJobServiceServer
 // for forward compatibility.
 //
-// Unified job and workflow execution service
-// Handles all job operations (single jobs and workflows) and workflow management
-// Used by all rnx commands: run, status, stop, log, list, etc.
+// Main service for running jobs and workflows
 type JobServiceServer interface {
-	// Job execution and management
+	// Job operations
 	RunJob(context.Context, *RunJobRequest) (*RunJobResponse, error)
 	GetJobStatus(context.Context, *GetJobStatusReq) (*GetJobStatusRes, error)
 	StopJob(context.Context, *StopJobReq) (*StopJobRes, error)
@@ -198,7 +194,7 @@ type JobServiceServer interface {
 	DeleteAllJobs(context.Context, *DeleteAllJobsReq) (*DeleteAllJobsRes, error)
 	GetJobLogs(*GetJobLogsReq, grpc.ServerStreamingServer[DataChunk]) error
 	ListJobs(context.Context, *EmptyRequest) (*Jobs, error)
-	// Workflow-based job and workflow execution
+	// Workflow operations
 	RunWorkflow(context.Context, *RunWorkflowRequest) (*RunWorkflowResponse, error)
 	GetWorkflowStatus(context.Context, *GetWorkflowStatusRequest) (*GetWorkflowStatusResponse, error)
 	ListWorkflows(context.Context, *ListWorkflowsRequest) (*ListWorkflowsResponse, error)
@@ -526,7 +522,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Network management service
+// Network service
 type NetworkServiceClient interface {
 	CreateNetwork(ctx context.Context, in *CreateNetworkReq, opts ...grpc.CallOption) (*CreateNetworkRes, error)
 	ListNetworks(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*Networks, error)
@@ -575,7 +571,7 @@ func (c *networkServiceClient) RemoveNetwork(ctx context.Context, in *RemoveNetw
 // All implementations must embed UnimplementedNetworkServiceServer
 // for forward compatibility.
 //
-// Network management service
+// Network service
 type NetworkServiceServer interface {
 	CreateNetwork(context.Context, *CreateNetworkReq) (*CreateNetworkRes, error)
 	ListNetworks(context.Context, *EmptyRequest) (*Networks, error)
@@ -708,7 +704,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Volume management service
+// Volume service
 type VolumeServiceClient interface {
 	CreateVolume(ctx context.Context, in *CreateVolumeReq, opts ...grpc.CallOption) (*CreateVolumeRes, error)
 	ListVolumes(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*Volumes, error)
@@ -757,7 +753,7 @@ func (c *volumeServiceClient) RemoveVolume(ctx context.Context, in *RemoveVolume
 // All implementations must embed UnimplementedVolumeServiceServer
 // for forward compatibility.
 //
-// Volume management service
+// Volume service
 type VolumeServiceServer interface {
 	CreateVolume(context.Context, *CreateVolumeReq) (*CreateVolumeRes, error)
 	ListVolumes(context.Context, *EmptyRequest) (*Volumes, error)
@@ -889,7 +885,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// System monitoring service
+// Monitoring service
 type MonitoringServiceClient interface {
 	GetSystemStatus(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*SystemStatusRes, error)
 	StreamSystemMetrics(ctx context.Context, in *StreamMetricsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SystemMetricsRes], error)
@@ -936,7 +932,7 @@ type MonitoringService_StreamSystemMetricsClient = grpc.ServerStreamingClient[Sy
 // All implementations must embed UnimplementedMonitoringServiceServer
 // for forward compatibility.
 //
-// System monitoring service
+// Monitoring service
 type MonitoringServiceServer interface {
 	GetSystemStatus(context.Context, *EmptyRequest) (*SystemStatusRes, error)
 	StreamSystemMetrics(*StreamMetricsReq, grpc.ServerStreamingServer[SystemMetricsRes]) error
@@ -1044,9 +1040,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Runtime management service - handles both querying and building runtimes
+// Runtime service for managing execution environments
 type RuntimeServiceClient interface {
-	// Runtime querying operations
 	ListRuntimes(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*RuntimesRes, error)
 	GetRuntimeInfo(ctx context.Context, in *RuntimeInfoReq, opts ...grpc.CallOption) (*RuntimeInfoRes, error)
 	TestRuntime(ctx context.Context, in *RuntimeTestReq, opts ...grpc.CallOption) (*RuntimeTestRes, error)
@@ -1178,9 +1173,8 @@ func (c *runtimeServiceClient) RemoveRuntime(ctx context.Context, in *RuntimeRem
 // All implementations must embed UnimplementedRuntimeServiceServer
 // for forward compatibility.
 //
-// Runtime management service - handles both querying and building runtimes
+// Runtime service for managing execution environments
 type RuntimeServiceServer interface {
-	// Runtime querying operations
 	ListRuntimes(context.Context, *EmptyRequest) (*RuntimesRes, error)
 	GetRuntimeInfo(context.Context, *RuntimeInfoReq) (*RuntimeInfoRes, error)
 	TestRuntime(context.Context, *RuntimeTestReq) (*RuntimeTestRes, error)
