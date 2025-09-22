@@ -12,13 +12,10 @@ PROTO_GEN_DIR="$PROJECT_ROOT/api/gen"
 
 echo "📦 Generating proto files from joblet-proto repository..."
 
-# Check if joblet-proto repository exists
+# Check if joblet-proto repository exists, clone if not
 if [ ! -d "$PROTO_REPO" ]; then
-    echo "❌ Error: joblet-proto repository not found at $PROTO_REPO"
-    echo "Please clone it first:"
-    echo "  cd $(dirname "$PROTO_REPO")"
-    echo "  git clone https://github.com/ehsaniara/joblet-proto.git"
-    exit 1
+    echo "🔄 Cloning joblet-proto repository..."
+    git clone https://github.com/ehsaniara/joblet-proto.git "$PROTO_REPO"
 fi
 
 # Check if generate.sh exists and is executable

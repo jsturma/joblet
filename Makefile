@@ -7,7 +7,7 @@ REMOTE_ARCH ?= amd64
 PROTO_REPO ?= ../joblet-proto
 PROTO_GEN_DIR ?= api/gen
 
-.PHONY: all clean rnx joblet admin-ui deploy config-generate config-remote-generate config-download config-view help setup-remote-passwordless setup-dev service-status live-log test-connection validate-user-namespaces setup-user-namespaces check-kernel-support setup-subuid-subgid test-user-namespace-isolation debug-user-namespaces test-user-namespace-job release release-clean test test-unit test-visual test-automated proto proto-generate proto-copy
+.PHONY: all clean rnx joblet admin-ui deploy config-generate config-remote-generate config-download config-view help setup-remote-passwordless setup-dev service-status live-log test-connection validate-user-namespaces setup-user-namespaces check-kernel-support setup-subuid-subgid test-user-namespace-isolation debug-user-namespaces test-user-namespace-job release release-clean test test-unit test-visual test-automated proto
 
 all: rnx joblet admin-ui
 
@@ -103,24 +103,18 @@ admin-ui:
 	cd admin/ui && npm run build
 	@echo "✅ Admin UI built to admin/ui/dist/"
 
-proto: proto-generate proto-copy
-	@echo "✅ Proto files generated and copied successfully"
-
-proto-generate:
+proto:
 	@echo "📦 Generating proto files from joblet-proto repository..."
 	@if [ ! -d "$(PROTO_REPO)" ]; then \
-		echo "❌ Error: joblet-proto repository not found at $(PROTO_REPO)"; \
-		echo "Please clone it first: git clone https://github.com/ehsaniara/joblet-proto.git $(PROTO_REPO)"; \
-		exit 1; \
+		echo "🔄 Cloning joblet-proto repository..."; \
+		git clone https://github.com/ehsaniara/joblet-proto.git $(PROTO_REPO); \
 	fi
 	@echo "Generating Go proto files..."
 	cd $(PROTO_REPO) && ./generate.sh go
-
-proto-copy:
 	@echo "📋 Copying generated proto files to project..."
 	@mkdir -p $(PROTO_GEN_DIR)
 	@cp $(PROTO_REPO)/gen/*.pb.go $(PROTO_GEN_DIR)/
-	@echo "✅ Proto files copied to $(PROTO_GEN_DIR)/"
+	@echo "✅ Proto files generated and copied successfully"
 
 deploy: joblet
 	@echo "🚀 Passwordless deployment to $(REMOTE_USER)@$(REMOTE_HOST)..."
