@@ -109,8 +109,16 @@ proto:
 		echo "🔄 Cloning joblet-proto repository..."; \
 		git clone https://github.com/ehsaniara/joblet-proto.git $(PROTO_REPO); \
 	fi
+	@echo "🔄 Ensuring we're on main branch with latest changes..."
+	@cd $(PROTO_REPO) && git fetch && git checkout main && git reset --hard origin/main
+	@if [ ! -f "$(PROTO_REPO)/generate.sh" ]; then \
+		echo "❌ Error: generate.sh not found in $(PROTO_REPO)"; \
+		echo "This might indicate the repository is in an unexpected state."; \
+		ls -la $(PROTO_REPO)/; \
+		exit 1; \
+	fi
 	@echo "Generating Go proto files..."
-	cd $(PROTO_REPO) && ./generate.sh go
+	@cd $(PROTO_REPO) && chmod +x ./generate.sh && ./generate.sh go
 	@echo "📋 Copying generated proto files to project..."
 	@mkdir -p $(PROTO_GEN_DIR)
 	@cp $(PROTO_REPO)/gen/*.pb.go $(PROTO_GEN_DIR)/

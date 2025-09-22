@@ -18,9 +18,15 @@ if [ ! -d "$PROTO_REPO" ]; then
     git clone https://github.com/ehsaniara/joblet-proto.git "$PROTO_REPO"
 fi
 
+# Ensure we're on main branch with latest changes
+echo "🔄 Ensuring we're on main branch with latest changes..."
+cd "$PROTO_REPO" && git fetch && git checkout main && git reset --hard origin/main
+
 # Check if generate.sh exists and is executable
 if [ ! -f "$PROTO_REPO/generate.sh" ]; then
     echo "❌ Error: generate.sh not found in $PROTO_REPO"
+    echo "This might indicate the repository is in an unexpected state."
+    ls -la "$PROTO_REPO/"
     exit 1
 fi
 
