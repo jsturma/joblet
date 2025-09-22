@@ -40,11 +40,9 @@ jobs:
       - name: Test version command
         if: matrix.component == 'rnx'
         run: |
-          ./bin/rnx version
-          echo "---"
           ./bin/rnx --version
           echo "---"
-          ./bin/rnx version --json
+          ./bin/rnx --version --json
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -77,7 +75,7 @@ jobs:
       - name: Test all binaries
         run: |
           echo "=== RNX Version ==="
-          ./bin/rnx version
+          ./bin/rnx --version
 
           echo -e "\n=== Joblet Version (if supported) ==="
           if ./bin/joblet version 2>/dev/null; then
