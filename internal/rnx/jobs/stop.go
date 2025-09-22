@@ -19,17 +19,16 @@ func NewStopCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stop <job-uuid>",
 		Short: "Stop a running job",
-		Long: `Stop a running or scheduled job immediately.
+		Long: `Stop a job that's currently running or scheduled to run.
 
-This command sends a termination signal to the specified job. For running jobs,
-it will attempt a graceful shutdown first, then force termination if needed.
-For scheduled jobs, it will cancel the scheduled execution.
+This will gracefully stop running jobs, or cancel jobs that haven't started yet.
+The job will be marked as stopped and you can safely delete it afterward.
 
 Examples:
   # Stop a running job
   rnx job stop f47ac10b-58cc-4372-a567-0e02b2c3d479
-  
-  # Cancel a scheduled job before it starts
+
+  # Cancel a job that's waiting to run
   rnx job stop a1b2c3d4-5678-90ab-cdef-1234567890ab`,
 		Args: cobra.ExactArgs(1),
 		RunE: runStop,
@@ -46,7 +45,7 @@ func runStop(cmd *cobra.Command, args []string) error {
 
 	jobClient, err := common.NewJobClient()
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("couldn't connect to joblet server: %w", err)
 	}
 	defer jobClient.Close()
 
@@ -55,7 +54,7 @@ func runStop(cmd *cobra.Command, args []string) error {
 
 	response, err := jobClient.StopJob(ctx, jobID)
 	if err != nil {
-		return fmt.Errorf("failed to stop job: %v", err)
+		return fmt.Errorf("couldn't stop the job: %v", err)
 	}
 
 	if common.JSONOutput {

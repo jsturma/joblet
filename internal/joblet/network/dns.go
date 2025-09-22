@@ -178,3 +178,33 @@ func (dm *DNSManager) ResolveHostname(hostname, network string, networkJobs map[
 
 	return nil, fmt.Errorf("hostname '%s' not found in network '%s'", hostname, network)
 }
+
+// SetupDNS configures DNS for a job
+func (dm *DNSManager) SetupDNS(jobID, hostname string, ip net.IP) error {
+	// Create a simple hosts entry for this job
+	hostsPath := filepath.Join(dm.stateDir, fmt.Sprintf("hosts-%s", jobID))
+	hostsContent := fmt.Sprintf("%s %s\n", ip.String(), hostname)
+	return os.WriteFile(hostsPath, []byte(hostsContent), 0644)
+}
+
+// CleanupDNS removes DNS configuration for a job
+func (dm *DNSManager) CleanupDNS(jobID string) error {
+	hostsPath := filepath.Join(dm.stateDir, fmt.Sprintf("hosts-%s", jobID))
+	return os.Remove(hostsPath)
+}
+
+// ResolveName resolves a hostname to an IP address
+func (dm *DNSManager) ResolveName(hostname string) (net.IP, error) {
+	// Simple implementation - check if it's already an IP
+	if ip := net.ParseIP(hostname); ip != nil {
+		return ip, nil
+	}
+	// For a full implementation, this would check hosts files or DNS
+	return nil, fmt.Errorf("hostname resolution not implemented: %s", hostname)
+}
+
+// GetHostname returns the hostname for an IP address
+func (dm *DNSManager) GetHostname(ip net.IP) (string, error) {
+	// Simple implementation - reverse lookup not implemented
+	return "", fmt.Errorf("reverse hostname lookup not implemented for %s", ip.String())
+}

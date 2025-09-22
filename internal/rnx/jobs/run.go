@@ -415,7 +415,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return outputRunJobJSON(response, schedule, len(fileUploads), len(environment), len(secretEnvironment))
 	}
 
-	fmt.Printf("Job started:\n")
+	fmt.Printf("🚀 Job is running:\n")
 	fmt.Printf("ID: %s\n", response.JobUuid)
 	fmt.Printf("Command: %s %s\n", response.Command, strings.Join(response.Args, " "))
 	// Display status with color coding
@@ -851,8 +851,8 @@ func executeWorkflowViaService(workflowPath string, workflowName string) error {
 		return fmt.Errorf("failed to extract workflow files: %w", err)
 	}
 
-	fmt.Printf("Starting workflow from: %s\n", workflowPath)
-	fmt.Printf("Found %d files to upload\n", len(workflowFiles))
+	fmt.Printf("🚀 Running workflow from: %s\n", workflowPath)
+	fmt.Printf("📦 Uploading %d files\n", len(workflowFiles))
 
 	// Create client and workflow service
 	client, err := common.NewJobClient()
@@ -962,11 +962,11 @@ func validateWorkflowPreRequisites(workflow types.WorkflowYAML) error {
 
 	// Validate job dependencies reference existing jobs
 	if err := validateJobDependencies(workflow); err != nil {
-		return fmt.Errorf("job dependency validation failed: %w", err)
+		return fmt.Errorf("there's an issue with job dependencies: %w", err)
 	}
 
 	// Only show success output if ALL validations pass
-	fmt.Println("Workflow validation completed successfully")
+	fmt.Println("✅ Workflow looks good!")
 	return nil
 }
 

@@ -2,46 +2,37 @@
 package types
 
 // WorkflowYAML represents the complete structure of a workflow YAML file.
-// This is the top-level structure that contains all job definitions for a workflow.
-// The Jobs map uses job names as keys and JobSpec structures as values,
-// allowing for named job definitions that can reference each other in dependencies.
+// SIMPLIFIED: Removed global environment inheritance and secret_environment separation
+// to reduce complexity. Each job now defines its own complete environment.
 // Example YAML:
 //
-//	environment:
-//	  PIPELINE_VERSION: "1.0.0"
-//	  LOG_LEVEL: "INFO"
-//	secret_environment:
-//	  API_TOKEN: "secret-token"
 //	jobs:
 //	  extract-data:
 //	    command: "python3"
 //	    args: ["extract.py"]
 //	    volumes: ["data-pipeline"]
 //	    environment:
-//	      NODE_ENV: "production"  # Inherits global vars + this override
+//	      NODE_ENV: "production"
+//	      API_TOKEN: "secret-token"  # Use env var prefix or naming convention for secrets
 type WorkflowYAML struct {
 	// Name is an optional workflow name for better identification
 	Name string `yaml:"name,omitempty"`
 	// Description is an optional workflow description
 	Description string `yaml:"description,omitempty"`
-	// Environment defines global environment variables inherited by all jobs (visible in logs)
-	Environment map[string]string `yaml:"environment,omitempty"`
-	// SecretEnvironment defines global secret environment variables inherited by all jobs (hidden from logs)
-	SecretEnvironment map[string]string `yaml:"secret_environment,omitempty"`
 	// Jobs maps job names to their specifications
 	// Key: job name (used for dependency references)
 	// Value: complete job specification
 	Jobs map[string]JobSpec `yaml:"jobs"`
+
+	// DEPRECATED: These fields are kept for backward compatibility but are no longer used
+	// Jobs should define their own environment variables directly
+	Environment       map[string]string `yaml:"environment,omitempty"`        // Deprecated
+	SecretEnvironment map[string]string `yaml:"secret_environment,omitempty"` // Deprecated
 }
 
 // JobSpec defines the complete specification for a single job within a workflow.
-// Contains all necessary information for job execution including:
-// - Command and arguments to execute
-// - Runtime environment (e.g., "python-3.11-ml")
-// - File uploads and volume mounts
-// - Dependency requirements on other jobs
-// - Resource limits (CPU, memory, I/O)
-// This structure is parsed from YAML and converted to internal job representations.
+// SIMPLIFIED: Merged environment and secret_environment into a single field.
+// Use naming conventions (e.g., SECRET_ prefix) to identify sensitive variables.
 type JobSpec struct {
 	// Command is the executable to run (e.g., "python3", "java", "node")
 	Command string `yaml:"command"`
@@ -49,7 +40,7 @@ type JobSpec struct {
 	Args []string `yaml:"args"`
 	// Runtime specifies the execution environment (e.g., "python-3.11-ml")
 	Runtime string `yaml:"runtime"`
-	// Network specifies the network for job isolation (e.g., "bridge", "isolated", "none", "custom-network")
+	// Network specifies the network for job isolation (e.g., "bridge", "isolated", "none")
 	Network string `yaml:"network"`
 	// Uploads defines files to be uploaded to the job's workspace
 	Uploads *JobUploads `yaml:"uploads"`
@@ -59,10 +50,12 @@ type JobSpec struct {
 	Requires []map[string]string `yaml:"requires"`
 	// Resources specifies computational limits for the job
 	Resources JobResources `yaml:"resources"`
-	// Environment defines regular environment variables for the job (visible in logs)
+	// Environment defines all environment variables for the job
+	// Use naming conventions for secrets (e.g., SECRET_ or _TOKEN suffix)
 	Environment map[string]string `yaml:"environment,omitempty"`
-	// SecretEnvironment defines secret environment variables for the job (hidden from logs)
-	SecretEnvironment map[string]string `yaml:"secret_environment,omitempty"`
+
+	// DEPRECATED: Kept for backward compatibility
+	SecretEnvironment map[string]string `yaml:"secret_environment,omitempty"` // Deprecated - use Environment
 }
 
 // JobUploads specifies which files should be uploaded to the job's execution environment.

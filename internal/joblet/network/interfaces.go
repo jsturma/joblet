@@ -27,12 +27,20 @@ type Manager interface {
 	SetupJobNetworking(jobID, networkName string) (*JobAllocation, error)
 	CleanupJobNetworking(jobID string) error
 
-	// Network configuration
+	// Network configuration and validation
 	ValidateNetworkConfig(config *NetworkConfig) error
 	GetNetworkInfo(name string) (*NetworkInfo, error)
+
+	// Network monitoring
+	StartMonitoring(ctx context.Context) error
+	StopMonitoring() error
+	GetBandwidthStats(jobID string) (*BandwidthStats, error)
+	GetNetworkStats(networkName string) (*BandwidthStats, error)
+	SetBandwidthLimits(jobID string, limits *NetworkLimits) error
 }
 
 // Validator defines interface for network validation
+// Kept minimal - only essential validation methods
 //
 //counterfeiter:generate . Validator
 type Validator interface {
@@ -43,6 +51,7 @@ type Validator interface {
 }
 
 // Monitor defines interface for network monitoring
+// Optional component - can be nil if monitoring not needed
 //
 //counterfeiter:generate . Monitor
 type Monitor interface {

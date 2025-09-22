@@ -2,6 +2,7 @@
 package networkfakes
 
 import (
+	"context"
 	"joblet/internal/joblet/network"
 	"sync"
 )
@@ -68,6 +69,19 @@ type FakeManager struct {
 		result1 *network.JobAllocation
 		result2 error
 	}
+	GetBandwidthStatsStub        func(string) (*network.BandwidthStats, error)
+	getBandwidthStatsMutex       sync.RWMutex
+	getBandwidthStatsArgsForCall []struct {
+		arg1 string
+	}
+	getBandwidthStatsReturns struct {
+		result1 *network.BandwidthStats
+		result2 error
+	}
+	getBandwidthStatsReturnsOnCall map[int]struct {
+		result1 *network.BandwidthStats
+		result2 error
+	}
 	GetNetworkInfoStub        func(string) (*network.NetworkInfo, error)
 	getNetworkInfoMutex       sync.RWMutex
 	getNetworkInfoArgsForCall []struct {
@@ -79,6 +93,19 @@ type FakeManager struct {
 	}
 	getNetworkInfoReturnsOnCall map[int]struct {
 		result1 *network.NetworkInfo
+		result2 error
+	}
+	GetNetworkStatsStub        func(string) (*network.BandwidthStats, error)
+	getNetworkStatsMutex       sync.RWMutex
+	getNetworkStatsArgsForCall []struct {
+		arg1 string
+	}
+	getNetworkStatsReturns struct {
+		result1 *network.BandwidthStats
+		result2 error
+	}
+	getNetworkStatsReturnsOnCall map[int]struct {
+		result1 *network.BandwidthStats
 		result2 error
 	}
 	ListAllocationsStub        func(string) ([]network.JobAllocation, error)
@@ -128,6 +155,18 @@ type FakeManager struct {
 	releaseIPReturnsOnCall map[int]struct {
 		result1 error
 	}
+	SetBandwidthLimitsStub        func(string, *network.NetworkLimits) error
+	setBandwidthLimitsMutex       sync.RWMutex
+	setBandwidthLimitsArgsForCall []struct {
+		arg1 string
+		arg2 *network.NetworkLimits
+	}
+	setBandwidthLimitsReturns struct {
+		result1 error
+	}
+	setBandwidthLimitsReturnsOnCall map[int]struct {
+		result1 error
+	}
 	SetupJobNetworkingStub        func(string, string) (*network.JobAllocation, error)
 	setupJobNetworkingMutex       sync.RWMutex
 	setupJobNetworkingArgsForCall []struct {
@@ -141,6 +180,27 @@ type FakeManager struct {
 	setupJobNetworkingReturnsOnCall map[int]struct {
 		result1 *network.JobAllocation
 		result2 error
+	}
+	StartMonitoringStub        func(context.Context) error
+	startMonitoringMutex       sync.RWMutex
+	startMonitoringArgsForCall []struct {
+		arg1 context.Context
+	}
+	startMonitoringReturns struct {
+		result1 error
+	}
+	startMonitoringReturnsOnCall map[int]struct {
+		result1 error
+	}
+	StopMonitoringStub        func() error
+	stopMonitoringMutex       sync.RWMutex
+	stopMonitoringArgsForCall []struct {
+	}
+	stopMonitoringReturns struct {
+		result1 error
+	}
+	stopMonitoringReturnsOnCall map[int]struct {
+		result1 error
 	}
 	ValidateNetworkConfigStub        func(*network.NetworkConfig) error
 	validateNetworkConfigMutex       sync.RWMutex
@@ -470,6 +530,70 @@ func (fake *FakeManager) GetAllocationReturnsOnCall(i int, result1 *network.JobA
 	}{result1, result2}
 }
 
+func (fake *FakeManager) GetBandwidthStats(arg1 string) (*network.BandwidthStats, error) {
+	fake.getBandwidthStatsMutex.Lock()
+	ret, specificReturn := fake.getBandwidthStatsReturnsOnCall[len(fake.getBandwidthStatsArgsForCall)]
+	fake.getBandwidthStatsArgsForCall = append(fake.getBandwidthStatsArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GetBandwidthStatsStub
+	fakeReturns := fake.getBandwidthStatsReturns
+	fake.recordInvocation("GetBandwidthStats", []interface{}{arg1})
+	fake.getBandwidthStatsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeManager) GetBandwidthStatsCallCount() int {
+	fake.getBandwidthStatsMutex.RLock()
+	defer fake.getBandwidthStatsMutex.RUnlock()
+	return len(fake.getBandwidthStatsArgsForCall)
+}
+
+func (fake *FakeManager) GetBandwidthStatsCalls(stub func(string) (*network.BandwidthStats, error)) {
+	fake.getBandwidthStatsMutex.Lock()
+	defer fake.getBandwidthStatsMutex.Unlock()
+	fake.GetBandwidthStatsStub = stub
+}
+
+func (fake *FakeManager) GetBandwidthStatsArgsForCall(i int) string {
+	fake.getBandwidthStatsMutex.RLock()
+	defer fake.getBandwidthStatsMutex.RUnlock()
+	argsForCall := fake.getBandwidthStatsArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeManager) GetBandwidthStatsReturns(result1 *network.BandwidthStats, result2 error) {
+	fake.getBandwidthStatsMutex.Lock()
+	defer fake.getBandwidthStatsMutex.Unlock()
+	fake.GetBandwidthStatsStub = nil
+	fake.getBandwidthStatsReturns = struct {
+		result1 *network.BandwidthStats
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeManager) GetBandwidthStatsReturnsOnCall(i int, result1 *network.BandwidthStats, result2 error) {
+	fake.getBandwidthStatsMutex.Lock()
+	defer fake.getBandwidthStatsMutex.Unlock()
+	fake.GetBandwidthStatsStub = nil
+	if fake.getBandwidthStatsReturnsOnCall == nil {
+		fake.getBandwidthStatsReturnsOnCall = make(map[int]struct {
+			result1 *network.BandwidthStats
+			result2 error
+		})
+	}
+	fake.getBandwidthStatsReturnsOnCall[i] = struct {
+		result1 *network.BandwidthStats
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeManager) GetNetworkInfo(arg1 string) (*network.NetworkInfo, error) {
 	fake.getNetworkInfoMutex.Lock()
 	ret, specificReturn := fake.getNetworkInfoReturnsOnCall[len(fake.getNetworkInfoArgsForCall)]
@@ -530,6 +654,70 @@ func (fake *FakeManager) GetNetworkInfoReturnsOnCall(i int, result1 *network.Net
 	}
 	fake.getNetworkInfoReturnsOnCall[i] = struct {
 		result1 *network.NetworkInfo
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeManager) GetNetworkStats(arg1 string) (*network.BandwidthStats, error) {
+	fake.getNetworkStatsMutex.Lock()
+	ret, specificReturn := fake.getNetworkStatsReturnsOnCall[len(fake.getNetworkStatsArgsForCall)]
+	fake.getNetworkStatsArgsForCall = append(fake.getNetworkStatsArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GetNetworkStatsStub
+	fakeReturns := fake.getNetworkStatsReturns
+	fake.recordInvocation("GetNetworkStats", []interface{}{arg1})
+	fake.getNetworkStatsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeManager) GetNetworkStatsCallCount() int {
+	fake.getNetworkStatsMutex.RLock()
+	defer fake.getNetworkStatsMutex.RUnlock()
+	return len(fake.getNetworkStatsArgsForCall)
+}
+
+func (fake *FakeManager) GetNetworkStatsCalls(stub func(string) (*network.BandwidthStats, error)) {
+	fake.getNetworkStatsMutex.Lock()
+	defer fake.getNetworkStatsMutex.Unlock()
+	fake.GetNetworkStatsStub = stub
+}
+
+func (fake *FakeManager) GetNetworkStatsArgsForCall(i int) string {
+	fake.getNetworkStatsMutex.RLock()
+	defer fake.getNetworkStatsMutex.RUnlock()
+	argsForCall := fake.getNetworkStatsArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeManager) GetNetworkStatsReturns(result1 *network.BandwidthStats, result2 error) {
+	fake.getNetworkStatsMutex.Lock()
+	defer fake.getNetworkStatsMutex.Unlock()
+	fake.GetNetworkStatsStub = nil
+	fake.getNetworkStatsReturns = struct {
+		result1 *network.BandwidthStats
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeManager) GetNetworkStatsReturnsOnCall(i int, result1 *network.BandwidthStats, result2 error) {
+	fake.getNetworkStatsMutex.Lock()
+	defer fake.getNetworkStatsMutex.Unlock()
+	fake.GetNetworkStatsStub = nil
+	if fake.getNetworkStatsReturnsOnCall == nil {
+		fake.getNetworkStatsReturnsOnCall = make(map[int]struct {
+			result1 *network.BandwidthStats
+			result2 error
+		})
+	}
+	fake.getNetworkStatsReturnsOnCall[i] = struct {
+		result1 *network.BandwidthStats
 		result2 error
 	}{result1, result2}
 }
@@ -776,6 +964,68 @@ func (fake *FakeManager) ReleaseIPReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeManager) SetBandwidthLimits(arg1 string, arg2 *network.NetworkLimits) error {
+	fake.setBandwidthLimitsMutex.Lock()
+	ret, specificReturn := fake.setBandwidthLimitsReturnsOnCall[len(fake.setBandwidthLimitsArgsForCall)]
+	fake.setBandwidthLimitsArgsForCall = append(fake.setBandwidthLimitsArgsForCall, struct {
+		arg1 string
+		arg2 *network.NetworkLimits
+	}{arg1, arg2})
+	stub := fake.SetBandwidthLimitsStub
+	fakeReturns := fake.setBandwidthLimitsReturns
+	fake.recordInvocation("SetBandwidthLimits", []interface{}{arg1, arg2})
+	fake.setBandwidthLimitsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeManager) SetBandwidthLimitsCallCount() int {
+	fake.setBandwidthLimitsMutex.RLock()
+	defer fake.setBandwidthLimitsMutex.RUnlock()
+	return len(fake.setBandwidthLimitsArgsForCall)
+}
+
+func (fake *FakeManager) SetBandwidthLimitsCalls(stub func(string, *network.NetworkLimits) error) {
+	fake.setBandwidthLimitsMutex.Lock()
+	defer fake.setBandwidthLimitsMutex.Unlock()
+	fake.SetBandwidthLimitsStub = stub
+}
+
+func (fake *FakeManager) SetBandwidthLimitsArgsForCall(i int) (string, *network.NetworkLimits) {
+	fake.setBandwidthLimitsMutex.RLock()
+	defer fake.setBandwidthLimitsMutex.RUnlock()
+	argsForCall := fake.setBandwidthLimitsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeManager) SetBandwidthLimitsReturns(result1 error) {
+	fake.setBandwidthLimitsMutex.Lock()
+	defer fake.setBandwidthLimitsMutex.Unlock()
+	fake.SetBandwidthLimitsStub = nil
+	fake.setBandwidthLimitsReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeManager) SetBandwidthLimitsReturnsOnCall(i int, result1 error) {
+	fake.setBandwidthLimitsMutex.Lock()
+	defer fake.setBandwidthLimitsMutex.Unlock()
+	fake.SetBandwidthLimitsStub = nil
+	if fake.setBandwidthLimitsReturnsOnCall == nil {
+		fake.setBandwidthLimitsReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.setBandwidthLimitsReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeManager) SetupJobNetworking(arg1 string, arg2 string) (*network.JobAllocation, error) {
 	fake.setupJobNetworkingMutex.Lock()
 	ret, specificReturn := fake.setupJobNetworkingReturnsOnCall[len(fake.setupJobNetworkingArgsForCall)]
@@ -839,6 +1089,120 @@ func (fake *FakeManager) SetupJobNetworkingReturnsOnCall(i int, result1 *network
 		result1 *network.JobAllocation
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeManager) StartMonitoring(arg1 context.Context) error {
+	fake.startMonitoringMutex.Lock()
+	ret, specificReturn := fake.startMonitoringReturnsOnCall[len(fake.startMonitoringArgsForCall)]
+	fake.startMonitoringArgsForCall = append(fake.startMonitoringArgsForCall, struct {
+		arg1 context.Context
+	}{arg1})
+	stub := fake.StartMonitoringStub
+	fakeReturns := fake.startMonitoringReturns
+	fake.recordInvocation("StartMonitoring", []interface{}{arg1})
+	fake.startMonitoringMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeManager) StartMonitoringCallCount() int {
+	fake.startMonitoringMutex.RLock()
+	defer fake.startMonitoringMutex.RUnlock()
+	return len(fake.startMonitoringArgsForCall)
+}
+
+func (fake *FakeManager) StartMonitoringCalls(stub func(context.Context) error) {
+	fake.startMonitoringMutex.Lock()
+	defer fake.startMonitoringMutex.Unlock()
+	fake.StartMonitoringStub = stub
+}
+
+func (fake *FakeManager) StartMonitoringArgsForCall(i int) context.Context {
+	fake.startMonitoringMutex.RLock()
+	defer fake.startMonitoringMutex.RUnlock()
+	argsForCall := fake.startMonitoringArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeManager) StartMonitoringReturns(result1 error) {
+	fake.startMonitoringMutex.Lock()
+	defer fake.startMonitoringMutex.Unlock()
+	fake.StartMonitoringStub = nil
+	fake.startMonitoringReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeManager) StartMonitoringReturnsOnCall(i int, result1 error) {
+	fake.startMonitoringMutex.Lock()
+	defer fake.startMonitoringMutex.Unlock()
+	fake.StartMonitoringStub = nil
+	if fake.startMonitoringReturnsOnCall == nil {
+		fake.startMonitoringReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.startMonitoringReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeManager) StopMonitoring() error {
+	fake.stopMonitoringMutex.Lock()
+	ret, specificReturn := fake.stopMonitoringReturnsOnCall[len(fake.stopMonitoringArgsForCall)]
+	fake.stopMonitoringArgsForCall = append(fake.stopMonitoringArgsForCall, struct {
+	}{})
+	stub := fake.StopMonitoringStub
+	fakeReturns := fake.stopMonitoringReturns
+	fake.recordInvocation("StopMonitoring", []interface{}{})
+	fake.stopMonitoringMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeManager) StopMonitoringCallCount() int {
+	fake.stopMonitoringMutex.RLock()
+	defer fake.stopMonitoringMutex.RUnlock()
+	return len(fake.stopMonitoringArgsForCall)
+}
+
+func (fake *FakeManager) StopMonitoringCalls(stub func() error) {
+	fake.stopMonitoringMutex.Lock()
+	defer fake.stopMonitoringMutex.Unlock()
+	fake.StopMonitoringStub = stub
+}
+
+func (fake *FakeManager) StopMonitoringReturns(result1 error) {
+	fake.stopMonitoringMutex.Lock()
+	defer fake.stopMonitoringMutex.Unlock()
+	fake.StopMonitoringStub = nil
+	fake.stopMonitoringReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeManager) StopMonitoringReturnsOnCall(i int, result1 error) {
+	fake.stopMonitoringMutex.Lock()
+	defer fake.stopMonitoringMutex.Unlock()
+	fake.StopMonitoringStub = nil
+	if fake.stopMonitoringReturnsOnCall == nil {
+		fake.stopMonitoringReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.stopMonitoringReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeManager) ValidateNetworkConfig(arg1 *network.NetworkConfig) error {

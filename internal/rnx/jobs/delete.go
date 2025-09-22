@@ -18,28 +18,27 @@ import (
 func NewDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <job-uuid>",
-		Short: "Delete a job completely",
-		Long: `Delete a job completely including logs, metadata, and all associated resources.
+		Short: "Remove a job and its data",
+		Long: `Permanently remove a job and all its data from the system.
 
-This command permanently removes the specified job from the system. The job must 
-be in a completed, failed, or stopped state - running jobs cannot be deleted 
-directly and must be stopped first.
+This will delete the job record, logs, and any files it created. You can only
+delete jobs that have finished running (completed, failed, or stopped).
+Running jobs need to be stopped first.
 
-Complete deletion includes:
-- Job record and metadata
-- Log files and buffers  
-- Subscriptions and streams
-- Any remaining resources
+What gets deleted:
+- Job record and details
+- Log files and output
+- Any temporary files
+- Resource allocations
 
 Examples:
-  # Delete a completed job
+  # Delete a finished job
   rnx job delete f47ac10b-58cc-4372-a567-0e02b2c3d479
-  
-  # Delete using short UUID (if unique)
+
+  # Use a shorter ID if it's unique
   rnx job delete f47ac10b
 
-Note: This operation is irreversible. Once deleted, job information and logs 
-cannot be recovered.`,
+Warning: This can't be undone! The job and its logs will be gone forever.`,
 		Args: cobra.ExactArgs(1),
 		RunE: runDelete,
 	}
@@ -55,7 +54,7 @@ func runDelete(cmd *cobra.Command, args []string) error {
 
 	jobClient, err := common.NewJobClient()
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("couldn't connect to joblet server: %w", err)
 	}
 	defer jobClient.Close()
 
@@ -64,7 +63,7 @@ func runDelete(cmd *cobra.Command, args []string) error {
 
 	response, err := jobClient.DeleteJob(ctx, jobID)
 	if err != nil {
-		return fmt.Errorf("failed to delete job: %v", err)
+		return fmt.Errorf("couldn't delete the job: %v", err)
 	}
 
 	if common.JSONOutput {
@@ -79,8 +78,8 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Printf("❌ Job deletion failed:\n")
 		fmt.Printf("ID: %s\n", response.Uuid)
-		fmt.Printf("Error: %s\n", response.Message)
-		return fmt.Errorf("deletion failed: %s", response.Message)
+		fmt.Printf("Sorry, there was an issue: %s\n", response.Message)
+		return fmt.Errorf("couldn't delete the job: %s", response.Message)
 	}
 
 	return nil

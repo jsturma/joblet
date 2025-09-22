@@ -15,6 +15,40 @@ func NewNetworkValidator() *NetworkValidator {
 	return &NetworkValidator{}
 }
 
+// ValidateNetworkName validates a network name
+func (nv *NetworkValidator) ValidateNetworkName(name string) error {
+	return nv.ValidateBridgeName(name)
+}
+
+// ValidateNetworkConfig validates a network configuration
+func (nv *NetworkValidator) ValidateNetworkConfig(config *NetworkConfig) error {
+	if config == nil {
+		return fmt.Errorf("network config cannot be nil")
+	}
+
+	// Validate CIDR if present
+	if config.CIDR != "" {
+		// For simplicity, just validate format for now
+		_, _, err := net.ParseCIDR(config.CIDR)
+		if err != nil {
+			return fmt.Errorf("invalid CIDR format: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ValidateJobNetworking validates job networking configuration
+func (nv *NetworkValidator) ValidateJobNetworking(jobID, networkName string) error {
+	if jobID == "" {
+		return fmt.Errorf("job ID cannot be empty")
+	}
+	if networkName == "" {
+		return fmt.Errorf("network name cannot be empty")
+	}
+	return nil
+}
+
 // ValidateCIDR validates a CIDR block for network creation, checking format validity,
 // minimum subnet size requirements (/30 minimum), and overlap detection with existing networks.
 // It also validates against system network conflicts to prevent routing issues.

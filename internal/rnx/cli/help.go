@@ -9,8 +9,8 @@ import (
 func NewHelpConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config-help",
-		Short: "Show configuration file examples with embedded certificates",
-		Long:  "Display examples of rnx-config.yml file format with embedded certificates",
+		Short: "Help with setting up your configuration",
+		Long:  "Show examples and help for creating your rnx-config.yml file",
 		RunE:  runConfigHelp,
 	}
 
@@ -18,11 +18,11 @@ func NewHelpConfigCmd() *cobra.Command {
 }
 
 func runConfigHelp(cmd *cobra.Command, args []string) error {
-	fmt.Println("RNX Configuration Help - Embedded Certificates")
+	fmt.Println("🛠️  RNX Configuration Help")
 	fmt.Println("==============================================")
 	fmt.Println()
-	fmt.Println("RNX requires a rnx-config.yml file with embedded certificates.")
-	fmt.Println("This file contains all connection details and certificates in a single file.")
+	fmt.Println("To use RNX, you need a rnx-config.yml file with your server details.")
+	fmt.Println("This file has everything needed to connect securely to your joblet server.")
 	fmt.Println()
 	fmt.Println("Example rnx-config.yml with embedded certificates:")
 	fmt.Println("------------------------------------------------")

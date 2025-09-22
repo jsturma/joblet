@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -10,10 +11,10 @@ import (
 // NetworkManager implements the Manager interface
 type NetworkManager struct {
 	validator Validator
-	monitor   Monitor
 	ipPool    IPPool
 	setup     Setup
 	dns       DNS
+	monitor   Monitor
 	logger    *logger.Logger
 
 	// State management
@@ -23,17 +24,22 @@ type NetworkManager struct {
 }
 
 // NewNetworkManager creates a new network manager
-func NewNetworkManager(validator Validator, monitor Monitor, ipPool IPPool, setup Setup, dns DNS) *NetworkManager {
+func NewNetworkManager(validator Validator, ipPool IPPool, setup Setup, dns DNS) *NetworkManager {
 	return &NetworkManager{
 		validator:   validator,
-		monitor:     monitor,
 		ipPool:      ipPool,
 		setup:       setup,
 		dns:         dns,
+		monitor:     nil, // Optional monitoring
 		logger:      logger.WithField("component", "network-manager"),
 		networks:    make(map[string]*NetworkConfig),
 		allocations: make(map[string]*JobAllocation),
 	}
+}
+
+// SetMonitor sets the optional network monitor
+func (nm *NetworkManager) SetMonitor(monitor Monitor) {
+	nm.monitor = monitor
 }
 
 // CreateNetwork creates a new network
@@ -42,7 +48,7 @@ func (nm *NetworkManager) CreateNetwork(name string, config *NetworkConfig) erro
 		return fmt.Errorf("invalid network name: %w", err)
 	}
 
-	if err := nm.validator.ValidateNetworkConfig(config); err != nil {
+	if err := nm.ValidateNetworkConfig(config); err != nil {
 		return fmt.Errorf("invalid network config: %w", err)
 	}
 
@@ -291,4 +297,47 @@ func (nm *NetworkManager) GetNetworkInfo(name string) (*NetworkInfo, error) {
 		Bridge:   config.Bridge,
 		JobCount: jobCount,
 	}, nil
+}
+
+// Monitoring methods - optional functionality
+
+// StartMonitoring starts network monitoring if a monitor is configured
+func (nm *NetworkManager) StartMonitoring(ctx context.Context) error {
+	if nm.monitor == nil {
+		nm.logger.Debug("no monitor configured, skipping monitoring")
+		return nil
+	}
+	return nm.monitor.StartMonitoring(ctx)
+}
+
+// StopMonitoring stops network monitoring if a monitor is configured
+func (nm *NetworkManager) StopMonitoring() error {
+	if nm.monitor == nil {
+		return nil
+	}
+	return nm.monitor.StopMonitoring()
+}
+
+// GetBandwidthStats returns bandwidth statistics for a job
+func (nm *NetworkManager) GetBandwidthStats(jobID string) (*BandwidthStats, error) {
+	if nm.monitor == nil {
+		return nil, fmt.Errorf("monitoring not configured")
+	}
+	return nm.monitor.GetBandwidthStats(jobID)
+}
+
+// GetNetworkStats returns statistics for a network
+func (nm *NetworkManager) GetNetworkStats(networkName string) (*BandwidthStats, error) {
+	if nm.monitor == nil {
+		return nil, fmt.Errorf("monitoring not configured")
+	}
+	return nm.monitor.GetNetworkStats(networkName)
+}
+
+// SetBandwidthLimits sets bandwidth limits for a job
+func (nm *NetworkManager) SetBandwidthLimits(jobID string, limits *NetworkLimits) error {
+	if nm.monitor == nil {
+		return fmt.Errorf("monitoring not configured")
+	}
+	return nm.monitor.SetBandwidthLimits(jobID, limits)
 }

@@ -58,19 +58,19 @@ func runLog(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		<-sigCh
-		fmt.Println("\nReceived termination signal. Closing log stream...")
+		fmt.Println("\nℹ️ Stopping log stream...")
 		cancel()
 	}()
 
 	jobClient, err := common.NewJobClient()
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("couldn't connect to joblet server: %w", err)
 	}
 	defer jobClient.Close()
 
 	stream, err := jobClient.GetJobLogs(ctx, jobID)
 	if err != nil {
-		return fmt.Errorf("failed to start log stream: %v", err)
+		return fmt.Errorf("couldn't start reading logs: %v", err)
 	}
 
 	for {
@@ -85,7 +85,7 @@ func runLog(cmd *cobra.Command, args []string) error {
 			}
 
 			if s, ok := status.FromError(e); ok {
-				return fmt.Errorf("log stream error: %v", s.Message())
+				return fmt.Errorf("problem reading logs: %v", s.Message())
 			}
 
 			return fmt.Errorf("error receiving log stream: %v", e)
@@ -93,7 +93,7 @@ func runLog(cmd *cobra.Command, args []string) error {
 
 		if common.JSONOutput {
 			if err := outputLogChunkJSON(chunk); err != nil {
-				return fmt.Errorf("failed to output JSON: %v", err)
+				return fmt.Errorf("couldn't format output as JSON: %v", err)
 			}
 		} else {
 			fmt.Printf("%s", chunk.Payload)

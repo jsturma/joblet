@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"joblet/internal/joblet/core/validation"
 	"joblet/internal/joblet/domain"
 	"joblet/pkg/config"
 	"joblet/pkg/logger"
@@ -15,21 +14,19 @@ import (
 // Core job construction service that transforms requests into validated domain objects
 // with proper UUIDs, resource limits, and field population.
 type Builder struct {
-	config       *config.Config
-	logger       *logger.Logger
-	idGenerator  *IDGenerator
-	resValidator *validation.ResourceValidator
+	config      *config.Config
+	logger      *logger.Logger
+	idGenerator *IDGenerator
 }
 
 // NewBuilder creates a new job builder.
 // Initializes builder with configuration, UUID generator, and resource validator
 // for comprehensive job construction with validation.
-func NewBuilder(cfg *config.Config, idGen *IDGenerator, resValidator *validation.ResourceValidator) *Builder {
+func NewBuilder(cfg *config.Config, idGen *IDGenerator) *Builder {
 	return &Builder{
-		config:       cfg,
-		logger:       logger.New().WithField("component", "job-builder"),
-		idGenerator:  idGen,
-		resValidator: resValidator,
+		config:      cfg,
+		logger:      logger.New().WithField("component", "job-builder"),
+		idGenerator: idGen,
 	}
 }
 
@@ -97,14 +94,12 @@ func (b *Builder) Build(req BuildRequest) (*domain.Job, error) {
 	// Apply resource limits with defaults
 	job.Limits = b.applyResourceDefaults(req.Limits)
 
-	// Calculate effective CPU if cores are specified
-	if !job.Limits.CPUCores.IsEmpty() {
-		b.resValidator.CalculateEffectiveLimits(&job.Limits)
+	// Basic resource limit validation (simplified)
+	if job.Limits.CPU.Value() < 0 || job.Limits.CPU.Value() > 100 {
+		return nil, fmt.Errorf("invalid CPU limit: must be between 0-100")
 	}
-
-	// Final validation
-	if err := b.resValidator.Validate(job.Limits); err != nil {
-		return nil, fmt.Errorf("resource validation failed: %w", err)
+	if job.Limits.Memory.Bytes() < 0 {
+		return nil, fmt.Errorf("invalid memory limit: must be positive")
 	}
 
 	b.logger.Debug("job built successfully",

@@ -98,7 +98,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Validate flag combinations
 	if detailFlag && !workflowFlag {
-		return fmt.Errorf("--detail flag can only be used with --workflow flag")
+		return fmt.Errorf("the --detail option only works with --workflow")
 	}
 
 	// If workflow flag is set, try workflow status directly
@@ -121,7 +121,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// If both fail, show a helpful error message
 	if strings.Contains(jobErr.Error(), "not found") && strings.Contains(workflowErr.Error(), "not found") {
-		return fmt.Errorf("no job or workflow found with ID '%s'\n\nHint: Use 'rnx job list' to see jobs or 'rnx job list --workflow' to see workflows", id)
+		return fmt.Errorf("couldn't find a job or workflow with ID '%s'\n\nTip: Try 'rnx job list' to see all jobs, or 'rnx job list --workflow' to see workflows", id)
 	}
 
 	// If workflow exists but job also exists with same ID, suggest using --workflow flag
@@ -136,7 +136,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 func getJobStatus(jobID string) error {
 	jobClient, err := common.NewJobClient()
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("couldn't connect to joblet server: %w", err)
 	}
 	defer jobClient.Close()
 
@@ -145,7 +145,7 @@ func getJobStatus(jobID string) error {
 
 	response, err := jobClient.GetJobStatus(ctx, jobID)
 	if err != nil {
-		return fmt.Errorf("failed to get job status: %v", err)
+		return fmt.Errorf("couldn't get job status: %v", err)
 	}
 
 	if common.JSONOutput {
@@ -447,7 +447,7 @@ func outputJobStatusJSON(response *pb.GetJobStatusRes) error {
 func getWorkflowStatus(workflowID string) error {
 	client, err := common.NewJobClient()
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("couldn't connect to joblet server: %w", err)
 	}
 	defer client.Close()
 
@@ -463,7 +463,7 @@ func getWorkflowStatus(workflowID string) error {
 
 	res, err := workflowClient.GetWorkflowStatus(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to get workflow status: %w", err)
+		return fmt.Errorf("couldn't get workflow status: %w", err)
 	}
 
 	if common.JSONOutput {

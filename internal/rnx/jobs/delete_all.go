@@ -53,7 +53,7 @@ cannot be recovered. Only non-running jobs are affected.`,
 func runDeleteAll(cmd *cobra.Command, args []string) error {
 	jobClient, err := common.NewJobClient()
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("couldn't connect to joblet server: %w", err)
 	}
 	defer jobClient.Close()
 
@@ -62,7 +62,7 @@ func runDeleteAll(cmd *cobra.Command, args []string) error {
 
 	response, err := jobClient.DeleteAllJobs(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to delete all jobs: %v", err)
+		return fmt.Errorf("couldn't delete all jobs: %v", err)
 	}
 
 	if common.JSONOutput {
@@ -78,7 +78,7 @@ func runDeleteAll(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Printf("❌ Job deletion failed:\n")
 		fmt.Printf("Error: %s\n", response.Message)
-		return fmt.Errorf("deletion failed: %s", response.Message)
+		return fmt.Errorf("couldn't delete all jobs: %s", response.Message)
 	}
 
 	return nil

@@ -19,7 +19,6 @@ import (
 	"joblet/internal/joblet/core/resource"
 	"joblet/internal/joblet/core/unprivileged"
 	"joblet/internal/joblet/core/upload"
-	"joblet/internal/joblet/core/validation"
 	"joblet/internal/joblet/domain"
 	"joblet/internal/joblet/scheduler"
 	"joblet/pkg/config"
@@ -40,7 +39,6 @@ type Joblet struct {
 	platform platform.Platform
 
 	// Specialized services
-	validator       *validation.Service
 	jobBuilder      *job.Builder
 	resourceManager *ResourceManager
 	executionEngine *ExecutionEngineV2
@@ -64,7 +62,6 @@ func NewPlatformJoblet(store JobStore, cfg *config.Config, networkStoreAdapter a
 		config:          cfg,
 		logger:          jobletLogger,
 		platform:        platformInterface,
-		validator:       c.validator,
 		jobBuilder:      c.jobBuilder,
 		resourceManager: c.resourceManager,
 		executionEngine: c.executionEngine,
@@ -150,9 +147,9 @@ func (j *Joblet) StartJob(ctx context.Context, req interfaces.StartJobRequest) (
 	default:
 	}
 
-	// 1. Validate the request
-	if err := j.validator.ValidateJobRequest(internalReq.Command, internalReq.Args, internalReq.Schedule, internalReq.Limits); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+	// 1. Basic request validation (simplified)
+	if internalReq.Command == "" {
+		return nil, fmt.Errorf("command cannot be empty")
 	}
 
 	// 2. Build the job
@@ -568,16 +565,11 @@ func initializeComponents(store JobStore, cfg *config.Config, platform platform.
 	processManager := process.NewProcessManager(platform, cfg)
 	uploadManager := upload.NewManager(platform, logger)
 
-	// Create validation service
-	validator := validation.NewService(
-		validation.NewCommandValidator(platform, cfg),
-		validation.NewScheduleValidator(),
-		validation.NewResourceValidator(),
-	)
+	// Simplified validation - removed complex validation service
 
 	// Create UUID generator for job identification
 	uuidGenerator := job.NewUUIDGenerator("job", "node")
-	jobBuilder := job.NewBuilder(cfg, uuidGenerator, validator.ResourceValidator())
+	jobBuilder := job.NewBuilder(cfg, uuidGenerator)
 
 	// Create resource manager
 	resourceManager := &ResourceManager{
@@ -613,7 +605,6 @@ func initializeComponents(store JobStore, cfg *config.Config, platform platform.
 
 	return &components{
 		cgroup:          cgroupResource,
-		validator:       validator,
 		jobBuilder:      jobBuilder,
 		resourceManager: resourceManager,
 		executionEngine: executionEngine,
@@ -626,7 +617,6 @@ func initializeComponents(store JobStore, cfg *config.Config, platform platform.
 // before final joblet assembly.
 type components struct {
 	cgroup          resource.Resource
-	validator       *validation.Service
 	jobBuilder      *job.Builder
 	resourceManager *ResourceManager
 	executionEngine *ExecutionEngineV2

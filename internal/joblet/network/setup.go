@@ -720,3 +720,76 @@ func (ns *NetworkSetup) RemoveBridge(networkName string) error {
 	ns.logger.Info("removed bridge", "bridge", bridgeName, "network", networkName)
 	return nil
 }
+
+// CreateBridge creates a network bridge with the specified CIDR
+func (ns *NetworkSetup) CreateBridge(bridgeName, cidr string) error {
+	ns.logger.Info("creating bridge", "bridge", bridgeName, "cidr", cidr)
+
+	// Create bridge
+	if err := ns.execCommand("ip", "link", "add", bridgeName, "type", "bridge"); err != nil {
+		return fmt.Errorf("failed to create bridge: %w", err)
+	}
+
+	// Assign IP to bridge
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return fmt.Errorf("invalid CIDR: %w", err)
+	}
+
+	// Use first IP as bridge IP
+	bridgeIP := ipNet.IP
+	bridgeIP[len(bridgeIP)-1] = 1
+	prefixLen, _ := ipNet.Mask.Size()
+
+	if err := ns.execCommand("ip", "addr", "add", fmt.Sprintf("%s/%d", bridgeIP.String(), prefixLen), "dev", bridgeName); err != nil {
+		return fmt.Errorf("failed to assign IP to bridge: %w", err)
+	}
+
+	// Bring up bridge
+	if err := ns.execCommand("ip", "link", "set", bridgeName, "up"); err != nil {
+		return fmt.Errorf("failed to bring up bridge: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteBridge removes a network bridge
+func (ns *NetworkSetup) DeleteBridge(bridgeName string) error {
+	ns.logger.Info("deleting bridge", "bridge", bridgeName)
+
+	// Bring down bridge
+	if err := ns.execCommand("ip", "link", "set", bridgeName, "down"); err != nil {
+		ns.logger.Debug("failed to bring down bridge", "error", err)
+	}
+
+	// Delete bridge
+	if err := ns.execCommand("ip", "link", "delete", bridgeName); err != nil {
+		return fmt.Errorf("failed to delete bridge: %w", err)
+	}
+
+	return nil
+}
+
+// BridgeExists checks if a bridge exists
+func (ns *NetworkSetup) BridgeExists(bridgeName string) bool {
+	err := ns.execCommand("ip", "link", "show", bridgeName)
+	return err == nil
+}
+
+// CreateVethPair creates a veth pair
+func (ns *NetworkSetup) CreateVethPair(hostVeth, peerVeth string) error {
+	return ns.execCommand("ip", "link", "add", hostVeth, "type", "veth", "peer", "name", peerVeth)
+}
+
+// DeleteVethPair deletes a veth pair
+func (ns *NetworkSetup) DeleteVethPair(hostVeth, peerVeth string) error {
+	return ns.execCommand("ip", "link", "delete", hostVeth)
+}
+
+// AttachVethToBridge attaches a veth interface to a bridge
+func (ns *NetworkSetup) AttachVethToBridge(bridgeName, vethName string) error {
+	if err := ns.execCommand("ip", "link", "set", vethName, "master", bridgeName); err != nil {
+		return fmt.Errorf("failed to attach veth to bridge: %w", err)
+	}
+	return ns.execCommand("ip", "link", "set", vethName, "up")
+}
