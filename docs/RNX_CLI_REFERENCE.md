@@ -817,9 +817,9 @@ rnx version [flags]
 
 #### Flags
 
-| Flag     | Description                      | Default |
-|----------|----------------------------------|---------|
-| `--json` | Output version info as JSON     | false   |
+| Flag     | Description                 | Default |
+|----------|-----------------------------|---------|
+| `--json` | Output version info as JSON | false   |
 
 #### Examples
 

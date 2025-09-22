@@ -226,10 +226,14 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- - **Read-only host mounts**: Cannot modify system binaries
-- - **No package managers**: Cannot install escape tools
-- - **Minimal attack surface**: Limited binaries available
-- - **Process isolation**: Cannot see other namespaces
+-
+    - **Read-only host mounts**: Cannot modify system binaries
+-
+    - **No package managers**: Cannot install escape tools
+-
+    - **Minimal attack surface**: Limited binaries available
+-
+    - **Process isolation**: Cannot see other namespaces
 
 ### 2. Privilege Escalation
 
@@ -237,10 +241,14 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- - **Same user context**: Runs as same unprivileged user as production jobs
-- - **No setuid binaries**: Host mounts are read-only
-- - **Cgroup limits**: Resource restrictions prevent DoS attacks
-- - **Network isolation**: Cannot access privileged network services
+-
+    - **Same user context**: Runs as same unprivileged user as production jobs
+-
+    - **No setuid binaries**: Host mounts are read-only
+-
+    - **Cgroup limits**: Resource restrictions prevent DoS attacks
+-
+    - **Network isolation**: Cannot access privileged network services
 
 ### 3. Data Exfiltration Between Job Types
 
@@ -248,10 +256,14 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- - **Separate filesystem trees**: No shared writable space
-- - **Isolated temp directories**: Different UUID-based paths
-- - **Read-only runtime access**: Production jobs can only read completed runtimes
-- - **No job directory access**: Cannot access other jobs' workspaces
+-
+    - **Separate filesystem trees**: No shared writable space
+-
+    - **Isolated temp directories**: Different UUID-based paths
+-
+    - **Read-only runtime access**: Production jobs can only read completed runtimes
+-
+    - **No job directory access**: Cannot access other jobs' workspaces
 
 ### 4. Resource Exhaustion
 
@@ -259,10 +271,14 @@ func (i *Isolator) validateJobContext() error {
 
 **Mitigation:**
 
-- - **Same cgroup limits**: Both job types subject to identical resource controls
-- - **Independent quotas**: Each job gets separate CPU/memory/I/O allocation
-- - **Process limits**: Same process count restrictions
-- - **Cleanup guarantees**: Failed jobs are cleaned up automatically
+-
+    - **Same cgroup limits**: Both job types subject to identical resource controls
+-
+    - **Independent quotas**: Each job gets separate CPU/memory/I/O allocation
+-
+    - **Process limits**: Same process count restrictions
+-
+    - **Cleanup guarantees**: Failed jobs are cleaned up automatically
 
 ## Recommended Additional Hardening
 
@@ -352,10 +368,14 @@ mounts:
 
 ### Implementation Status
 
-- - **Runtime Cleanup System**: Implemented in `internal/joblet/core/runtime_cleanup.go`
-- - **Setup Script Integration**: Updated `runtimes/openjdk-21/setup-ubuntu-amd64.sh`
-- - **Isolated Structure**: Creates `isolated/` directory with runtime files
-- - **Configuration Update**: Rewrites `runtime.yml` with isolated paths
+-
+    - **Runtime Cleanup System**: Implemented in `internal/joblet/core/runtime_cleanup.go`
+-
+    - **Setup Script Integration**: Updated `runtimes/openjdk-21/setup-ubuntu-amd64.sh`
+-
+    - **Isolated Structure**: Creates `isolated/` directory with runtime files
+-
+    - **Configuration Update**: Rewrites `runtime.yml` with isolated paths
 - 🔄 **Additional Runtimes**: Python and Node.js runtimes need similar updates
 
 ## Security Conclusion

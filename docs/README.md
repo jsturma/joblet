@@ -4,7 +4,8 @@ Joblet is a Linux job execution platform that uses namespaces and cgroups for pr
 
 ## Overview
 
-Joblet runs jobs in isolated Linux namespaces with configurable resource limits. It provides job scheduling, workflow orchestration, and monitoring through a gRPC API and CLI client.
+Joblet runs jobs in isolated Linux namespaces with configurable resource limits. It provides job scheduling, workflow
+orchestration, and monitoring through a gRPC API and CLI client.
 
 ### Key Features
 
@@ -32,9 +33,11 @@ Joblet runs jobs in isolated Linux namespaces with configurable resource limits.
 ## Web Interface
 
 ### System Monitoring
+
 ![System Monitoring](./AdminUI-SystemMonitoring1.png)
 
 ### Workflow Management
+
 ![Workflow Management](./AdminUI-Workflow1.png)
 
 ## Use Cases
