@@ -93,6 +93,22 @@ rnx monitor status                 # Check server metrics
 rnx admin                          # Launch at http://localhost:5173
 ```
 
+### D. Python SDK Usage (Alternative to CLI)
+
+```python
+# Install: pip install joblet-sdk
+from joblet import JobletClient
+
+with JobletClient(host="your-joblet-server") as client:
+    # Run a job programmatically
+    job = client.jobs.run_job(
+        command="echo",
+        args=["Hello from Python!"],
+        name="python-job"
+    )
+    print(f"Job started: {job['job_uuid']}")
+```
+
 ## 🚀 Basic Usage
 
 ### YAML Workflows (Simplified Execution)
@@ -172,6 +188,20 @@ Available on macOS via Homebrew with `--with-admin`:
 - **[RNX CLI Reference](docs/RNX_CLI_REFERENCE.md)**
 - **[Security Guide](docs/SECURITY.md)**
 - **[Examples](examples/)**
+
+## 🔗 Related Projects
+
+### Protocol Definitions
+- **[Joblet Proto](https://github.com/ehsaniara/joblet-proto)** - gRPC protocol buffer definitions for Joblet API
+  - Contains the official `.proto` files that define the Joblet gRPC API
+  - Used to generate client libraries for different programming languages
+
+### SDKs & Client Libraries
+- **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)** - Official Python SDK for Joblet
+  - Easy-to-use Python library for interacting with Joblet servers
+  - Supports all Joblet features: jobs, workflows, monitoring, SSL/TLS
+
+Want to build your own client library? Start with the [protocol definitions](https://github.com/ehsaniara/joblet-proto) and generate bindings for your preferred language.
 
 ## 📄 License
 
