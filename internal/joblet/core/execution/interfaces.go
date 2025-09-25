@@ -26,6 +26,8 @@ type EnvironmentManager interface {
 	PrepareWorkspace(jobID string, uploads []domain.FileUpload) (string, error)
 	CleanupWorkspace(jobID string) error
 	GetRuntimeInitPath(ctx context.Context, runtimeSpec string) (string, error)
+	DetectCUDA() ([]string, error)
+	GetCUDAEnvironment(cudaPath string) map[string]string
 }
 
 // NetworkManager handles job networking setup
@@ -52,6 +54,8 @@ type IsolationManager interface {
 	CreateIsolatedEnvironment(jobID string) (*IsolationContext, error)
 	CreateBuilderEnvironment(jobID string) (*IsolationContext, error)
 	DestroyIsolatedEnvironment(jobID string) error
+	CreateGPUDeviceNodes(jobID string, gpuIndices []int) error
+	MountCUDALibraries(jobID string, cudaPath string) error
 }
 
 // StartProcessOptions contains options for starting a process

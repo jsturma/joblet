@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"joblet/internal/joblet/domain"
 	"joblet/pkg/logger"
@@ -245,22 +246,63 @@ func (ec *ExecutionCoordinator) setupGPUEnvironment(ctx context.Context, job *do
 	log := ec.logger.WithField("jobID", job.Uuid)
 	log.Debug("setting up GPU environment", "gpuIndices", job.GPUIndices)
 
-	// Note: In this architecture, device node creation and CUDA mounting would be handled
-	// by the isolation system when the job container/chroot is actually created.
-	// The coordinator primarily handles resource allocation and coordination.
-	//
-	// The actual GPU device setup will happen in the isolation system during job execution.
-	// For now, we log the setup requirement and rely on the environment service
-	// to provide the necessary environment variables (CUDA_VISIBLE_DEVICES, etc.)
+	// 1. Create GPU device nodes in isolated filesystem
+	gpuIndices := make([]int, len(job.GPUIndices))
+	for i, idx := range job.GPUIndices {
+		gpuIndices[i] = int(idx)
+	}
+	if err := ec.isolationManager.CreateGPUDeviceNodes(job.Uuid, gpuIndices); err != nil {
+		return fmt.Errorf("failed to create GPU device nodes: %w", err)
+	}
+
+	// 2. Detect and mount CUDA libraries
+	cudaPaths, err := ec.environmentManager.DetectCUDA()
+	if err != nil {
+		log.Warn("CUDA not found, GPU job may fail without CUDA runtime", "error", err)
+	} else {
+		// Try to mount CUDA libraries
+		for _, cudaPath := range cudaPaths {
+			if err := ec.isolationManager.MountCUDALibraries(job.Uuid, cudaPath); err != nil {
+				log.Warn("failed to mount CUDA from path", "path", cudaPath, "error", err)
+				continue
+			}
+			log.Debug("successfully mounted CUDA libraries", "path", cudaPath)
+			break // Successfully mounted CUDA
+		}
+	}
+
+	// 3. Set CUDA environment variables
+	if job.Environment == nil {
+		job.Environment = make(map[string]string)
+	}
+	job.Environment["CUDA_VISIBLE_DEVICES"] = formatGPUIndices(gpuIndices)
+	job.Environment["NVIDIA_VISIBLE_DEVICES"] = formatGPUIndices(gpuIndices)
+
+	// Add CUDA environment variables if available
+	if len(cudaPaths) > 0 {
+		cudaEnv := ec.environmentManager.GetCUDAEnvironment(cudaPaths[0])
+		for k, v := range cudaEnv {
+			job.Environment[k] = v
+		}
+	}
 
 	log.Info("GPU environment setup completed",
-		"allocatedGPUs", job.GPUIndices,
-		"gpuCount", len(job.GPUIndices))
-
-	// TODO: Future enhancement could include:
-	// 1. Setting up GPU device cgroup permissions via the resource manager
-	// 2. Pre-mounting CUDA libraries if needed by the filesystem isolator
-	// 3. Creating device nodes in advance if required by the isolation system
+		"allocatedGPUs", gpuIndices,
+		"gpuCount", len(gpuIndices),
+		"cudaAvailable", len(cudaPaths) > 0)
 
 	return nil
+}
+
+// formatGPUIndices formats GPU indices as comma-separated string for CUDA_VISIBLE_DEVICES
+func formatGPUIndices(indices []int) string {
+	if len(indices) == 0 {
+		return ""
+	}
+
+	var parts []string
+	for _, idx := range indices {
+		parts = append(parts, fmt.Sprintf("%d", idx))
+	}
+	return strings.Join(parts, ",")
 }

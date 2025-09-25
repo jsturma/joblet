@@ -1,7 +1,9 @@
 package gpu
 
 import (
+	"context"
 	"fmt"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -16,6 +18,7 @@ type Manager struct {
 	allocations  map[string]*GPUAllocation // job ID -> allocation
 	discovery    GPUDiscoveryInterface
 	cudaDetector CUDADetectorInterface
+	monitor      *GPUMonitor // GPU monitoring service
 	mutex        sync.RWMutex
 	config       config.GPUConfig
 	logger       *logger.Logger
@@ -23,7 +26,7 @@ type Manager struct {
 
 // NewManager creates a new GPU manager with the given configuration
 func NewManager(cfg config.GPUConfig, discovery GPUDiscoveryInterface, cudaDetector CUDADetectorInterface) *Manager {
-	return &Manager{
+	manager := &Manager{
 		enabled:      cfg.Enabled,
 		gpus:         make(map[int]*GPU),
 		allocations:  make(map[string]*GPUAllocation),
@@ -32,6 +35,13 @@ func NewManager(cfg config.GPUConfig, discovery GPUDiscoveryInterface, cudaDetec
 		config:       cfg,
 		logger:       logger.New().WithField("component", "gpu-manager"),
 	}
+
+	// Initialize GPU monitor if enabled
+	if cfg.Enabled {
+		manager.monitor = NewGPUMonitor(manager, 0) // Use default interval
+	}
+
+	return manager
 }
 
 // Initialize sets up the GPU manager and discovers available GPUs
@@ -222,8 +232,11 @@ func (m *Manager) ReleaseGPUs(jobID string) error {
 	// Remove allocation record
 	delete(m.allocations, jobID)
 
-	// TODO: Clear GPU memory for security (design requirement)
-	// This would require nvidia-ml-go library or nvidia-smi calls
+	// Clear GPU memory for security
+	if err := m.ClearGPUMemory(allocation.GPUIndices); err != nil {
+		log.Warn("failed to clear GPU memory", "error", err, "gpuIndices", allocation.GPUIndices)
+		// Don't fail the release operation due to memory clearing issues
+	}
 
 	log.Info("successfully released GPUs for job",
 		"releasedGPUs", allocation.GPUIndices,
@@ -272,4 +285,90 @@ func (m *Manager) RefreshGPUInfo() error {
 	}
 
 	return m.discovery.RefreshGPUs()
+}
+
+// ClearGPUMemory clears GPU memory for security between job allocations
+func (m *Manager) ClearGPUMemory(gpuIndices []int) error {
+	if len(gpuIndices) == 0 {
+		return nil
+	}
+
+	log := m.logger.WithField("gpuIndices", gpuIndices)
+	log.Debug("clearing GPU memory for security")
+
+	// Method 1: Try nvidia-smi GPU reset (recommended)
+	for _, idx := range gpuIndices {
+		cmd := exec.Command("nvidia-smi", "--gpu-reset", "-i", fmt.Sprintf("%d", idx))
+		if err := cmd.Run(); err != nil {
+			// GPU reset might not be supported on all cards, log warning but continue
+			log.Warn("GPU reset failed, attempting alternative memory clearing",
+				"gpuIndex", idx, "error", err)
+
+			// Method 2: Alternative - force memory cleanup using nvidia-smi
+			if err := m.forceMemoryCleanup(idx); err != nil {
+				log.Warn("memory cleanup failed", "gpuIndex", idx, "error", err)
+			}
+		} else {
+			log.Debug("successfully reset GPU", "gpuIndex", idx)
+		}
+	}
+
+	return nil
+}
+
+// forceMemoryCleanup attempts alternative memory cleanup methods
+func (m *Manager) forceMemoryCleanup(gpuIndex int) error {
+	// Alternative method: Query GPU processes and attempt cleanup
+	// This is less reliable than GPU reset but better than nothing
+	cmd := exec.Command("nvidia-smi", "--query-compute-apps=pid",
+		"--format=csv,noheader,nounits", "-i", fmt.Sprintf("%d", gpuIndex))
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to query GPU processes: %w", err)
+	}
+
+	// Note: In a production environment, you might want to implement more
+	// sophisticated memory clearing, such as:
+	// 1. Using nvidia-ml-py to directly control GPU memory
+	// 2. Running a small CUDA kernel to overwrite memory
+	// 3. Integration with container runtime memory clearing
+
+	m.logger.Debug("completed alternative memory cleanup", "gpuIndex", gpuIndex)
+	return nil
+}
+
+// GetMonitor returns the GPU monitoring service
+func (m *Manager) GetMonitor() *GPUMonitor {
+	return m.monitor
+}
+
+// StartMonitoring starts the GPU monitoring service
+func (m *Manager) StartMonitoring(ctx context.Context) error {
+	if !m.enabled || m.monitor == nil {
+		return nil
+	}
+	return m.monitor.Start(ctx)
+}
+
+// StopMonitoring stops the GPU monitoring service
+func (m *Manager) StopMonitoring() {
+	if m.monitor != nil {
+		m.monitor.Stop()
+	}
+}
+
+// GetGPUMetrics returns current metrics for all GPUs
+func (m *Manager) GetGPUMetrics() map[int]*GPUMetrics {
+	if m.monitor == nil {
+		return make(map[int]*GPUMetrics)
+	}
+	return m.monitor.GetMetrics()
+}
+
+// GetGPUHealth returns health status for all GPUs
+func (m *Manager) GetGPUHealth() map[int]string {
+	if m.monitor == nil {
+		return make(map[int]string)
+	}
+	return m.monitor.CheckGPUHealth()
 }

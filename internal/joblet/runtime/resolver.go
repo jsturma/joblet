@@ -315,3 +315,171 @@ func (r *Resolver) validateRuntime(config *RuntimeConfig) error {
 
 	return nil
 }
+
+// IsGPUEnabled checks if a runtime has GPU support based on its name and tags
+func (r *Resolver) IsGPUEnabled(runtimeName string) bool {
+	// Check for common GPU indicators in runtime name
+	lowerName := strings.ToLower(runtimeName)
+
+	// Direct GPU indicators
+	if strings.Contains(lowerName, "gpu") ||
+		strings.Contains(lowerName, "cuda") ||
+		strings.Contains(lowerName, "-ml") ||
+		strings.Contains(lowerName, "tensorflow") ||
+		strings.Contains(lowerName, "pytorch") ||
+		strings.Contains(lowerName, "nvidia") {
+		return true
+	}
+
+	// Check by parsing runtime spec and looking for GPU tags
+	spec := r.parseRuntimeSpec(runtimeName)
+	return r.specHasGPUSupport(spec)
+}
+
+// specHasGPUSupport checks if a runtime specification indicates GPU support
+func (r *Resolver) specHasGPUSupport(spec *RuntimeSpec) bool {
+	if spec == nil {
+		return false
+	}
+
+	// Check tags for GPU indicators
+	for _, tag := range spec.Tags {
+		lowerTag := strings.ToLower(tag)
+		if lowerTag == "gpu" ||
+			lowerTag == "cuda" ||
+			lowerTag == "ml" ||
+			lowerTag == "ai" ||
+			lowerTag == "tensorflow" ||
+			lowerTag == "pytorch" ||
+			lowerTag == "nvidia" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetCUDARequirements returns the CUDA version requirements for a runtime
+func (r *Resolver) GetCUDARequirements(runtimeName string) (string, error) {
+	// Try to load runtime config first to get precise requirements
+	if config, err := r.getRuntimeConfig(runtimeName); err == nil && config != nil {
+		// Check if config has CUDA requirements (this would need to be added to RuntimeConfig)
+		if config.Environment != nil {
+			// Look for CUDA version in environment variables
+			if cudaVersion, exists := config.Environment["CUDA_VERSION"]; exists {
+				return cudaVersion, nil
+			}
+			if cudaVersion, exists := config.Environment["CUDA_HOME"]; exists {
+				// Extract version from CUDA_HOME path if possible
+				return r.extractVersionFromPath(cudaVersion), nil
+			}
+		}
+	}
+
+	// Fallback to inference from runtime name/spec
+	return r.inferCUDAVersion(runtimeName), nil
+}
+
+// getRuntimeConfig loads runtime configuration for a given runtime name
+func (r *Resolver) getRuntimeConfig(runtimeName string) (*RuntimeConfig, error) {
+	// Try to find runtime directory
+	entries, err := r.platform.ReadDir(r.runtimesPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Check if this runtime matches the name
+		if strings.Contains(entry.Name(), runtimeName) || runtimeName == entry.Name() {
+			configPath := filepath.Join(r.runtimesPath, entry.Name(), "runtime.yml")
+			return r.loadRuntimeConfig(configPath)
+		}
+	}
+
+	return nil, fmt.Errorf("runtime config not found for %s", runtimeName)
+}
+
+// inferCUDAVersion attempts to infer CUDA version from runtime name
+func (r *Resolver) inferCUDAVersion(runtimeName string) string {
+	lowerName := strings.ToLower(runtimeName)
+
+	// Common CUDA version patterns in runtime names
+	cudaVersionMap := map[string]string{
+		"cuda12":     "12.0",
+		"cuda12.0":   "12.0",
+		"cuda12.1":   "12.1",
+		"cuda12.2":   "12.2",
+		"cuda11":     "11.8",
+		"cuda11.8":   "11.8",
+		"cuda11.7":   "11.7",
+		"cuda11.6":   "11.6",
+		"pytorch":    "11.8", // PyTorch typically uses CUDA 11.8
+		"tensorflow": "11.8", // TensorFlow typically uses CUDA 11.8
+	}
+
+	for pattern, version := range cudaVersionMap {
+		if strings.Contains(lowerName, pattern) {
+			return version
+		}
+	}
+
+	// Default to a commonly compatible version
+	return "11.8"
+}
+
+// extractVersionFromPath extracts version from a path like "/usr/local/cuda-11.8"
+func (r *Resolver) extractVersionFromPath(path string) string {
+	// Look for version pattern in path
+	parts := strings.Split(path, "-")
+	for _, part := range parts {
+		// Check if this part looks like a version (contains dot and numbers)
+		if strings.Contains(part, ".") && r.isVersionString(part) {
+			return part
+		}
+	}
+
+	return "unknown"
+}
+
+// isVersionString checks if a string looks like a version number
+func (r *Resolver) isVersionString(s string) bool {
+	parts := strings.Split(s, ".")
+	if len(parts) < 2 {
+		return false
+	}
+
+	// Check if all parts are numeric
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		for _, char := range part {
+			if char < '0' || char > '9' {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// ListGPUEnabledRuntimes returns all runtimes that support GPU
+func (r *Resolver) ListGPUEnabledRuntimes() ([]*RuntimeInfo, error) {
+	allRuntimes, err := r.ListRuntimes()
+	if err != nil {
+		return nil, err
+	}
+
+	var gpuRuntimes []*RuntimeInfo
+	for _, runtime := range allRuntimes {
+		if r.IsGPUEnabled(runtime.Name) {
+			gpuRuntimes = append(gpuRuntimes, runtime)
+		}
+	}
+
+	return gpuRuntimes, nil
+}

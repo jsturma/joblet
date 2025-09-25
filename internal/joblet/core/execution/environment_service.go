@@ -169,6 +169,119 @@ func (es *EnvironmentService) GetRuntimeInitPath(ctx context.Context, runtimeSpe
 	return "", fmt.Errorf("runtime init path resolution is deprecated - handled by filesystem isolator")
 }
 
+// DetectCUDA detects available CUDA installations on the system
+func (es *EnvironmentService) DetectCUDA() ([]string, error) {
+	es.logger.Debug("detecting CUDA installations")
+
+	var cudaPaths []string
+
+	// Common CUDA installation paths
+	commonPaths := []string{
+		"/usr/local/cuda",
+		"/opt/cuda",
+		"/usr/cuda",
+	}
+
+	// Check for CUDA_HOME environment variable
+	if cudaHome := es.platform.Getenv("CUDA_HOME"); cudaHome != "" {
+		commonPaths = append([]string{cudaHome}, commonPaths...)
+	}
+
+	// Check each potential CUDA path
+	for _, path := range commonPaths {
+		if es.isCUDAPath(path) {
+			cudaPaths = append(cudaPaths, path)
+			es.logger.Debug("found CUDA installation", "path", path)
+		}
+	}
+
+	if len(cudaPaths) == 0 {
+		return nil, fmt.Errorf("no CUDA installations found")
+	}
+
+	es.logger.Info("detected CUDA installations", "count", len(cudaPaths), "paths", cudaPaths)
+	return cudaPaths, nil
+}
+
+// GetCUDAEnvironment returns environment variables needed for CUDA runtime
+func (es *EnvironmentService) GetCUDAEnvironment(cudaPath string) map[string]string {
+	env := make(map[string]string)
+
+	// Set CUDA_HOME
+	env["CUDA_HOME"] = cudaPath
+
+	// Set PATH to include CUDA binaries
+	cudaBinPath := filepath.Join(cudaPath, "bin")
+	if currentPath := es.platform.Getenv("PATH"); currentPath != "" {
+		env["PATH"] = cudaBinPath + ":" + currentPath
+	} else {
+		env["PATH"] = cudaBinPath
+	}
+
+	// Set LD_LIBRARY_PATH to include CUDA libraries
+	cudaLibPaths := []string{
+		filepath.Join(cudaPath, "lib64"),
+		filepath.Join(cudaPath, "lib"),
+	}
+
+	var existingLibPaths []string
+	for _, libPath := range cudaLibPaths {
+		if es.pathExists(libPath) {
+			existingLibPaths = append(existingLibPaths, libPath)
+		}
+	}
+
+	if len(existingLibPaths) > 0 {
+		libPathStr := strings.Join(existingLibPaths, ":")
+		if currentLdPath := es.platform.Getenv("LD_LIBRARY_PATH"); currentLdPath != "" {
+			env["LD_LIBRARY_PATH"] = libPathStr + ":" + currentLdPath
+		} else {
+			env["LD_LIBRARY_PATH"] = libPathStr
+		}
+	}
+
+	return env
+}
+
+// isCUDAPath checks if the given path is a valid CUDA installation
+func (es *EnvironmentService) isCUDAPath(path string) bool {
+	// Check for key CUDA files/directories
+	requiredPaths := []string{
+		filepath.Join(path, "bin", "nvcc"),       // CUDA compiler
+		filepath.Join(path, "include", "cuda.h"), // CUDA headers
+	}
+
+	// Check for library directories
+	libPaths := []string{
+		filepath.Join(path, "lib64"),
+		filepath.Join(path, "lib"),
+	}
+
+	// All required files must exist
+	for _, reqPath := range requiredPaths {
+		if !es.pathExists(reqPath) {
+			return false
+		}
+	}
+
+	// At least one library directory must exist
+	hasLibDir := false
+	for _, libPath := range libPaths {
+		if es.pathExists(libPath) {
+			hasLibDir = true
+			break
+		}
+	}
+
+	return hasLibDir
+}
+
+// pathExists checks if a file or directory exists
+func (es *EnvironmentService) pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // getRuntimeEnvironment reads runtime.yml and returns environment variables
 func (es *EnvironmentService) getRuntimeEnvironment(runtimeSpec string) ([]string, error) {
 	if runtimeSpec == "" {

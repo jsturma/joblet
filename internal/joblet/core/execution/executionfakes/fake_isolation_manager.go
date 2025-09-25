@@ -20,6 +20,18 @@ type FakeIsolationManager struct {
 		result1 *execution.IsolationContext
 		result2 error
 	}
+	CreateGPUDeviceNodesStub        func(string, []int) error
+	createGPUDeviceNodesMutex       sync.RWMutex
+	createGPUDeviceNodesArgsForCall []struct {
+		arg1 string
+		arg2 []int
+	}
+	createGPUDeviceNodesReturns struct {
+		result1 error
+	}
+	createGPUDeviceNodesReturnsOnCall map[int]struct {
+		result1 error
+	}
 	CreateIsolatedEnvironmentStub        func(string) (*execution.IsolationContext, error)
 	createIsolatedEnvironmentMutex       sync.RWMutex
 	createIsolatedEnvironmentArgsForCall []struct {
@@ -42,6 +54,18 @@ type FakeIsolationManager struct {
 		result1 error
 	}
 	destroyIsolatedEnvironmentReturnsOnCall map[int]struct {
+		result1 error
+	}
+	MountCUDALibrariesStub        func(string, string) error
+	mountCUDALibrariesMutex       sync.RWMutex
+	mountCUDALibrariesArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	mountCUDALibrariesReturns struct {
+		result1 error
+	}
+	mountCUDALibrariesReturnsOnCall map[int]struct {
 		result1 error
 	}
 	invocations      map[string][][]interface{}
@@ -110,6 +134,73 @@ func (fake *FakeIsolationManager) CreateBuilderEnvironmentReturnsOnCall(i int, r
 		result1 *execution.IsolationContext
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeIsolationManager) CreateGPUDeviceNodes(arg1 string, arg2 []int) error {
+	var arg2Copy []int
+	if arg2 != nil {
+		arg2Copy = make([]int, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.createGPUDeviceNodesMutex.Lock()
+	ret, specificReturn := fake.createGPUDeviceNodesReturnsOnCall[len(fake.createGPUDeviceNodesArgsForCall)]
+	fake.createGPUDeviceNodesArgsForCall = append(fake.createGPUDeviceNodesArgsForCall, struct {
+		arg1 string
+		arg2 []int
+	}{arg1, arg2Copy})
+	stub := fake.CreateGPUDeviceNodesStub
+	fakeReturns := fake.createGPUDeviceNodesReturns
+	fake.recordInvocation("CreateGPUDeviceNodes", []interface{}{arg1, arg2Copy})
+	fake.createGPUDeviceNodesMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeIsolationManager) CreateGPUDeviceNodesCallCount() int {
+	fake.createGPUDeviceNodesMutex.RLock()
+	defer fake.createGPUDeviceNodesMutex.RUnlock()
+	return len(fake.createGPUDeviceNodesArgsForCall)
+}
+
+func (fake *FakeIsolationManager) CreateGPUDeviceNodesCalls(stub func(string, []int) error) {
+	fake.createGPUDeviceNodesMutex.Lock()
+	defer fake.createGPUDeviceNodesMutex.Unlock()
+	fake.CreateGPUDeviceNodesStub = stub
+}
+
+func (fake *FakeIsolationManager) CreateGPUDeviceNodesArgsForCall(i int) (string, []int) {
+	fake.createGPUDeviceNodesMutex.RLock()
+	defer fake.createGPUDeviceNodesMutex.RUnlock()
+	argsForCall := fake.createGPUDeviceNodesArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeIsolationManager) CreateGPUDeviceNodesReturns(result1 error) {
+	fake.createGPUDeviceNodesMutex.Lock()
+	defer fake.createGPUDeviceNodesMutex.Unlock()
+	fake.CreateGPUDeviceNodesStub = nil
+	fake.createGPUDeviceNodesReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeIsolationManager) CreateGPUDeviceNodesReturnsOnCall(i int, result1 error) {
+	fake.createGPUDeviceNodesMutex.Lock()
+	defer fake.createGPUDeviceNodesMutex.Unlock()
+	fake.CreateGPUDeviceNodesStub = nil
+	if fake.createGPUDeviceNodesReturnsOnCall == nil {
+		fake.createGPUDeviceNodesReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.createGPUDeviceNodesReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeIsolationManager) CreateIsolatedEnvironment(arg1 string) (*execution.IsolationContext, error) {
@@ -233,6 +324,68 @@ func (fake *FakeIsolationManager) DestroyIsolatedEnvironmentReturnsOnCall(i int,
 		})
 	}
 	fake.destroyIsolatedEnvironmentReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeIsolationManager) MountCUDALibraries(arg1 string, arg2 string) error {
+	fake.mountCUDALibrariesMutex.Lock()
+	ret, specificReturn := fake.mountCUDALibrariesReturnsOnCall[len(fake.mountCUDALibrariesArgsForCall)]
+	fake.mountCUDALibrariesArgsForCall = append(fake.mountCUDALibrariesArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.MountCUDALibrariesStub
+	fakeReturns := fake.mountCUDALibrariesReturns
+	fake.recordInvocation("MountCUDALibraries", []interface{}{arg1, arg2})
+	fake.mountCUDALibrariesMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeIsolationManager) MountCUDALibrariesCallCount() int {
+	fake.mountCUDALibrariesMutex.RLock()
+	defer fake.mountCUDALibrariesMutex.RUnlock()
+	return len(fake.mountCUDALibrariesArgsForCall)
+}
+
+func (fake *FakeIsolationManager) MountCUDALibrariesCalls(stub func(string, string) error) {
+	fake.mountCUDALibrariesMutex.Lock()
+	defer fake.mountCUDALibrariesMutex.Unlock()
+	fake.MountCUDALibrariesStub = stub
+}
+
+func (fake *FakeIsolationManager) MountCUDALibrariesArgsForCall(i int) (string, string) {
+	fake.mountCUDALibrariesMutex.RLock()
+	defer fake.mountCUDALibrariesMutex.RUnlock()
+	argsForCall := fake.mountCUDALibrariesArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeIsolationManager) MountCUDALibrariesReturns(result1 error) {
+	fake.mountCUDALibrariesMutex.Lock()
+	defer fake.mountCUDALibrariesMutex.Unlock()
+	fake.MountCUDALibrariesStub = nil
+	fake.mountCUDALibrariesReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeIsolationManager) MountCUDALibrariesReturnsOnCall(i int, result1 error) {
+	fake.mountCUDALibrariesMutex.Lock()
+	defer fake.mountCUDALibrariesMutex.Unlock()
+	fake.MountCUDALibrariesStub = nil
+	if fake.mountCUDALibrariesReturnsOnCall == nil {
+		fake.mountCUDALibrariesReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.mountCUDALibrariesReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }

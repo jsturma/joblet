@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"joblet/internal/rnx/common"
+	"joblet/internal/rnx/gpu"
 	"joblet/internal/rnx/jobs"
 	"joblet/internal/rnx/resources"
 	"joblet/pkg/config"
@@ -89,6 +90,7 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(jobs.NewJobCmd())
 	rootCmd.AddCommand(jobs.NewMonitorCmd())
+	rootCmd.AddCommand(gpu.NewGPUCmd())
 	rootCmd.AddCommand(NewNodesCmd())
 	rootCmd.AddCommand(NewHelpConfigCmd())
 	rootCmd.AddCommand(resources.NewNetworkCmd())

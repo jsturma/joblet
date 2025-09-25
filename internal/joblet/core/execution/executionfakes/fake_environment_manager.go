@@ -32,6 +32,29 @@ type FakeEnvironmentManager struct {
 	cleanupWorkspaceReturnsOnCall map[int]struct {
 		result1 error
 	}
+	DetectCUDAStub        func() ([]string, error)
+	detectCUDAMutex       sync.RWMutex
+	detectCUDAArgsForCall []struct {
+	}
+	detectCUDAReturns struct {
+		result1 []string
+		result2 error
+	}
+	detectCUDAReturnsOnCall map[int]struct {
+		result1 []string
+		result2 error
+	}
+	GetCUDAEnvironmentStub        func(string) map[string]string
+	getCUDAEnvironmentMutex       sync.RWMutex
+	getCUDAEnvironmentArgsForCall []struct {
+		arg1 string
+	}
+	getCUDAEnvironmentReturns struct {
+		result1 map[string]string
+	}
+	getCUDAEnvironmentReturnsOnCall map[int]struct {
+		result1 map[string]string
+	}
 	GetRuntimeInitPathStub        func(context.Context, string) (string, error)
 	getRuntimeInitPathMutex       sync.RWMutex
 	getRuntimeInitPathArgsForCall []struct {
@@ -184,6 +207,123 @@ func (fake *FakeEnvironmentManager) CleanupWorkspaceReturnsOnCall(i int, result1
 	}
 	fake.cleanupWorkspaceReturnsOnCall[i] = struct {
 		result1 error
+	}{result1}
+}
+
+func (fake *FakeEnvironmentManager) DetectCUDA() ([]string, error) {
+	fake.detectCUDAMutex.Lock()
+	ret, specificReturn := fake.detectCUDAReturnsOnCall[len(fake.detectCUDAArgsForCall)]
+	fake.detectCUDAArgsForCall = append(fake.detectCUDAArgsForCall, struct {
+	}{})
+	stub := fake.DetectCUDAStub
+	fakeReturns := fake.detectCUDAReturns
+	fake.recordInvocation("DetectCUDA", []interface{}{})
+	fake.detectCUDAMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeEnvironmentManager) DetectCUDACallCount() int {
+	fake.detectCUDAMutex.RLock()
+	defer fake.detectCUDAMutex.RUnlock()
+	return len(fake.detectCUDAArgsForCall)
+}
+
+func (fake *FakeEnvironmentManager) DetectCUDACalls(stub func() ([]string, error)) {
+	fake.detectCUDAMutex.Lock()
+	defer fake.detectCUDAMutex.Unlock()
+	fake.DetectCUDAStub = stub
+}
+
+func (fake *FakeEnvironmentManager) DetectCUDAReturns(result1 []string, result2 error) {
+	fake.detectCUDAMutex.Lock()
+	defer fake.detectCUDAMutex.Unlock()
+	fake.DetectCUDAStub = nil
+	fake.detectCUDAReturns = struct {
+		result1 []string
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeEnvironmentManager) DetectCUDAReturnsOnCall(i int, result1 []string, result2 error) {
+	fake.detectCUDAMutex.Lock()
+	defer fake.detectCUDAMutex.Unlock()
+	fake.DetectCUDAStub = nil
+	if fake.detectCUDAReturnsOnCall == nil {
+		fake.detectCUDAReturnsOnCall = make(map[int]struct {
+			result1 []string
+			result2 error
+		})
+	}
+	fake.detectCUDAReturnsOnCall[i] = struct {
+		result1 []string
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeEnvironmentManager) GetCUDAEnvironment(arg1 string) map[string]string {
+	fake.getCUDAEnvironmentMutex.Lock()
+	ret, specificReturn := fake.getCUDAEnvironmentReturnsOnCall[len(fake.getCUDAEnvironmentArgsForCall)]
+	fake.getCUDAEnvironmentArgsForCall = append(fake.getCUDAEnvironmentArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GetCUDAEnvironmentStub
+	fakeReturns := fake.getCUDAEnvironmentReturns
+	fake.recordInvocation("GetCUDAEnvironment", []interface{}{arg1})
+	fake.getCUDAEnvironmentMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeEnvironmentManager) GetCUDAEnvironmentCallCount() int {
+	fake.getCUDAEnvironmentMutex.RLock()
+	defer fake.getCUDAEnvironmentMutex.RUnlock()
+	return len(fake.getCUDAEnvironmentArgsForCall)
+}
+
+func (fake *FakeEnvironmentManager) GetCUDAEnvironmentCalls(stub func(string) map[string]string) {
+	fake.getCUDAEnvironmentMutex.Lock()
+	defer fake.getCUDAEnvironmentMutex.Unlock()
+	fake.GetCUDAEnvironmentStub = stub
+}
+
+func (fake *FakeEnvironmentManager) GetCUDAEnvironmentArgsForCall(i int) string {
+	fake.getCUDAEnvironmentMutex.RLock()
+	defer fake.getCUDAEnvironmentMutex.RUnlock()
+	argsForCall := fake.getCUDAEnvironmentArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeEnvironmentManager) GetCUDAEnvironmentReturns(result1 map[string]string) {
+	fake.getCUDAEnvironmentMutex.Lock()
+	defer fake.getCUDAEnvironmentMutex.Unlock()
+	fake.GetCUDAEnvironmentStub = nil
+	fake.getCUDAEnvironmentReturns = struct {
+		result1 map[string]string
+	}{result1}
+}
+
+func (fake *FakeEnvironmentManager) GetCUDAEnvironmentReturnsOnCall(i int, result1 map[string]string) {
+	fake.getCUDAEnvironmentMutex.Lock()
+	defer fake.getCUDAEnvironmentMutex.Unlock()
+	fake.GetCUDAEnvironmentStub = nil
+	if fake.getCUDAEnvironmentReturnsOnCall == nil {
+		fake.getCUDAEnvironmentReturnsOnCall = make(map[int]struct {
+			result1 map[string]string
+		})
+	}
+	fake.getCUDAEnvironmentReturnsOnCall[i] = struct {
+		result1 map[string]string
 	}{result1}
 }
 

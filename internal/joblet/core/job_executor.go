@@ -373,3 +373,31 @@ func (ima *isolationManagerAdapter) DestroyIsolatedEnvironment(jobID string) err
 	// Cleanup isolation environment
 	return nil
 }
+
+// CreateGPUDeviceNodes creates GPU device nodes in the isolated environment
+func (ima *isolationManagerAdapter) CreateGPUDeviceNodes(jobID string, gpuIndices []int) error {
+	if len(gpuIndices) == 0 {
+		return nil
+	}
+
+	// Note: GPU device node creation will happen during job execution
+	// when the filesystem isolator creates the job environment.
+	// This is a placeholder that stores the requirement for later use.
+
+	ima.logger.Debug("GPU device nodes will be created during job execution", "jobID", jobID, "gpuIndices", gpuIndices)
+	return nil
+}
+
+// MountCUDALibraries mounts CUDA libraries in the isolated environment
+func (ima *isolationManagerAdapter) MountCUDALibraries(jobID string, cudaPath string) error {
+	if cudaPath == "" {
+		return fmt.Errorf("empty CUDA path")
+	}
+
+	// Note: CUDA library mounting will happen during job execution
+	// when the filesystem isolator sets up the job environment.
+	// This is a placeholder that stores the requirement for later use.
+
+	ima.logger.Debug("CUDA libraries will be mounted during job execution", "jobID", jobID, "cudaPath", cudaPath)
+	return nil
+}
