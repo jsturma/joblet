@@ -6,22 +6,30 @@
 
 <img align="right" width="159px" src="docs/joblet-thumbnail.png">
 
-**Joblet** is a secure Linux job execution platform that simplifies running isolated processes with comprehensive resource management. It handles process isolation, resource limits, GPU acceleration, and monitoring automatically, letting you focus on your applications rather than infrastructure complexity.
+**Joblet** is a secure Linux job execution platform that simplifies running isolated processes with comprehensive
+resource management. It handles process isolation, resource limits, GPU acceleration, and monitoring automatically,
+letting you focus on your applications rather than infrastructure complexity.
 
 > **📚 Complete Documentation: [/docs/README.md](docs/README.md)**
 
-> **🤖 AI Agent Ready:** Provides sandboxed code execution with GPU support, resource controls, and complete process isolation for AI workloads.
+> **🤖 AI Agent Ready:** Provides sandboxed code execution with GPU support, resource controls, and complete process
+> isolation for AI workloads.
 
 ## 🎯 Key Capabilities
 
-- **🔒 Process Isolation**: Jobs run in secure sandboxes with separate namespaces, preventing interference between workloads
+- **🔒 Process Isolation**: Jobs run in secure sandboxes with separate namespaces, preventing interference between
+  workloads
 - **⚡ GPU Acceleration**: Native NVIDIA GPU support with automatic CUDA environment setup for AI/ML workloads
 - **🎛️ Resource Management**: Comprehensive CPU, memory, I/O, and GPU resource limits with fine-grained control
-- **🌐 Network Isolation**: Flexible networking options from complete isolation to custom networks for secure communication
+- **🌐 Network Isolation**: Flexible networking options from complete isolation to custom networks for secure
+  communication
 - **💾 Storage Solutions**: Persistent volumes for data retention and temporary storage with automatic cleanup
-- **⏰ Job Scheduling**: Execute jobs immediately, schedule for specific times, or set delayed execution with simple syntax
-- **🛡️ Enterprise Security**: Production-grade mTLS encryption with certificate-based authentication and role-based access control
-- **🐍 Runtime Environments**: Pre-configured Python ML, Java, and GraalVM environments eliminate container image management
+- **⏰ Job Scheduling**: Execute jobs immediately, schedule for specific times, or set delayed execution with simple
+  syntax
+- **🛡️ Enterprise Security**: Production-grade mTLS encryption with certificate-based authentication and role-based
+  access control
+- **🐍 Runtime Environments**: Pre-configured Python ML, Java, and GraalVM environments eliminate container image
+  management
 - **🎨 Management Interface**: Modern React-based web UI for comprehensive system administration and monitoring
 
 ## 📦 Getting Started
@@ -201,16 +209,19 @@ Available on macOS via Homebrew with `--with-admin` option:
 ## 🔗 Related Projects
 
 ### Protocol Definitions
+
 - **[Joblet Proto](https://github.com/ehsaniara/joblet-proto)** - Official gRPC protocol buffer definitions
-  - Contains the `.proto` files defining the Joblet API specification
-  - Foundation for building client libraries in any programming language
+    - Contains the `.proto` files defining the Joblet API specification
+    - Foundation for building client libraries in any programming language
 
 ### Client SDKs
-- **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)** - Official Python client library
-  - Comprehensive Python interface for all Joblet functionality
-  - Supports jobs, workflows, monitoring, and secure SSL/TLS communication
 
-**Developing a custom client?** Start with the [protocol definitions](https://github.com/ehsaniara/joblet-proto) to generate language-specific bindings.
+- **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)** - Official Python client library
+    - Comprehensive Python interface for all Joblet functionality
+    - Supports jobs, workflows, monitoring, and secure SSL/TLS communication
+
+**Developing a custom client?** Start with the [protocol definitions](https://github.com/ehsaniara/joblet-proto) to
+generate language-specific bindings.
 
 ## 📄 License
 

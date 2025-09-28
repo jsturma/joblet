@@ -1,20 +1,22 @@
-# GPU Support Guide
+# GPU Acceleration and CUDA Support Guide
 
-Joblet provides comprehensive GPU support for machine learning, data processing, and compute-intensive workloads. This guide shows you how to run GPU-accelerated jobs with proper resource isolation and management.
+This comprehensive guide details Joblet's GPU acceleration capabilities for high-performance computing, machine
+learning, and data-intensive workloads. Joblet provides enterprise-grade GPU resource management with deterministic
+allocation, memory isolation, and CUDA environment integration.
 
-## Overview
+## Executive Overview
 
-With Joblet's GPU support, you can:
+Joblet's GPU orchestration framework enables organizations to:
 
-- **Allocate specific GPUs** to jobs with automatic discovery
-- **Set GPU memory requirements** to ensure sufficient resources
-- **Isolate GPU access** between jobs for security and performance
-- **Monitor GPU usage** through the web interface and CLI
-- **Use CUDA environments** with automatic library mounting
+- **Automated GPU Discovery and Allocation**: Intelligent assignment of GPU resources based on job requirements
+- **Memory Quota Management**: Enforce GPU memory constraints to prevent resource contention
+- **Hardware-Level Isolation**: Secure GPU access boundaries between concurrent workloads
+- **Comprehensive Observability**: Real-time GPU utilization metrics through multiple interfaces
+- **CUDA Integration**: Automatic CUDA runtime provisioning and library path configuration
 
-## Quick Start
+## Getting Started with GPU Workloads
 
-### Basic GPU Job
+### Basic GPU Job Submission
 
 ```bash
 # Run a simple GPU-accelerated Python script
@@ -24,7 +26,7 @@ rnx job run --gpu=1 python gpu_hello.py
 rnx job run --gpu=1 --gpu-memory=8GB python training_script.py
 ```
 
-### Multiple GPUs
+### Multi-GPU Configuration
 
 ```bash
 # Use 2 GPUs for distributed training
@@ -35,16 +37,16 @@ rnx job run --gpu=2 --gpu-memory=16GB --max-memory=32768 --max-cpu=800 \
     python intensive_gpu_workload.py
 ```
 
-## Command Line Options
+## Command-Line Interface Options
 
-### GPU Flags
+### GPU Parameter Reference
 
-- `--gpu=N`: Request N number of GPUs for the job
-- `--gpu-memory=SIZE`: Minimum GPU memory requirement per GPU
-  - Supports units: `8GB`, `4096MB`, or raw numbers (MB)
-  - Examples: `--gpu-memory=8GB`, `--gpu-memory=4096`
+- `--gpu=N`: Specifies the number of GPU devices to allocate for job execution
+- `--gpu-memory=SIZE`: Defines minimum GPU memory requirement per device
+    - Supported formats: `8GB`, `4096MB`, or numeric values in megabytes
+    - Usage examples: `--gpu-memory=8GB`, `--gpu-memory=4096`
 
-### Examples
+### Practical Examples
 
 ```bash
 # Single GPU with 4GB minimum memory
@@ -57,9 +59,9 @@ rnx job run --gpu=2 --gpu-memory=8GB python multi_gpu_training.py
 rnx job run --gpu=1 --max-cpu=400 --max-memory=16384 python hybrid_workload.py
 ```
 
-## Workflow YAML Configuration
+## Workflow Configuration with GPU Resources
 
-You can specify GPU requirements in workflow YAML files:
+GPU resource requirements can be declaratively specified in workflow definitions:
 
 ```yaml
 # ml-training-pipeline.yaml
@@ -101,38 +103,39 @@ jobs:
 rnx job run --workflow=ml-training-pipeline.yaml
 ```
 
-## GPU Environment
+## GPU Runtime Environment
 
-### CUDA Support
+### CUDA Runtime Integration
 
-When you request GPUs, Joblet automatically:
+Upon GPU allocation request, Joblet performs the following automated operations:
 
-1. **Discovers NVIDIA GPUs** using `/proc/driver/nvidia/gpus/` and `nvidia-smi`
-2. **Allocates specific GPUs** to your job (you'll see which ones in job status)
-3. **Sets up device permissions** so your job can access the GPU devices
-4. **Mounts CUDA libraries** from common installation paths
-5. **Sets CUDA_VISIBLE_DEVICES** environment variable
+1. **GPU Discovery**: Enumerates available NVIDIA devices via `/proc/driver/nvidia/gpus/` and `nvidia-smi` interfaces
+2. **Device Allocation**: Assigns specific GPU indices to job instances with tracking in job metadata
+3. **Permission Configuration**: Establishes appropriate device access controls for job namespaces
+4. **Library Provisioning**: Binds CUDA runtime libraries from system installation paths
+5. **Environment Setup**: Configures `CUDA_VISIBLE_DEVICES` for framework compatibility
 
-### Supported CUDA Paths
+### CUDA Library Path Resolution
 
-Joblet automatically detects and mounts CUDA from these common locations:
+Joblet automatically discovers and mounts CUDA installations from standard locations:
+
 - `/usr/local/cuda`
 - `/opt/cuda`
 - `/usr/lib/cuda`
 - Custom paths configured in joblet configuration
 
-### Environment Variables
+### Runtime Environment Variables
 
-Your GPU jobs automatically get these environment variables:
+GPU-enabled jobs receive the following environment configuration:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0,1    # Specific GPU indices allocated to your job
 NVIDIA_VISIBLE_DEVICES=0,1  # Alternative naming for some frameworks
 ```
 
-## Monitoring and Status
+## Monitoring and Observability
 
-### Check Job Status
+### Job Status Inspection
 
 ```bash
 # View job status including GPU allocation
@@ -145,17 +148,18 @@ rnx job status abc123de-f456-7890-1234-567890abcdef
 # GPU Memory: 8192 MB required per GPU
 ```
 
-### Web Interface
+### Administrative Web Console
 
-The Joblet web interface shows:
-- GPU allocation status for running jobs
-- Which specific GPUs are assigned to each job
-- GPU memory requirements and usage
-- Historical GPU job information
+The Joblet management interface provides:
 
-## Real-World Examples
+- Real-time GPU allocation status for active workloads
+- Device-specific assignment mapping for job instances
+- Memory utilization metrics and quota enforcement status
+- Historical GPU job execution analytics and trends
 
-### Machine Learning Training
+## Production Use Cases
+
+### Deep Learning Model Training
 
 ```bash
 # PyTorch distributed training
@@ -170,7 +174,7 @@ rnx job run --gpu=2 --gpu-memory=8GB \
     python tensorflow_training.py --batch-size=64
 ```
 
-### Data Processing
+### GPU-Accelerated Data Processing
 
 ```bash
 # RAPIDS GPU-accelerated data processing
@@ -185,7 +189,7 @@ rnx job run --gpu=1 --max-memory=16384 \
     python cupy_analytics.py
 ```
 
-### AI Inference
+### Artificial Intelligence Inference
 
 ```bash
 # Large language model inference
@@ -200,16 +204,16 @@ rnx job run --gpu=1 --gpu-memory=8GB \
     python vision_pipeline.py
 ```
 
-## Best Practices
+## Best Practices and Recommendations
 
-### Resource Planning
+### Resource Planning Guidelines
 
-1. **Check GPU memory requirements** for your models beforehand
-2. **Request appropriate GPU count** - don't over-allocate
-3. **Combine with CPU/memory limits** for balanced resource usage
-4. **Use workflows** to chain GPU and non-GPU jobs efficiently
+1. **Pre-validate Memory Requirements**: Profile model memory consumption before production deployment
+2. **Right-size GPU Allocation**: Request only necessary GPU resources to maximize cluster efficiency
+3. **Balance Resource Profiles**: Configure complementary CPU and memory limits for optimal performance
+4. **Leverage Workflow Orchestration**: Design pipelines that efficiently sequence GPU and CPU workloads
 
-### Example Resource Planning
+### Resource Allocation Patterns
 
 ```bash
 # Good: Balanced resource allocation
@@ -221,7 +225,7 @@ rnx job run --gpu=2 --gpu-memory=8GB --max-memory=16384 --max-cpu=800 \
 #     python simple_inference.py
 ```
 
-### Job Organization
+### Workload Organization Strategies
 
 ```bash
 # Separate preprocessing (CPU-only) from training (GPU)
@@ -232,7 +236,7 @@ rnx job run --gpu=1 --gpu-memory=8GB python train.py
 rnx job run --workflow=ml-pipeline.yaml
 ```
 
-### Development vs Production
+### Environment-Specific Configuration
 
 ```bash
 # Development: Single GPU for testing
@@ -242,26 +246,29 @@ rnx job run --gpu=1 --gpu-memory=4GB python test_model.py
 rnx job run --gpu=4 --gpu-memory=16GB python production_training.py
 ```
 
-## Troubleshooting
+## Troubleshooting and Diagnostics
 
-### Common Issues
+### Common Issues and Resolution
 
-**1. "No GPUs available"**
-- Check if NVIDIA drivers are installed: `nvidia-smi`
-- Verify Joblet can detect GPUs: Check server logs
-- Ensure other jobs aren't using all available GPUs
+**Issue: "No GPUs available"**
 
-**2. "Insufficient GPU memory"**
-- Reduce `--gpu-memory` requirement
-- Check actual GPU memory with `nvidia-smi`
-- Consider using multiple smaller GPUs instead
+- Verify NVIDIA driver installation: Execute `nvidia-smi` on the host system
+- Confirm Joblet GPU detection: Review server logs for device enumeration
+- Check resource availability: Ensure GPUs are not fully allocated to other workloads
 
-**3. "CUDA not found in job"**
-- Verify CUDA is installed on the host system
-- Check Joblet configuration for CUDA paths
-- Ensure CUDA libraries are accessible
+**Issue: "Insufficient GPU memory"**
 
-### Debug Commands
+- Adjust memory requirements: Lower `--gpu-memory` parameter value
+- Validate available memory: Query device capacity using `nvidia-smi`
+- Consider distributed approach: Utilize multiple GPUs with smaller memory footprints
+
+**Issue: "CUDA libraries not accessible"**
+
+- Confirm CUDA installation: Verify CUDA toolkit presence on host system
+- Review path configuration: Check Joblet server configuration for CUDA library paths
+- Validate library accessibility: Ensure proper permissions and mount points
+
+### Diagnostic Commands
 
 ```bash
 # Check GPU availability on the system
@@ -274,11 +281,11 @@ rnx job status --detail <job-uuid>
 # (Server-side debugging - contact your administrator)
 ```
 
-## Configuration
+## System Configuration
 
-### Server Configuration
+### Server-Side GPU Configuration
 
-Your Joblet administrator can configure GPU support in the server config:
+System administrators configure GPU support through the Joblet server configuration file:
 
 ```yaml
 # joblet-config.yml
@@ -290,18 +297,19 @@ gpu:
     - "/usr/lib/cuda"
 ```
 
-### Runtime Environments
+### Pre-Configured Runtime Environments
 
-The `python-3.11-ml` runtime includes:
-- CUDA-compatible Python packages
-- Common ML frameworks (PyTorch, TensorFlow, etc.)
-- GPU utilities and monitoring tools
+The `python-3.11-ml` runtime environment provides:
 
-## Migration from Docker
+- CUDA-optimized Python packages and libraries
+- Production-ready ML frameworks (PyTorch, TensorFlow, JAX)
+- GPU profiling and diagnostic utilities
 
-If you're coming from Docker-based GPU workflows:
+## Migration from Container-Based GPU Workloads
 
-### Docker Equivalent
+For teams transitioning from Docker or Kubernetes GPU deployments:
+
+### Container Command Equivalents
 
 ```bash
 # Old Docker approach
@@ -311,17 +319,17 @@ docker run --gpus=2 --shm-size=16g nvidia/cuda:11.8-devel python train.py
 rnx job run --gpu=2 --max-memory=16384 --runtime=python-3.11-ml python train.py
 ```
 
-### Benefits
+### Operational Advantages
 
-- **No container images** to build or manage
-- **Direct process access** for debugging
-- **Better resource isolation** with cgroups
-- **Integrated monitoring** and job management
-- **Native Linux performance** without container overhead
+- **Eliminated Container Overhead**: No image build cycles or registry management
+- **Enhanced Debugging Capabilities**: Direct process introspection and profiling
+- **Superior Resource Isolation**: Kernel-level cgroups v2 enforcement
+- **Unified Observability**: Integrated metrics and monitoring infrastructure
+- **Optimal Performance**: Native Linux execution without virtualization layers
 
 ---
 
-## Next Steps
+## Additional Resources
 
 - See [RNX CLI Reference](./RNX_CLI_REFERENCE.md) for complete command options
 - Check out [Workflows Guide](./WORKFLOWS.md) for complex GPU pipelines

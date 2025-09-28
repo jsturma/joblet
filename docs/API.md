@@ -1,9 +1,10 @@
-# Joblet API Documentation
+# Joblet gRPC API Reference Documentation
 
-This document describes the gRPC API for the Joblet system, including service definitions, message formats,
-authentication, and usage examples.
+This comprehensive API reference provides detailed technical documentation for the Joblet gRPC interface, including
+complete service definitions, message schemas, authentication protocols, authorization frameworks, and practical
+implementation examples for client development.
 
-## Table of Contents
+## API Reference Structure
 
 - [Overview](#overview)
 - [Authentication](#authentication)
@@ -15,22 +16,23 @@ authentication, and usage examples.
 - [CLI Reference](#cli-reference)
 - [Recent Updates](#recent-updates)
 
-## Overview
+## API Architecture Overview
 
-The Joblet API is built on gRPC and uses Protocol Buffers for message serialization. All communication is secured with
-mutual TLS authentication and supports role-based authorization.
+The Joblet API utilizes gRPC as its communication protocol with Protocol Buffers for efficient message serialization.
+The API implements enterprise-grade security through mutual TLS authentication and provides comprehensive role-based
+access control for organizational deployment scenarios.
 
-### API Characteristics
+### Technical Specifications
 
-- **Protocol**: gRPC over TLS 1.3
-- **Serialization**: Protocol Buffers (protobuf)
-- **Authentication**: Mutual TLS with client certificates
-- **Authorization**: Role-based (Admin/Viewer)
-- **Streaming**: Server-side streaming for real-time log output
-- **Job Isolation**: Linux namespaces with host networking
-- **Log Persistence**: Rate-decoupled async log system with 5M+ writes/second
+- **Communication Protocol**: gRPC over TLS 1.3 with HTTP/2 multiplexing
+- **Message Serialization**: Protocol Buffers (protobuf) for efficient binary encoding
+- **Security Framework**: Mutual TLS authentication with X.509 client certificate validation
+- **Access Control**: Role-based authorization system (Administrative/Viewer permissions)
+- **Real-time Capabilities**: Server-side streaming for live log aggregation and job monitoring
+- **Isolation Architecture**: Linux kernel namespaces with configurable network policies
+- **Logging Infrastructure**: Asynchronous log persistence system supporting 5M+ writes per second
 
-### Base Configuration
+### Base Configuration Parameters
 
 ```text
 Server Address: <host>:50051
@@ -41,11 +43,12 @@ Platform: Linux server required for job execution
 
 ## Authentication
 
-### Mutual TLS Authentication
+### Mutual TLS Authentication Protocol
 
-All API calls require valid client certificates signed by the same Certificate Authority (CA) as the server.
+The Joblet API enforces mutual TLS authentication for all client connections, requiring valid X.509 client certificates
+issued by the same Certificate Authority (CA) that signed the server certificate.
 
-#### Certificate Requirements
+#### Client Certificate Requirements
 
 ```text
 Client Certificate Subject Format:

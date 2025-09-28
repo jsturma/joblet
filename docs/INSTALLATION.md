@@ -1,31 +1,33 @@
-# Installation Guide
+# Joblet Platform Installation Guide
 
-This guide provides detailed instructions for installing Joblet on various operating systems and architectures.
+This comprehensive installation guide provides detailed procedures for deploying Joblet across diverse operating systems
+and hardware architectures. The guide covers both server-side components for Linux systems and client-side tools for
+cross-platform environments.
 
-> **🚀 Native Linux Execution**: Joblet provides superior performance, security, and resource control through Linux
-> namespaces and cgroups v2. Install Joblet directly on Linux hosts for optimal performance with native process
-> isolation!
+> **Important**: Joblet leverages native Linux kernel capabilities to deliver enterprise-grade performance, security,
+> and resource management through namespaces and cgroups v2. Direct installation on Linux hosts ensures optimal
+> performance characteristics with kernel-level process isolation.
 
-## 📋 System Requirements
+## System Requirements
 
-### Joblet Server (Linux Only)
+### Server Requirements (Linux Exclusive)
 
-- **OS**: Linux with kernel 3.10 or later
-- **Architecture**: x86_64 (amd64) or ARM64
-- **Cgroups**: v2 support (v1 compatibility available)
-- **Permissions**: Root or sudo access
-- **Memory**: Minimum 512MB RAM
-- **Disk**: Minimum 1GB free space
+- **Operating System**: Linux distributions with kernel version 3.10 or higher
+- **Processor Architecture**: x86_64 (amd64) or ARM64
+- **Control Groups**: cgroups v2 recommended (v1 compatibility supported)
+- **Access Requirements**: Root privileges or sudo access
+- **Memory Requirements**: Minimum 512MB RAM (2GB recommended for production)
+- **Storage Requirements**: Minimum 1GB available disk space
 
-### RNX Client (Cross-platform)
+### Client Requirements (Cross-Platform)
 
-- **OS**: Linux, macOS, Windows
-- **Architecture**: x86_64, ARM64, or Apple Silicon
-- **Network**: Access to Joblet server port (default: 50051)
+- **Operating Systems**: Linux, macOS, Windows
+- **Processor Architecture**: x86_64, ARM64, Apple Silicon (M1/M2/M3)
+- **Network Connectivity**: TCP access to Joblet server (default port: 50051)
 
-## 🐧 Linux Installation
+## Linux Platform Installation
 
-### Ubuntu/Debian (20.04+)
+### Ubuntu/Debian Installation (Version 20.04 and Later)
 
 ```bash
 # Update package list
@@ -49,7 +51,7 @@ joblet --version
 rnx --version
 ```
 
-### RHEL/CentOS/Fedora (8+)
+### Red Hat Enterprise Linux/CentOS/Fedora Installation (Version 8 and Later)
 
 ```bash
 # Install dependencies
@@ -70,7 +72,7 @@ sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=1"
 # Reboot required after this change
 ```
 
-### Amazon Linux 2
+### Amazon Linux 2 Installation
 
 ```bash
 # Install dependencies
@@ -87,7 +89,7 @@ sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes}
 sudo mkdir -p /var/log/joblet
 ```
 
-### Arch Linux
+### Arch Linux Installation
 
 ```bash
 # Install from AUR (if available)
@@ -100,7 +102,7 @@ sudo mv joblet /usr/local/bin/
 sudo mv rnx /usr/local/bin/
 ```
 
-### ARM64 Systems (Raspberry Pi, AWS Graviton)
+### ARM64 Architecture Systems (Raspberry Pi, AWS Graviton)
 
 ```bash
 # Download ARM64 version
@@ -110,9 +112,9 @@ sudo mv rnx /usr/local/bin/
 sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx
 ```
 
-## 🍎 macOS Installation (Client Only)
+## macOS Client Installation
 
-### Using Homebrew (Recommended)
+### Installation via Homebrew Package Manager (Recommended)
 
 ```bash
 # Add Joblet tap
@@ -122,7 +124,7 @@ brew tap ehsaniara/joblet
 brew install rnx
 ```
 
-### Manual Installation
+### Manual Binary Installation
 
 ```bash
 # Intel Macs
@@ -139,9 +141,9 @@ sudo chmod +x /usr/local/bin/rnx
 mkdir -p ~/.rnx
 ```
 
-## 🪟 Windows Installation (Client Only)
+## Windows Client Installation
 
-### Using Scoop
+### Installation via Scoop Package Manager
 
 ```powershell
 # Add Joblet bucket
@@ -151,7 +153,7 @@ scoop bucket add joblet https://github.com/ehsaniara/scoop-joblet
 scoop install rnx
 ```
 
-### Manual Installation
+### Manual Binary Installation
 
 1. Download the Windows binary:
     - [rnx-windows-amd64.zip](https://github.com/ehsaniara/joblet/releases/latest/download/rnx-windows-amd64.zip)

@@ -1,8 +1,10 @@
-# Workflows Guide
+# Joblet Workflow Orchestration Guide
 
-Complete guide to creating and managing workflows in Joblet using YAML workflow definitions.
+This comprehensive guide provides detailed information on designing, implementing, and managing complex multi-job
+workflows using Joblet's YAML-based workflow definition language. The guide covers dependency management, resource
+allocation, and monitoring strategies for enterprise workflow orchestration.
 
-## Table of Contents
+## Documentation Structure
 
 - [Overview](#overview)
 - [Workflow YAML Format](#workflow-yaml-format)
@@ -16,24 +18,25 @@ Complete guide to creating and managing workflows in Joblet using YAML workflow 
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 
-## Overview
+## Workflow Overview
 
-Workflows allow you to define complex job orchestration with dependencies, resource requirements, and network isolation
-in YAML format. Joblet provides comprehensive workflow validation and execution capabilities.
+Joblet's workflow orchestration system enables organizations to define sophisticated multi-job execution pipelines
+through declarative YAML configurations. The system provides deterministic dependency resolution, comprehensive resource
+management, and network isolation capabilities with enterprise-grade validation and monitoring.
 
-### Key Features
+### Core Capabilities
 
-- **Job Names**: Human-readable job names for better workflow visibility
-- **Job Dependencies**: Define execution order with `requires` clauses
-- **Network Isolation**: Specify network for each job (bridge, isolated, none, custom)
-- **File Uploads**: Automatically upload required files for each job
-- **Resource Limits**: Set CPU, memory, and I/O limits per job
-- **Validation**: Comprehensive pre-execution validation prevents runtime failures
-- **Monitoring**: Real-time workflow progress tracking with job names and dependencies
+- **Semantic Job Naming**: Human-readable identifiers for enhanced workflow visibility and debugging
+- **Dependency Management**: Declarative execution ordering through `requires` clauses with state validation
+- **Network Segmentation**: Granular network configuration per job (bridge, isolated, none, custom networks)
+- **Automated File Staging**: Declarative file upload and workspace preparation for each job
+- **Resource Governance**: Per-job CPU, memory, and I/O resource constraints and quotas
+- **Pre-execution Validation**: Comprehensive workflow validation prevents runtime configuration errors
+- **Real-time Observability**: Live workflow progress tracking with dependency visualization and job state monitoring
 
-## Workflow YAML Format
+## YAML Workflow Definition Language
 
-### Basic Structure
+### Fundamental Workflow Structure
 
 ```yaml
 jobs:

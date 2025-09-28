@@ -1,10 +1,11 @@
-# Quick Start Guide
+# Joblet Quick Start Guide
 
-Installation and setup guide for Joblet.
+This guide provides step-by-step instructions for installing and configuring Joblet in your environment. The process
+typically takes 10-15 minutes for a basic deployment.
 
-## 🚀 Installation
+## Installation Methods
 
-### Option 1: Download Pre-built Binaries
+### Method 1: Pre-Built Binary Installation
 
 ```bash
 # Download the latest release
@@ -13,7 +14,7 @@ sudo mv joblet /usr/local/bin/
 sudo mv rnx /usr/local/bin/
 ```
 
-### Option 2: Install from Source
+### Method 2: Source Code Installation
 
 ```bash
 # Clone the repository
@@ -27,45 +28,66 @@ make build
 sudo make install
 ```
 
-## 🔧 Server Setup
+## Server Configuration
 
-### 1. Generate Certificates
+### Step 1: Certificate Generation
+
+Joblet requires mutual TLS (mTLS) for secure communication between components. The certificate generation process
+creates both server and client certificates with embedded configuration.
 
 ```bash
-# Set your server address
+# Define the server's network address
 export JOBLET_SERVER_ADDRESS='your-server-ip'
 
-# Generate certificates with embedded configuration
+# Execute certificate generation with embedded configuration
 sudo /usr/local/bin/certs_gen_embedded.sh
 ```
 
-This creates:
+The certificate generation process produces the following artifacts:
 
-- `/opt/joblet/config/joblet-config.yml` - Server configuration
-- `/opt/joblet/config/rnx-config.yml` - Client configuration
+- `/opt/joblet/config/joblet-config.yml` - Server configuration file with TLS certificates and operational parameters
+- `/opt/joblet/config/rnx-config.yml` - Client configuration file containing connection details and authentication
+  credentials
 
-### 2. Start Joblet Server
+### Step 2: Initialize Joblet Server
+
+The Joblet server can be launched in two operational modes:
+
+#### Direct Execution Mode
 
 ```bash
-# Option 1: Run directly
+# Launch server in foreground for testing
 sudo joblet
+```
 
-# Option 2: Install as systemd service
+#### System Service Mode (Recommended for Production)
+
+```bash
+# Register Joblet as a system service
 sudo systemctl enable joblet
+
+# Start the Joblet service
 sudo systemctl start joblet
 ```
 
-### 3. Verify Server Status
+### Step 3: Verify Server Operation
+
+Confirm the server is operational by checking its system service status:
 
 ```bash
+# Check service status and recent logs
 sudo systemctl status joblet
+
+# View detailed service logs if needed
+sudo journalctl -u joblet -n 50
 ```
 
-## 💻 Client Setup
+## Client Configuration
 
-### 1. Copy Client Configuration
+### Step 1: Deploy Client Configuration
 
-On your client machine:
+The RNX client requires the configuration file generated during server setup. Transfer this file to each client
+workstation:
 
 ```bash
 # Create config directory
@@ -75,71 +97,90 @@ mkdir -p ~/.rnx
 scp server:/opt/joblet/config/rnx-config.yml ~/.rnx/
 ```
 
-### 2. Verify Version and Connection
+### Step 2: Validate Client Connectivity
+
+Verify the client installation and server connectivity:
 
 ```bash
-# Check client and server versions
+# Display version information
 rnx --version
-
-# This shows:
-# - RNX Client version (your local CLI)
-# - Joblet Server version (remote server)
-# If versions differ significantly, consider updating
-
-# Test connection by listing jobs
-rnx job list  # Should show "No jobs found" initially
 ```
 
-## 🎯 First Job
+The version command displays:
 
-### Run a Simple Command
+- **RNX Client Version**: Version of the local command-line interface
+- **Joblet Server Version**: Version of the remote server instance
+- **API Compatibility**: Confirmation of API version compatibility
+
+Note: Significant version discrepancies may require client or server updates.
 
 ```bash
+# Validate server connectivity
+rnx job list
+```
+
+Expected output for a new installation: "No jobs found"
+
+## Initial Job Execution
+
+### Execute Your First Job
+
+Test the installation by executing a simple job:
+
+```bash
+# Submit a basic echo command as a job
 rnx job run echo "Hello, Joblet!"
 ```
 
-Output:
+The command returns a job UUID and displays the execution output. This confirms that:
+
+- The client can authenticate with the server
+- The server can create and execute isolated processes
+- The job execution pipeline is operational
+
+Expected output format:
 
 ```
-Job started:
-UUID: 550e8400-e29b-41d4-a716-446655440000
-Command: echo Hello, Joblet!
-Status: RUNNING
-StartTime: 2025-08-03T10:00:00Z
+Job Initiated:
+  UUID: 550e8400-e29b-41d4-a716-446655440000
+  Command: echo Hello, Joblet!
+  Status: RUNNING
+  Timestamp: 2025-08-03T10:00:00Z
 ```
 
-### Check Job Status
+### Query Job Status
 
 ```bash
 rnx job status 550e8400-e29b-41d4-a716-446655440000
 ```
 
-### View Job Logs
+### Retrieve Job Output
 
 ```bash
 rnx job log 550e8400-e29b-41d4-a716-446655440000
 ```
 
-## 📊 Resource Limits Example
+## Resource Management Configuration
 
-Run a Python script with resource limits:
+The following example demonstrates resource constraint enforcement for a Python workload:
 
 ```bash
 rnx job run --max-cpu=50 --max-memory=512 --max-iobps=10485760 \
   python3 -c "import time; print('Processing...'); time.sleep(5); print('Done!')"
 ```
 
-This limits the job to:
+Resource constraints applied:
 
-- 50% CPU usage
-- 512 MB memory
-- 10 MB/s I/O bandwidth
+- **CPU Allocation**: 50% of available compute capacity
+- **Memory Quota**: 512 MB maximum memory consumption
+- **I/O Bandwidth**: 10 MB/s disk throughput limitation
 
-## 🚀 Using Runtime Environments
+## Runtime Environment Management
 
-Runtime environments provide pre-built, isolated environments for instant access to programming languages:
+Joblet's runtime environments provide production-ready, pre-configured execution contexts that eliminate dependency
+management overhead and ensure consistent application behavior across deployments:
 
-### Install Available Runtimes
+### Runtime Installation Procedures
 
 ```bash
 # Install Python with ML packages (475MB, instant startup)
@@ -152,7 +193,7 @@ rnx runtime install openjdk:21
 rnx runtime list
 ```
 
-### Use Runtimes
+### Runtime Utilization
 
 ```bash
 # Python with ML packages - no installation delay!
@@ -166,15 +207,15 @@ rnx job run --runtime=openjdk:21 java HelloWorld
 rnx runtime info python-3.11-ml
 ```
 
-**Benefits:**
+**Operational Advantages:**
 
-- ⚡ **Instant startup**: 2-3 seconds vs 5-45 minutes traditional package installation
-- 🔒 **Isolated**: No host contamination, complete dependency isolation
-- 📦 **Pre-configured**: All packages and tools ready to use
+- **Rapid Initialization**: Job startup in 2-3 seconds compared to 5-45 minutes for traditional package installation
+- **Complete Isolation**: Zero host system contamination with full dependency encapsulation
+- **Production Ready**: Pre-installed packages and tools configured for immediate use
 
-## 💾 Using Volumes
+## Persistent Storage Configuration
 
-Create persistent storage:
+Configure persistent storage volumes for data retention across job executions:
 
 ```bash
 # Create a 1GB filesystem volume
@@ -187,9 +228,9 @@ rnx job run --volume=mydata sh -c 'echo "Persistent data" > /volumes/mydata/data
 rnx job run --volume=mydata cat /volumes/mydata/data.txt
 ```
 
-## 🌐 Network Isolation
+## Network Isolation and Segmentation
 
-Create an isolated network:
+Configure network isolation boundaries for secure job execution:
 
 ```bash
 # Create custom network
@@ -203,9 +244,9 @@ rnx job run --network=isolated ping -c 3 google.com
 rnx job run --network=bridge ping -c 3 google.com
 ```
 
-## 📁 File Uploads
+## File Transfer and Staging
 
-Upload files to job workspace:
+Transfer local files to the job execution environment:
 
 ```bash
 # Create a test script
@@ -219,9 +260,9 @@ echo "Working directory: $(pwd)"
 rnx job run --upload=test.sh bash test.sh
 ```
 
-## 📅 Scheduled Jobs
+## Job Scheduling
 
-Schedule a job for future execution:
+Configure jobs for deferred execution using time-based scheduling:
 
 ```bash
 # Run in 5 minutes
@@ -231,11 +272,12 @@ rnx job run --schedule="5min" echo "Scheduled job executed!"
 rnx job run --schedule="2025-08-03T15:00:00" echo "Scheduled for 3 PM"
 ```
 
-## 🏗️ Runtime Systems
+## Runtime System Architecture
 
-Joblet provides pre-built runtime environments for instant job execution:
+The runtime system provides containerized language environments with pre-installed dependencies, enabling immediate job
+execution without environment preparation overhead:
 
-### Install a Runtime
+### Runtime Deployment Process
 
 ```bash
 # Install Java 21 runtime (automatically uses builder isolation)
@@ -245,14 +287,14 @@ rnx runtime install openjdk-21
 rnx runtime install python-3.11-ml
 ```
 
-**What happens during installation:**
+**Installation Workflow:**
 
-1. Uses **RuntimeService** → automatically applies builder chroot
-2. Downloads and installs runtime in isolated builder environment
-3. **Cleanup phase** creates isolated runtime structure
-4. Runtime ready for secure production use
+1. **RuntimeService Initialization**: Automatically configures builder chroot environment
+2. **Isolated Installation**: Downloads and installs runtime components in sandboxed builder context
+3. **Cleanup and Packaging**: Creates isolated runtime structure with dependency resolution
+4. **Production Deployment**: Runtime available for secure job execution
 
-### Using Runtimes
+### Runtime Execution
 
 ```bash
 # Run Java application with isolated runtime
@@ -265,15 +307,15 @@ rnx job run --runtime=python-3.11-ml python3 -c "import pandas, numpy; print('ML
 rnx runtime list
 ```
 
-**Security Benefits:**
+**Security Architecture:**
 
-- Production jobs use **isolated runtime copies** (no host OS access)
-- Runtime files copied to `/opt/joblet/runtimes/{runtime}/isolated/`
-- Complete filesystem isolation between runtime building and production use
+- **Isolated Runtime Instances**: Production jobs utilize isolated runtime copies without host OS access
+- **Filesystem Segmentation**: Runtime artifacts deployed to `/opt/joblet/runtimes/{runtime}/isolated/`
+- **Build-Runtime Separation**: Complete isolation between runtime construction and production execution phases
 
-## 🔍 Monitoring
+## System Monitoring and Observability
 
-Watch real-time system metrics:
+Monitor system performance and job execution metrics in real-time:
 
 ```bash
 # Monitor system metrics
@@ -286,24 +328,24 @@ rnx monitor status
 rnx job log <job-uuid>
 ```
 
-## 🎉 Next Steps
+## Next Steps
 
-Congratulations! You've successfully:
+You have successfully completed the initial Joblet deployment:
 
-- ✅ Installed Joblet server and client
-- ✅ Run your first job
-- ✅ Applied resource limits
-- ✅ Used volumes and networks
-- ✅ Uploaded files and scheduled jobs
+- Installed and configured Joblet server components
+- Deployed RNX client with authentication
+- Executed jobs with resource constraints
+- Configured persistent storage and network isolation
+- Implemented file staging and job scheduling
 
-### Learn More
+### Additional Resources
 
 - [RNX CLI Reference](./RNX_CLI_REFERENCE.md) - All commands and options
 - [Job Execution Guide](./JOB_EXECUTION.md) - Advanced job features
 - [Configuration Guide](./CONFIGURATION.md) - Server and client configuration
 - [Security Guide](./SECURITY.md) - mTLS and authentication
 
-### Common Commands Cheat Sheet
+### Command Reference Summary
 
 ```bash
 # Job Management
@@ -337,4 +379,5 @@ rnx monitor                 # Real-time metrics
 rnx monitor status          # Current status
 ```
 
-Need help? Check the [Troubleshooting Guide](./TROUBLESHOOTING.md) or run `rnx help`.
+For additional assistance, consult the [Troubleshooting Guide](./TROUBLESHOOTING.md) or execute `rnx help` for
+command-line documentation.

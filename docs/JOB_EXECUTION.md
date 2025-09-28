@@ -1,8 +1,9 @@
-# Job Execution Guide
+# Joblet Job Execution Guide
 
-Comprehensive guide to executing jobs with Joblet, including resource management, isolation, and advanced features.
+This comprehensive guide provides detailed information on job execution within the Joblet platform, covering resource
+management, process isolation, scheduling, and advanced orchestration capabilities.
 
-## Table of Contents
+## Document Structure
 
 - [Basic Job Execution](#basic-job-execution)
 - [Resource Limits](#resource-limits)
@@ -14,11 +15,12 @@ Comprehensive guide to executing jobs with Joblet, including resource management
 - [Advanced Features](#advanced-features)
 - [Best Practices](#best-practices)
 
-## Basic Job Execution
+## Fundamental Job Execution
 
-### Simple Commands
+### Basic Command Execution
 
-All `rnx job run` commands execute with **production isolation** (minimal chroot):
+All job submissions through the `rnx job run` interface execute within production-grade isolation boundaries using
+minimal chroot environments:
 
 ```bash
 # Run a single command
@@ -34,14 +36,14 @@ rnx job run sh -c "echo 'Current time:' && date"
 rnx job run python3 -c "print('Hello from Python')"
 ```
 
-**Execution Environment:**
+**Execution Context:**
 
-- **Service**: JobService (production operations)
-- **Job Type**: `standard` (automatic)
-- **Isolation**: Minimal chroot with secure boundaries
-- **Purpose**: Safe execution of user workloads
+- **Service Layer**: JobService for production workload management
+- **Job Classification**: Standard execution mode (automatically determined)
+- **Isolation Model**: Minimal chroot environment with kernel-enforced security boundaries
+- **Design Purpose**: Secure execution of user-submitted workloads with resource guarantees
 
-### Command Chaining
+### Complex Command Composition
 
 ```bash
 # Using shell
@@ -61,9 +63,9 @@ rnx job run bash -c '
 '
 ```
 
-## Resource Limits
+## Resource Management and Constraints
 
-### CPU Limits
+### CPU Resource Allocation
 
 ```bash
 # Limit to 50% of one CPU core
@@ -82,14 +84,14 @@ rnx job run --cpu-cores="0,2,4,6" compute_intensive_task
 rnx job run --cpu-cores="0-3" make -j4
 ```
 
-CPU limit calculation:
+CPU allocation methodology:
 
-- 100 = 1 full CPU core
-- 50 = 0.5 CPU core (50% of one core)
-- 200 = 2 full CPU cores
-- 0 = Unlimited (use all available cores)
+- **100**: Equivalent to one complete CPU core
+- **50**: Half of a CPU core (50% utilization cap)
+- **200**: Two complete CPU cores
+- **0**: No restriction (access to all available cores)
 
-### Memory Limits
+### Memory Resource Management
 
 ```bash
 # Limit to 512MB
@@ -102,13 +104,13 @@ rnx job run --max-memory=2048 java -jar app.jar
 rnx job run --max-cpu=150 --max-memory=1024 node app.js
 ```
 
-Memory behavior:
+Memory enforcement characteristics:
 
-- Process killed if limit exceeded (OOM)
-- Includes all memory types (RSS, cache, etc.)
-- Swap disabled within job
+- **OOM Protection**: Process termination upon memory limit violation
+- **Comprehensive Accounting**: Includes resident set size (RSS), cache, and buffer memory
+- **Swap Prevention**: Swap space disabled within job namespaces for predictable performance
 
-### I/O Bandwidth Limits
+### I/O Bandwidth Management
 
 ```bash
 # Limit to 10MB/s
@@ -125,15 +127,15 @@ rnx job run \
   rsync -av /source/ /dest/
 ```
 
-I/O limit notes:
+I/O bandwidth enforcement details:
 
-- Applies to all block devices
-- Includes read and write operations
-- Value in bytes per second
+- **Scope**: Applied to all block device operations
+- **Coverage**: Encompasses both read and write operations
+- **Unit**: Specified in bytes per second
 
-## File Management
+## File Transfer and Management
 
-### Uploading Files
+### File Upload Operations
 
 ```bash
 # Upload single file

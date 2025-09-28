@@ -1,35 +1,48 @@
-# Joblet: Linux Job Execution Platform
+# Joblet: Enterprise Linux Job Execution Platform
 
-Joblet is a Linux job execution platform that uses namespaces and cgroups for process isolation and resource management.
+Joblet is a comprehensive Linux-native job execution platform designed for enterprise workloads. It leverages Linux
+namespaces and cgroups v2 to provide robust process isolation, resource management, and secure multi-tenant execution
+environments without the overhead of containerization.
 
-## Overview
+## Executive Summary
 
-Joblet runs jobs in isolated Linux namespaces with configurable resource limits. It provides job scheduling, workflow
-orchestration, and monitoring through a gRPC API and CLI client.
+Joblet delivers enterprise-grade job execution capabilities by combining native Linux kernel features with modern
+orchestration patterns. The platform provides deterministic resource allocation, comprehensive security isolation, and
+seamless integration with existing infrastructure through a unified gRPC API and intuitive command-line interface.
 
-### Key Features
+### Core Capabilities
 
-- **Process Isolation**: Jobs run in separate PID, network, mount, IPC, and UTS namespaces
-- **Resource Control**: CPU, memory, I/O, and GPU limits using cgroups v2
-- **GPU Support**: NVIDIA GPU allocation, CUDA environment setup, and device isolation
-- **Job Scheduling**: Time-based scheduling and dependency management
-- **Network Management**: Custom networks with isolation and traffic control
-- **Volume Management**: Persistent storage with size and type controls
-- **Monitoring**: Built-in metrics collection and log streaming
+- **Process Isolation**: Complete namespace separation (PID, network, mount, IPC, UTS) ensures zero cross-contamination
+  between workloads
+- **Resource Management**: Granular control over CPU, memory, I/O, and GPU resources through cgroups v2 integration
+- **GPU Acceleration**: Native NVIDIA GPU support with automatic device allocation, CUDA environment provisioning, and
+  memory isolation
+- **Workflow Orchestration**: Sophisticated dependency management with directed acyclic graph (DAG) execution and
+  conditional logic
+- **Network Virtualization**: Software-defined networking with customizable CIDR blocks, traffic shaping, and inter-job
+  communication policies
+- **Storage Abstraction**: Flexible volume management supporting persistent and ephemeral storage with quota enforcement
+- **Observability**: Real-time metrics collection, structured logging, and comprehensive audit trails for compliance
+  requirements
 
-### Authentication & Security
+### Security Architecture
 
-- mTLS with certificate-based authentication
-- Role-based access control (admin, user, readonly)
-- Process isolation prevents privilege escalation
-- Network isolation between jobs
+- **Mutual TLS (mTLS)**: Certificate-based authentication ensures end-to-end encryption and identity verification
+- **Role-Based Access Control (RBAC)**: Fine-grained permission model with administrative, operational, and read-only
+  access tiers
+- **Privilege Containment**: Kernel-enforced process isolation eliminates privilege escalation vectors
+- **Network Segmentation**: Default-deny networking with explicit policy-based connectivity between workloads
+- **Audit Compliance**: Comprehensive activity logging with tamper-resistant audit trails for regulatory requirements
 
-### Client & Interface
+### Management Interfaces
 
-- **RNX CLI**: Cross-platform client (Linux, macOS, Windows)
-- **Web UI**: React-based management interface
-- **Log Streaming**: Real-time log output with filtering
-- **Runtime Environments**: Pre-built Python, Python ML, and Java runtimes
+- **RNX Command-Line Interface**: Cross-platform client supporting Linux, macOS, and Windows environments with full
+  feature parity
+- **Administrative Web Console**: React-based management dashboard providing real-time system monitoring and job
+  orchestration capabilities
+- **Log Aggregation**: Streaming log infrastructure with advanced filtering, pattern matching, and retention policies
+- **Runtime Catalog**: Curated collection of production-ready runtime environments including Python, Python ML with CUDA
+  libraries, and JVM-based platforms
 
 ## Web Interface
 
@@ -41,9 +54,9 @@ orchestration, and monitoring through a gRPC API and CLI client.
 
 ![Workflow Management](./AdminUI-Workflow1.png)
 
-## Use Cases
+## Enterprise Use Cases
 
-### **CI/CD & DevOps**
+### Continuous Integration and Deployment
 
 ```bash
 # Run jobs with pre-built runtime environments
@@ -51,7 +64,7 @@ rnx job run --runtime=python-3.11-ml pytest tests/
 rnx job run --runtime=openjdk-21 --upload=pom.xml --upload=src/ mvn clean install
 ```
 
-### **Data Engineering & Analytics**
+### Data Engineering and Analytics Workloads
 
 ```bash
 # Isolated data processing with resource limits
@@ -67,7 +80,7 @@ rnx job run --gpu=2 --gpu-memory=16GB \
         python gpu_analysis.py
 ```
 
-### **Microservices & Testing**
+### Microservices Testing and Validation
 
 ```bash
 # Network-isolated service testing
@@ -76,7 +89,7 @@ rnx job run --network=test-env --runtime=openjdk-21 ./service-a
 rnx job run --network=test-env --runtime=python-3.11-ml ./service-b
 ```
 
-### **Workflow Orchestration**
+### Complex Workflow Orchestration
 
 ```yaml
 # ml-pipeline.yaml
@@ -117,7 +130,7 @@ rnx job status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
 # a1b2c3d4-...    model-training       RUNNING      -          data-extraction     
 ```
 
-### **SRE & Reliability Engineering**
+### Site Reliability Engineering Operations
 
 ```bash
 # Resource-bounded health checks with timeout
@@ -131,7 +144,7 @@ rnx job run --network=isolated \
         ./debug-analyzer.sh
 ```
 
-### **AI Agent Development**
+### Artificial Intelligence and Machine Learning Workloads
 
 ```bash
 # Multi-agent system with isolation
@@ -149,30 +162,32 @@ rnx job run --max-memory=1024 --runtime=python-3.11-ml \
         python monitoring_agent.py
 ```
 
-## Architecture
+## Technical Architecture
 
-### Linux Integration
+### Linux Kernel Integration
 
-- **Cgroups v2**: Resource control and accounting
-- **Namespaces**: PID, network, mount, IPC, UTS isolation
-- **Direct Execution**: Jobs run as native Linux processes
-- **System Integration**: Uses standard Linux interfaces
+- **Control Groups v2**: Hierarchical resource management with unified accounting and deterministic allocation
+- **Namespace Isolation**: Complete process separation across all kernel subsystems (PID, network, mount, IPC, UTS)
+- **Native Process Execution**: Direct process spawning eliminates virtualization overhead while maintaining security
+  boundaries
+- **Kernel API Integration**: Leverages standard Linux system calls and interfaces for maximum compatibility and
+  performance
 
-### Security Model
+### Security Framework
 
-- **mTLS**: Certificate-based authentication for all communications
-- **Role-Based Access**: Admin, user, and readonly permissions
-- **Process Isolation**: Jobs run in separate namespaces
-- **Resource Limits**: Configurable CPU, memory, and I/O constraints
+- **Transport Security**: Mutual TLS encryption with certificate pinning for all inter-component communication
+- **Access Control Model**: Hierarchical RBAC implementation with principle of least privilege enforcement
+- **Isolation Boundaries**: Kernel-enforced namespace separation prevents lateral movement and data leakage
+- **Resource Quotas**: Hard limits on compute, memory, and I/O resources prevent denial-of-service conditions
 
-### **Scalable Design**
+### Scalability and Performance
 
-- **Stateless Architecture**: Easy horizontal scaling
-- **Event-Driven**: Real-time job state management
-- **API-First**: Full gRPC API for integrations
-- **Web Management**: Modern React UI for operations teams (macOS via Homebrew)
+- **Stateless Architecture**: Horizontally scalable design supports elastic capacity expansion
+- **Event-Driven Processing**: Asynchronous job state management with sub-second latency
+- **API-First Design**: Comprehensive gRPC API enables seamless integration with existing toolchains
+- **Modern Management Console**: React-based interface optimized for operational efficiency and real-time monitoring
 
-## 📚 Complete Documentation
+## Documentation Resources
 
 ### Getting Started
 
@@ -208,7 +223,7 @@ rnx job run --max-memory=1024 --runtime=python-3.11-ml \
 - [**Security Analysis**](./ISOLATION_SECURITY_ANALYSIS.md) - Service-based isolation security analysis
 - [**Runtime Cleanup**](./RUNTIME_ISOLATION_CLEANUP.md) - Runtime isolation cleanup design and implementation
 
-## 🚀 Quick Start Example
+## Quick Start Example
 
 ```bash
 # Install Joblet Server on Linux (see Installation Guide for details)
@@ -231,7 +246,7 @@ EOF
 rnx job run --workflow=ml-pipeline.yaml
 ```
 
-## 🎮 Quick Command Reference
+## Command Reference
 
 ### Job Execution
 
@@ -288,46 +303,48 @@ rnx volume create data-vol --size=10GB
 rnx job run --network=my-network --volume=data-vol app
 ```
 
-## 🎯 Value Proposition
+## Business Value Proposition
 
-### **For DevOps Teams**
+### DevOps and Platform Teams
 
-- **Simplified Infrastructure**: No container registry or image management
-- **Better Security**: Process isolation without container escape risks
-- **Cost Savings**: Lower resource overhead and operational complexity
-- **Native Integration**: Works with existing Linux infrastructure
+- **Infrastructure Simplification**: Eliminates container registry management and image versioning complexity
+- **Enhanced Security Posture**: Kernel-level isolation without container runtime vulnerabilities
+- **Operational Cost Reduction**: Minimal resource overhead compared to container orchestration platforms
+- **Seamless Integration**: Native compatibility with existing Linux infrastructure and tooling
 
-### Development
+### Development Teams
 
-- Job startup without container image builds
-- Direct process and filesystem access for debugging
-- Pre-built runtime environments (Python, Java, ML)
-- CLI and web UI tools
+- **Rapid Iteration**: Immediate job execution without container build cycles
+- **Enhanced Debugging**: Direct process visibility and filesystem access for troubleshooting
+- **Curated Runtimes**: Production-ready environments for Python, Java, and machine learning workloads
+- **Developer-Friendly Tooling**: Intuitive CLI and web interfaces designed for productivity
 
-### Operations
+### Operations Teams
 
-- Built-in metrics and monitoring
-- mTLS authentication and RBAC
-- Web interface for job management
-- Resource limit enforcement
+- **Comprehensive Observability**: Built-in metrics, monitoring, and alerting capabilities
+- **Enterprise Security**: mTLS authentication with fine-grained RBAC policies
+- **Centralized Management**: Web-based console for job orchestration and system administration
+- **Resource Governance**: Enforced quotas and limits ensure fair resource allocation
 
-### Site Reliability
+### Site Reliability Engineering
 
-- Process isolation prevents failure cascade
-- Configurable resource limits
-- Monitoring and alerting integration
-- Direct process access for debugging
+- **Fault Isolation**: Process boundaries prevent cascading failures across workloads
+- **Resource Predictability**: Deterministic resource allocation ensures consistent performance
+- **Monitoring Integration**: Native support for Prometheus, Grafana, and enterprise monitoring solutions
+- **Diagnostic Access**: Direct process introspection capabilities for incident response
 
-### AI/ML Workloads
+### Machine Learning and AI Platforms
 
-- GPU acceleration with NVIDIA driver support
-- Isolated execution for multiple agents
-- Resource controls for CPU, memory, and GPU workloads
-- Pre-built ML environments with CUDA support
-- Workflow orchestration for GPU-enabled agent chains
+- **GPU Acceleration**: Native NVIDIA CUDA support with automatic driver management
+- **Multi-Agent Isolation**: Secure execution environments for distributed AI systems
+- **Resource Optimization**: Fine-grained control over CPU, memory, and GPU allocation
+- **ML-Ready Environments**: Pre-configured runtimes with TensorFlow, PyTorch, and CUDA libraries
+- **Pipeline Orchestration**: DAG-based workflow execution for complex ML training pipelines
 
 ---
 
 ## Getting Started
 
-See the [Quick Start Guide](./QUICKSTART.md) for installation and basic usage.
+For detailed installation instructions and initial configuration, please refer to
+the [Quick Start Guide](./QUICKSTART.md). For production deployment considerations, consult
+the [Deployment Guide](./DEPLOYMENT.md).

@@ -1,8 +1,10 @@
-# RNX CLI Reference
+# RNX Command-Line Interface Reference
 
-Complete reference for the RNX command-line interface, including all commands, options, and examples.
+This comprehensive reference documentation provides detailed information for the RNX command-line interface, including
+complete command syntax, available options, configuration parameters, and practical usage examples for all supported
+operations.
 
-## Table of Contents
+## Reference Documentation Structure
 
 - [Global Options](#global-options)
 - [Job Commands](#job-commands)
@@ -35,9 +37,9 @@ Complete reference for the RNX command-line interface, including all commands, o
     - [config-help](#rnx-config-help)
     - [help](#rnx-help)
 
-## Global Options
+## Global Configuration Options
 
-Options available for all commands:
+The following options are available across all RNX commands:
 
 ```bash
 --config <path>    # Path to configuration file (default: searches standard locations)
@@ -47,9 +49,9 @@ Options available for all commands:
 --help, -h         # Show help for command
 ```
 
-### Configuration File Locations
+### Configuration File Resolution
 
-RNX searches for configuration in this order:
+RNX resolves configuration files using the following precedence hierarchy:
 
 1. `./rnx-config.yml`
 2. `./config/rnx-config.yml`
@@ -57,26 +59,26 @@ RNX searches for configuration in this order:
 4. `/etc/joblet/rnx-config.yml`
 5. `/opt/joblet/config/rnx-config.yml`
 
-## Job Commands
+## Job Management Commands
 
 ### `rnx job run`
 
-Execute a command on the Joblet server.
+Submits and executes a command or workflow on the target Joblet server instance.
 
 ```bash
-rnx job run [flags] <command> [args...]
+rnx job run [parameters] <command> [arguments...]
 ```
 
-#### Flags
+#### Command Parameters
 
-| Flag               | Description                                                | Default        |
+| Parameter          | Description                                                | Default Value  |
 |--------------------|------------------------------------------------------------|----------------|
 | `--max-cpu`        | Maximum CPU usage percentage (0-10000)                     | 0 (unlimited)  |
 | `--max-memory`     | Maximum memory in MB                                       | 0 (unlimited)  |
 | `--max-iobps`      | Maximum I/O bytes per second                               | 0 (unlimited)  |
 | `--cpu-cores`      | CPU cores to use (e.g., "0-3" or "1,3,5")                  | "" (all cores) |
-| `--gpu`            | Number of GPUs to allocate to the job                     | 0 (none)       |
-| `--gpu-memory`     | Minimum GPU memory required (e.g., "8GB", "4096MB")       | none           |
+| `--gpu`            | Number of GPUs to allocate to the job                      | 0 (none)       |
+| `--gpu-memory`     | Minimum GPU memory required (e.g., "8GB", "4096MB")        | none           |
 | `--network`        | Network mode: bridge, isolated, none, or custom            | "bridge"       |
 | `--volume`         | Volume to mount (can be specified multiple times)          | none           |
 | `--upload`         | Upload file to workspace (can be specified multiple times) | none           |
