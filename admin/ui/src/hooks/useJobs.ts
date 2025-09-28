@@ -10,6 +10,7 @@ interface UseJobsReturn {
     refreshJobs: () => Promise<void>;
     executeJob: (request: JobExecuteRequest) => Promise<string>;
     stopJob: (jobId: string) => Promise<void>;
+    cancelJob: (jobId: string) => Promise<void>;
     deleteJob: (jobId: string) => Promise<void>;
     deleteAllJobs: () => Promise<void>;
     // Pagination
@@ -106,6 +107,15 @@ export const useJobs = (): UseJobsReturn => {
         }
     }, [fetchJobs]);
 
+    const cancelJob = useCallback(async (jobId: string): Promise<void> => {
+        try {
+            await apiService.cancelJob(jobId);
+            await fetchJobs(false); // Refresh job list without loading indicator
+        } catch (err) {
+            throw new Error(err instanceof Error ? err.message : 'Failed to cancel job');
+        }
+    }, [fetchJobs]);
+
     const deleteJob = useCallback(async (jobId: string): Promise<void> => {
         try {
             await apiService.deleteJob(jobId);
@@ -159,6 +169,7 @@ export const useJobs = (): UseJobsReturn => {
         refreshJobs,
         executeJob,
         stopJob,
+        cancelJob,
         deleteJob,
         deleteAllJobs,
         currentPage,

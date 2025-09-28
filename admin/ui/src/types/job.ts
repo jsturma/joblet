@@ -7,7 +7,8 @@ export type JobStatus =
     | 'QUEUED'
     | 'WAITING'
     | 'CANCELLED'
-    | 'PENDING';
+    | 'PENDING'
+    | 'SCHEDULED';
 
 export interface Job {
     id: string;

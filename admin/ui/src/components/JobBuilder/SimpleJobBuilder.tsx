@@ -7,6 +7,7 @@ import {File, FolderPlus, Play, RotateCcw, Trash2, Upload} from 'lucide-react';
 import clsx from 'clsx';
 import {UploadedFile, UploadService} from '../../services/uploadService';
 import {apiService} from '../../services/apiService';
+
 // TODO: Add ResourceAvailability component
 
 interface Runtime {
@@ -83,9 +84,9 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
     const [isDragOver, setIsDragOver] = useState<boolean>(false);
     const [runtimes, setRuntimes] = useState<Runtime[]>([]);
     const [loadingRuntimes, setLoadingRuntimes] = useState(true);
-    const [networks, setNetworks] = useState<Array<{id: string; name: string; type: string}>>([]);
+    const [networks, setNetworks] = useState<Array<{ id: string; name: string; type: string }>>([]);
     const [loadingNetworks, setLoadingNetworks] = useState(true);
-    const [volumes, setVolumes] = useState<Array<{id?: string; name: string; size: string; type: string}>>([]);
+    const [volumes, setVolumes] = useState<Array<{ id?: string; name: string; size: string; type: string }>>([]);
     const [loadingVolumes, setLoadingVolumes] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dirInputRef = useRef<HTMLInputElement>(null);
@@ -717,9 +718,11 @@ export const SimpleJobBuilder: React.FC<SimpleJobBuilderProps> = ({
                             {loadingVolumes ? (
                                 <p className="text-sm text-gray-400">Loading available volumes...</p>
                             ) : volumes.length === 0 ? (
-                                <p className="text-sm text-gray-400">No volumes available. Create volumes in the Resources page.</p>
+                                <p className="text-sm text-gray-400">No volumes available. Create volumes in the
+                                    Resources page.</p>
                             ) : (
-                                <div className="border border-gray-600 bg-gray-800 rounded-md p-3 max-h-48 overflow-y-auto">
+                                <div
+                                    className="border border-gray-600 bg-gray-800 rounded-md p-3 max-h-48 overflow-y-auto">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                                         {volumes.map((volume) => (
                                             <label

@@ -139,6 +139,13 @@ class APIService {
         });
     }
 
+    async cancelJob(jobId: string): Promise<void> {
+        await this.request(`/jobs/${jobId}/cancel`, {
+            method: 'POST',
+            body: JSON.stringify({node: this.currentNode}),
+        });
+    }
+
     async deleteJob(jobId: string): Promise<void> {
         await this.request(`/jobs/${jobId}?node=${this.currentNode}`, {
             method: 'DELETE',

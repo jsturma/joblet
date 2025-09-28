@@ -239,6 +239,19 @@ router.post('/:jobId/stop', async (req, res) => {
     }
 });
 
+// Cancel a scheduled job
+router.post('/:jobId/cancel', async (req, res) => {
+    try {
+        const {jobId} = req.params;
+        const node = req.query.node;
+        const output = await execRnx(['job', 'cancel', jobId], {node});
+        res.json({success: true, output});
+    } catch (error) {
+        console.error('Failed to cancel job:', error);
+        res.status(500).json({error: error.message});
+    }
+});
+
 // Delete a job
 router.delete('/:jobId', async (req, res) => {
     try {

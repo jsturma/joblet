@@ -112,7 +112,8 @@ const Monitoring: React.FC = () => {
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Server Status
                                 </label>
-                                <pre className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx monitor status
                                 </pre>
                             </div>
@@ -120,7 +121,8 @@ rnx monitor status
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Current Metrics
                                 </label>
-                                <pre className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-green-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx monitor top
                                 </pre>
                             </div>
@@ -128,7 +130,8 @@ rnx monitor top
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Real-time Monitoring
                                 </label>
-                                <pre className="bg-gray-900 text-blue-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-blue-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx monitor watch
                                 </pre>
                             </div>
@@ -136,7 +139,8 @@ rnx monitor watch
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     JSON Output for Dashboards
                                 </label>
-                                <pre className="bg-gray-900 text-blue-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-blue-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx monitor top --json
                                 </pre>
                             </div>
@@ -144,7 +148,8 @@ rnx monitor top --json
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     List Volumes
                                 </label>
-                                <pre className="bg-gray-900 text-purple-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-purple-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx volume list
                                 </pre>
                             </div>
@@ -152,7 +157,8 @@ rnx volume list
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     List Networks
                                 </label>
-                                <pre className="bg-gray-900 text-purple-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-purple-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx network list
                                 </pre>
                             </div>
@@ -160,7 +166,8 @@ rnx network list
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Create Volume
                                 </label>
-                                <pre className="bg-gray-900 text-yellow-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-yellow-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx volume create my-data-volume
                                 </pre>
                             </div>
@@ -168,7 +175,8 @@ rnx volume create my-data-volume
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Create Network
                                 </label>
-                                <pre className="bg-gray-900 text-yellow-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
+                                <pre
+                                    className="bg-gray-900 text-yellow-400 p-3 rounded-md text-sm overflow-x-auto font-mono">
 rnx network create my-network
                                 </pre>
                             </div>

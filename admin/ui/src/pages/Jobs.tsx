@@ -4,7 +4,7 @@ import {useJobs} from '../hooks/useJobs';
 import {useLogStream} from '../hooks/useLogStream';
 import {apiService} from '../services/apiService';
 import {Job} from '../types/job';
-import {ChevronLeft, ChevronRight, FileText, Play, Plus, Square, Trash2, X} from 'lucide-react';
+import {ChevronLeft, ChevronRight, FileText, Play, Plus, Square, Trash2, X, XCircle} from 'lucide-react';
 import {SimpleJobBuilder} from '../components/JobBuilder/SimpleJobBuilder';
 
 const Jobs: React.FC = () => {
@@ -20,6 +20,7 @@ const Jobs: React.FC = () => {
         setCurrentPage,
         setPageSize,
         stopJob,
+        cancelJob,
         deleteJob,
         refreshJobs,
         deleteAllJobs
@@ -29,6 +30,7 @@ const Jobs: React.FC = () => {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [jobLoading, setJobLoading] = useState<boolean>(false);
     const [stoppingJobId, setStoppingJobId] = useState<string | null>(null);
+    const [cancelingJobId, setCancelingJobId] = useState<string | null>(null);
     const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
     const [autoScroll, setAutoScroll] = useState<boolean>(true);
     const [showCreateJob, setShowCreateJob] = useState<boolean>(false);
@@ -57,6 +59,15 @@ const Jobs: React.FC = () => {
         jobId: '',
         deleting: false
     });
+    const [cancelJobConfirm, setCancelJobConfirm] = useState<{
+        show: boolean;
+        jobId: string;
+        canceling: boolean;
+    }>({
+        show: false,
+        jobId: '',
+        canceling: false
+    });
     const {logs, connected, error: logError, clearLogs} = useLogStream(selectedJobId);
     const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +93,8 @@ const Jobs: React.FC = () => {
                 return 'bg-gray-100 text-gray-800';
             case 'QUEUED':
                 return 'bg-blue-100 text-blue-800';
+            case 'SCHEDULED':
+                return 'bg-purple-100 text-purple-800';
             default:
                 return 'bg-gray-100 text-gray-800';
         }
@@ -186,7 +199,7 @@ const Jobs: React.FC = () => {
     const confirmStopJob = async () => {
         if (!stopJobConfirm.jobId) return;
 
-setStopJobConfirm(prev => ({...prev, stopping: true}));
+        setStopJobConfirm(prev => ({...prev, stopping: true}));
         setStoppingJobId(stopJobConfirm.jobId);
         try {
             await stopJob(stopJobConfirm.jobId);
@@ -247,6 +260,31 @@ setStopJobConfirm(prev => ({...prev, stopping: true}));
 
     const cancelDeleteJob = () => {
         setDeleteJobConfirm({show: false, jobId: '', deleting: false});
+    };
+
+    const handleCancelJob = (jobId: string) => {
+        setCancelJobConfirm({show: true, jobId, canceling: false});
+    };
+
+    const confirmCancelJob = async () => {
+        if (!cancelJobConfirm.jobId) return;
+
+        setCancelJobConfirm(prev => ({...prev, canceling: true}));
+        setCancelingJobId(cancelJobConfirm.jobId);
+        try {
+            await cancelJob(cancelJobConfirm.jobId);
+            setCancelJobConfirm({show: false, jobId: '', canceling: false});
+        } catch (error) {
+            console.error('Failed to cancel job:', error);
+            alert('Failed to cancel job: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            setCancelJobConfirm(prev => ({...prev, canceling: false}));
+        } finally {
+            setCancelingJobId(null);
+        }
+    };
+
+    const cancelCancelJob = () => {
+        setCancelJobConfirm({show: false, jobId: '', canceling: false});
     };
 
     const handleCloseModal = () => {
@@ -449,6 +487,16 @@ setStopJobConfirm(prev => ({...prev, stopping: true}));
                                                             title={stoppingJobId === job.id ? "Stopping..." : "Stop Job"}
                                                         >
                                                             <Square className="h-4 w-4"/>
+                                                        </button>
+                                                    )}
+                                                    {job.status === 'SCHEDULED' && (
+                                                        <button
+                                                            onClick={() => handleCancelJob(job.id)}
+                                                            disabled={cancelingJobId === job.id}
+                                                            className="text-orange-600 hover:text-orange-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title={cancelingJobId === job.id ? "Canceling..." : "Cancel Scheduled Job"}
+                                                        >
+                                                            <XCircle className="h-4 w-4"/>
                                                         </button>
                                                     )}
                                                     {(job.status === 'QUEUED' || job.status === 'PENDING') && (
@@ -738,7 +786,9 @@ rnx job delete-all
                                                     </div>
                                                     {selectedJob.name && (
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Job Name</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Job
+                                                                Name
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.name}</dd>
                                                         </div>
                                                     )}
@@ -763,7 +813,9 @@ rnx job delete-all
                                                     </div>
                                                     {selectedJob.workingDir && (
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Working Directory</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Working
+                                                                Directory
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white font-mono">{selectedJob.workingDir}</dd>
                                                         </div>
                                                     )}
@@ -801,11 +853,14 @@ rnx job delete-all
 
                                             {/* Timing Information */}
                                             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Timing Information</h4>
+                                                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Timing
+                                                    Information</h4>
                                                 <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                                     {selectedJob.createdTime && (
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created Time</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created
+                                                                Time
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                                                                 {new Date(selectedJob.createdTime).toLocaleString()}
                                                             </dd>
@@ -813,7 +868,9 @@ rnx job delete-all
                                                     )}
                                                     {selectedJob.startTime && (
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Start Time</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Start
+                                                                Time
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                                                                 {new Date(selectedJob.startTime).toLocaleString()}
                                                             </dd>
@@ -821,7 +878,9 @@ rnx job delete-all
                                                     )}
                                                     {selectedJob.endTime && (
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">End Time</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">End
+                                                                Time
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                                                                 {new Date(selectedJob.endTime).toLocaleString()}
                                                             </dd>
@@ -865,25 +924,33 @@ rnx job delete-all
                                             {/* GPU Resources */}
                                             {(selectedJob.gpuCount && selectedJob.gpuCount > 0) && (
                                                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">GPU Resources</h4>
+                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">GPU
+                                                        Resources</h4>
                                                     <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">GPU Count</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">GPU
+                                                                Count
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.gpuCount}</dd>
                                                         </div>
                                                         {selectedJob.gpuMemoryMb && selectedJob.gpuMemoryMb > 0 && (
                                                             <div>
-                                                                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">GPU Memory (MB)</dt>
+                                                                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">GPU
+                                                                    Memory (MB)
+                                                                </dt>
                                                                 <dd className="mt-1 text-sm text-gray-900 dark:text-white">{selectedJob.gpuMemoryMb}</dd>
                                                             </div>
                                                         )}
                                                         {selectedJob.gpuIndices && selectedJob.gpuIndices.length > 0 && (
                                                             <div>
-                                                                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Allocated GPUs</dt>
+                                                                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Allocated
+                                                                    GPUs
+                                                                </dt>
                                                                 <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                                                                     <div className="flex flex-wrap gap-1">
                                                                         {selectedJob.gpuIndices.map((gpuIndex, index) => (
-                                                                            <span key={index} className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                                                            <span key={index}
+                                                                                  className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
                                                                                 GPU {gpuIndex}
                                                                             </span>
                                                                         ))}
@@ -913,7 +980,8 @@ rnx job delete-all
                                                             {selectedJob.volumes?.length ? (
                                                                 <div className="space-y-1">
                                                                     {selectedJob.volumes.map((volume, index) => (
-                                                                        <div key={index} className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
+                                                                        <div key={index}
+                                                                             className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
                                                                             {volume}
                                                                         </div>
                                                                     ))}
@@ -927,7 +995,8 @@ rnx job delete-all
                                                             {selectedJob.uploads?.length ? (
                                                                 <div className="space-y-1">
                                                                     {selectedJob.uploads.map((upload, index) => (
-                                                                        <div key={index} className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
+                                                                        <div key={index}
+                                                                             className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
                                                                             {upload}
                                                                         </div>
                                                                     ))}
@@ -936,12 +1005,15 @@ rnx job delete-all
                                                         </dd>
                                                     </div>
                                                     <div>
-                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Upload Directories</dt>
+                                                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Upload
+                                                            Directories
+                                                        </dt>
                                                         <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                                                             {selectedJob.uploadDirs?.length ? (
                                                                 <div className="space-y-1">
                                                                     {selectedJob.uploadDirs.map((uploadDir, index) => (
-                                                                        <div key={index} className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
+                                                                        <div key={index}
+                                                                             className="text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded inline-block mr-1 mb-1">
                                                                             {uploadDir}
                                                                         </div>
                                                                     ))}
@@ -955,10 +1027,13 @@ rnx job delete-all
                                             {/* Workflow Context */}
                                             {selectedJob.workflowUUID && (
                                                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Workflow Context</h4>
+                                                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Workflow
+                                                        Context</h4>
                                                     <dl className="grid grid-cols-1 gap-4">
                                                         <div>
-                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Workflow UUID</dt>
+                                                            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Workflow
+                                                                UUID
+                                                            </dt>
                                                             <dd className="mt-1 text-sm text-gray-900 dark:text-white font-mono">
                                                                 {selectedJob.workflowUUID}
                                                             </dd>
@@ -1061,7 +1136,8 @@ rnx job delete-all
 
             {/* Stop Job Confirmation Dialog */}
             {stopJobConfirm.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
@@ -1092,7 +1168,8 @@ rnx job delete-all
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Command Preview
                                     </label>
-                                    <pre className="bg-gray-900 text-orange-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+                                    <pre
+                                        className="bg-gray-900 text-orange-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
 {`rnx job stop ${stopJobConfirm.jobId}`}
                                     </pre>
                                 </div>
@@ -1113,7 +1190,8 @@ rnx job delete-all
                                 >
                                     {stopJobConfirm.stopping ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                             Stopping...
                                         </>
                                     ) : (
@@ -1157,7 +1235,8 @@ rnx job delete-all
 
             {/* Delete All Jobs Confirmation Dialog */}
             {deleteAllConfirm.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
@@ -1179,7 +1258,8 @@ rnx job delete-all
                                         Are you sure you want to delete all non-running jobs?
                                     </p>
                                     <p className="text-sm text-red-400">
-                                        This will permanently delete all completed, failed, and stopped jobs including their logs and metadata. Running and scheduled jobs will not be affected.
+                                        This will permanently delete all completed, failed, and stopped jobs including
+                                        their logs and metadata. Running and scheduled jobs will not be affected.
                                     </p>
                                     <p className="text-sm text-orange-400 mt-2">
                                         This action cannot be UNDONE.
@@ -1191,7 +1271,8 @@ rnx job delete-all
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Command Preview
                                     </label>
-                                    <pre className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+                                    <pre
+                                        className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
 {`rnx job delete-all`}
                                     </pre>
                                 </div>
@@ -1212,7 +1293,8 @@ rnx job delete-all
                                 >
                                     {deleteAllConfirm.deleting ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                             Deleting...
                                         </>
                                     ) : (
@@ -1230,7 +1312,8 @@ rnx job delete-all
 
             {/* Delete Job Confirmation Dialog */}
             {deleteJobConfirm.show && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
@@ -1264,7 +1347,8 @@ rnx job delete-all
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Command Preview
                                     </label>
-                                    <pre className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+                                    <pre
+                                        className="bg-gray-900 text-red-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
 {`rnx job delete ${deleteJobConfirm.jobId}`}
                                     </pre>
                                 </div>
@@ -1285,13 +1369,88 @@ rnx job delete-all
                                 >
                                     {deleteJobConfirm.deleting ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                             Deleting...
                                         </>
                                     ) : (
                                         <>
                                             <Trash2 className="h-4 w-4 mr-2"/>
                                             Delete Job
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Job Confirmation Dialog */}
+            {cancelJobConfirm.show && (
+                <div
+                    className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-200">
+                                    Cancel Scheduled Job
+                                </h3>
+                                <button
+                                    onClick={cancelCancelJob}
+                                    className="text-gray-400 hover:text-gray-300"
+                                    disabled={cancelJobConfirm.canceling}
+                                >
+                                    <X className="h-5 w-5"/>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-300 mb-2">
+                                        Are you sure you want to cancel scheduled job "{cancelJobConfirm.jobId}"?
+                                    </p>
+                                    <p className="text-sm text-orange-400">
+                                        This will prevent the scheduled job from running at its designated time. The job
+                                        will be removed from the schedule.
+                                    </p>
+                                </div>
+
+                                {/* Command Preview */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Command Preview
+                                    </label>
+                                    <pre
+                                        className="bg-gray-900 text-orange-400 p-4 rounded-md text-sm overflow-x-auto font-mono">
+{`rnx job cancel ${cancelJobConfirm.jobId}`}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            <div className="flex space-x-3 justify-end mt-6">
+                                <button
+                                    onClick={cancelCancelJob}
+                                    disabled={cancelJobConfirm.canceling}
+                                    className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmCancelJob}
+                                    disabled={cancelJobConfirm.canceling}
+                                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white rounded-md text-sm font-medium disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {cancelJobConfirm.canceling ? (
+                                        <>
+                                            <div
+                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Canceling...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <XCircle className="h-4 w-4 mr-2"/>
+                                            Cancel Job
                                         </>
                                     )}
                                 </button>
