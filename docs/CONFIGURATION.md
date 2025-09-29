@@ -31,6 +31,7 @@ server:
   mode: "server"                    # Always "server" for daemon mode
   address: "0.0.0.0"               # Listen address
   port: 50051                      # gRPC port
+  nodeId: ""                       # Unique node identifier (UUID, auto-generated during setup)
 
   # TLS configuration
   tls:
@@ -43,6 +44,43 @@ server:
     time: 120s                    # Keepalive time
     timeout: 20s                  # Keepalive timeout
 ```
+
+### Node Identification
+
+Joblet supports unique node identification for distributed deployments:
+
+```yaml
+server:
+  nodeId: "8f94c5b2-1234-5678-9abc-def012345678"  # Unique UUID for this node
+```
+
+**Key Features:**
+
+- **Automatic Generation**: During Joblet setup, a unique UUID is automatically generated and stored in the configuration
+- **Job Tracking**: All jobs executed on a node are tagged with the node's UUID for tracking and debugging
+- **Distributed Visibility**: In multi-node deployments, you can identify which node executed specific jobs
+- **CLI Display**: The node ID is displayed in `rnx job list` and `rnx job status` commands
+
+**Setup Process:**
+
+The `nodeId` is automatically populated during Joblet installation via the `certs_gen_embedded.sh` script:
+
+```bash
+# Generates a UUID and updates the configuration
+NODE_ID=$(uuidgen)
+sed -i "s/nodeId: \"\"/nodeId: \"$NODE_ID\"/" /opt/joblet/config/joblet-config.yml
+```
+
+**Manual Configuration:**
+
+If needed, you can manually set a custom node ID:
+
+```yaml
+server:
+  nodeId: "custom-node-identifier-uuid"
+```
+
+**Note**: The nodeId should be a valid UUID format for consistency with the system's expectations.
 
 ### Resource Limits
 
@@ -332,6 +370,7 @@ default_node: "default"
 nodes:
   default:
     address: "joblet-server:50051"
+    nodeId: "8f94c5b2-1234-5678-9abc-def012345678"  # Optional: Joblet node identifier
 
     # Embedded certificates
     cert: |
@@ -375,6 +414,7 @@ global:
 nodes:
   production:
     address: "prod.joblet.company.com:50051"
+    nodeId: "a1b2c3d4-5678-9abc-def0-123456789012"  # Production node identifier
     cert: |
       -----BEGIN CERTIFICATE-----
       # Production admin certificate
@@ -390,6 +430,7 @@ nodes:
 
   staging:
     address: "staging.joblet.company.com:50051"
+    nodeId: "b2c3d4e5-6789-abcd-ef01-23456789abcd"  # Staging node identifier
     cert: |
       -----BEGIN CERTIFICATE-----
       # Staging admin certificate
@@ -398,6 +439,7 @@ nodes:
 
   development:
     address: "dev.joblet.company.com:50051"
+    nodeId: "c3d4e5f6-789a-bcde-f012-3456789abcde"  # Development node identifier
     cert: |
       -----BEGIN CERTIFICATE-----
       # Dev admin certificate
@@ -406,6 +448,7 @@ nodes:
 
   viewer:
     address: "prod.joblet.company.com:50051"
+    nodeId: "a1b2c3d4-5678-9abc-def0-123456789012"  # Same as production (viewer access)
     cert: |
       -----BEGIN CERTIFICATE-----
       # Viewer certificate (OU=viewer)
@@ -424,6 +467,47 @@ preferences:
     compression: true           # Compress uploads
     show_progress: true         # Show upload progress
 ```
+
+### Node Identification
+
+The `nodeId` field in client configuration provides display information about which Joblet node is being connected to:
+
+**Key Features:**
+
+- **Optional Field**: The `nodeId` is optional and used only for display purposes in `rnx nodes` command
+- **Automatic Population**: When using `certs_gen_embedded.sh`, the nodeId is automatically populated from the server's nodeId
+- **Multi-Node Tracking**: Helps identify which physical Joblet server each configuration entry connects to
+- **Job Correlation**: Can be used to correlate job execution with specific nodes when viewing job status
+
+**Usage:**
+
+```bash
+# View configured nodes with their nodeId information
+rnx nodes
+
+# Example output shows node identifiers:
+# * default
+#    Address: localhost:50051
+#    Node ID: 8f94c5b2-1234-5678-9abc-def012345678
+#    Cert:    ***
+#    Key:     ***
+#    CA:      ***
+```
+
+**Manual Configuration:**
+
+You can manually add nodeId to existing configurations:
+
+```yaml
+nodes:
+  my-server:
+    address: "server.example.com:50051"
+    nodeId: "server-node-uuid-here"  # Add this line
+    cert: |
+      # ... existing certificate
+```
+
+**Note**: The nodeId should match the server's nodeId (configured in `joblet-config.yml`) for accurate tracking.
 
 ### Authentication Roles
 
@@ -459,6 +543,7 @@ openssl req -new -key client-key.pem -out viewer.csr \
 | `JOBLET_LOG_LEVEL`      | Log level override                 | from config                            |
 | `JOBLET_SERVER_ADDRESS` | Server address override            | from config                            |
 | `JOBLET_SERVER_PORT`    | Server port override               | from config                            |
+| `JOBLET_NODE_ID`        | Node identifier override           | from config                            |
 | `JOBLET_MAX_JOBS`       | Maximum concurrent jobs            | from config                            |
 | `JOBLET_CI_MODE`        | Enable CI mode (relaxed isolation) | `false`                                |
 

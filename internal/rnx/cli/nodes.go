@@ -26,6 +26,7 @@ func NewNodesCmd() *cobra.Command {
 type NodeInfo struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
+	NodeId  string `json:"nodeId,omitempty"`
 	Status  string `json:"status"`
 	Default bool   `json:"default"`
 }
@@ -57,6 +58,7 @@ func runNodes(jsonOutput bool) error {
 			nodes = append(nodes, NodeInfo{
 				Name:    name,
 				Address: node.Address,
+				NodeId:  node.NodeId,
 				Status:  status,
 				Default: name == "default",
 			})
@@ -77,7 +79,7 @@ func runNodes(jsonOutput bool) error {
 	for _, name := range nodeNames {
 		node, err := common.NodeConfig.GetNode(name)
 		if err != nil {
-			fmt.Printf("❌ %s: Error - %v\n", name, err)
+			fmt.Printf("Error: %s - %v\n", name, err)
 			continue
 		}
 
@@ -89,6 +91,13 @@ func runNodes(jsonOutput bool) error {
 
 		fmt.Printf("%s%s\n", marker, name)
 		fmt.Printf("   Address: %s\n", node.Address)
+
+		// Display nodeId if available
+		nodeId := "-"
+		if node.NodeId != "" {
+			nodeId = node.NodeId
+		}
+		fmt.Printf("   Node ID: %s\n", nodeId)
 
 		cert := "-"
 		if node.Cert != "" {
