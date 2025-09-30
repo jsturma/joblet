@@ -220,6 +220,13 @@ Available on macOS via Homebrew with `--with-admin` option:
     - Comprehensive Python interface for all Joblet functionality
     - Supports jobs, workflows, monitoring, and secure SSL/TLS communication
 
+### AI Integration
+
+- **[Joblet MCP Server](https://github.com/ehsaniara/joblet-mcp-server)** - Model Context Protocol (MCP) server for AI assistants
+    - Enables AI assistants (Claude, ChatGPT, etc.) to orchestrate distributed computing jobs
+    - Provides 25+ tools for job management, resource control, and system monitoring
+    - Built on the Joblet Python SDK for reliable gRPC communication
+
 **Developing a custom client?** Start with the [protocol definitions](https://github.com/ehsaniara/joblet-proto) to
 generate language-specific bindings.
 
