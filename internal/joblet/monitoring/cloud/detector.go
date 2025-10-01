@@ -67,18 +67,20 @@ func (d *Detector) DetectCloudEnvironment(ctx context.Context) (*domain.CloudInf
 
 // detectAWS detects AWS EC2 environment
 func (d *Detector) detectAWS(ctx context.Context) (*domain.CloudInfo, error) {
-	// Check for AWS DMI information first
-	if !d.checkDMIVendor("Amazon EC2") {
-		return nil, fmt.Errorf("not AWS EC2")
-	}
-
-	// Use IMDSv2 (more secure)
+	// Try IMDSv2 first (more secure and doesn't require DMI access)
 	token, err := d.getAWSToken(ctx)
 	if err != nil {
-		d.logger.Debug("failed to get AWS token", "error", err)
-		return nil, err
+		// If IMDSv2 fails, check DMI as fallback
+		if d.checkDMIVendor("Amazon EC2") {
+			// DMI says AWS but IMDS failed - might be network issue
+			d.logger.Debug("AWS DMI detected but IMDS unavailable", "error", err)
+			return nil, fmt.Errorf("AWS detected via DMI but metadata service unavailable: %w", err)
+		}
+		// Neither IMDS nor DMI indicates AWS
+		return nil, fmt.Errorf("not AWS EC2: %w", err)
 	}
 
+	// Successfully got token, fetch metadata
 	metadata, err := d.getAWSMetadata(ctx, token)
 	if err != nil {
 		d.logger.Debug("failed to get AWS metadata", "error", err)
