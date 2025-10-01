@@ -209,24 +209,11 @@ Available on macOS via Homebrew with `--with-admin` option:
 
 ## 🔗 Related Projects
 
-### Protocol Definitions
+- **[Joblet Proto](https://github.com/ehsaniara/joblet-proto)** 
 
-- **[Joblet Proto](https://github.com/ehsaniara/joblet-proto)** - Official gRPC protocol buffer definitions
-    - Contains the `.proto` files defining the Joblet API specification
-    - Foundation for building client libraries in any programming language
+- **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)** 
 
-### Client SDKs
-
-- **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)** - Official Python client library
-    - Comprehensive Python interface for all Joblet functionality
-    - Supports jobs, workflows, monitoring, and secure SSL/TLS communication
-
-### AI Integration
-
-- **[Joblet MCP Server](https://github.com/ehsaniara/joblet-mcp-server)** - Model Context Protocol (MCP) server for AI assistants
-    - Enables AI assistants (Claude, ChatGPT, etc.) to orchestrate distributed computing jobs
-    - Provides 25+ tools for job management, resource control, and system monitoring
-    - Built on the Joblet Python SDK for reliable gRPC communication
+- **[Joblet MCP Server](https://github.com/ehsaniara/joblet-mcp-server)**  
 
 **Developing a custom client?** Start with the [protocol definitions](https://github.com/ehsaniara/joblet-proto) to
 generate language-specific bindings.
