@@ -50,12 +50,8 @@ class Rnx < Formula
   arch_suffix = Hardware::CPU.intel? ? 'amd64' : 'arm64'
   url "https://github.com/ehsaniara/joblet/releases/download/#{latest_version}/rnx-v#{latest_version.sub(/^v/, '')}-darwin-#{arch_suffix}.tar.gz"
 
-  # Optional Node.js dependency for admin UI
-  depends_on "node" => :optional
-
-  # Installation option - admin UI is auto-detected by default
-  option "with-admin", "Force installation with web admin UI (requires Node.js)"
-  option "cli-only", "Install CLI only (skip admin UI prompt)"
+  # Installation option - admin UI is installed by default
+  option "cli-only", "Install CLI only (skip admin UI and Node.js)"
 
   def install
     # Install base rnx binary (handle different naming conventions)
@@ -83,8 +79,8 @@ class Rnx < Formula
       setup_admin_ui
     else
       ohai "✅ RNX CLI installed successfully!"
-      ohai "💡 To install the web admin UI later, run:"
-      ohai "   brew reinstall rnx --with-admin"
+      ohai "💡 To install with the web admin UI, run:"
+      ohai "   brew reinstall rnx"
     end
 
     # Create shell completions (with error handling)
@@ -127,33 +123,34 @@ class Rnx < Formula
     if admin_dir.exist?
       <<~EOS
         🎉 RNX with Admin UI installed successfully!
-        
+
         📋 Usage:
           CLI commands:     rnx --help
           Web Admin UI:     rnx admin  (or rnx-admin)
-        
+
         🔧 Configuration:
           Copy your rnx-config.yml to: ~/.rnx/
-        
+
         🌐 Admin UI will be available at: http://localhost:5173
-        
+
         💡 Tips:
           - The admin UI provides a visual interface for job management
           - All CLI commands are still available alongside the web interface
           - Admin UI spawns local rnx CLI commands to communicate with joblet servers
+          - To install CLI only: brew reinstall rnx --cli-only
       EOS
     else
       <<~EOS
         📱 RNX CLI installed successfully!
-        
+
         📋 Usage: rnx --help
-        
+
         🔧 Configuration:
           Copy your rnx-config.yml to: ~/.rnx/
-        
-        🌐 To install the web admin UI:
-          brew reinstall rnx --with-admin
-        
+
+        🌐 To install with the web admin UI:
+          brew reinstall rnx
+
         💡 The web admin UI provides a visual interface for managing jobs,
            viewing logs, and monitoring your joblet servers.
       EOS
@@ -163,127 +160,55 @@ class Rnx < Formula
   private
 
   def determine_admin_installation
-    # Check for explicit options first
-    if build.with? "admin"
-      ohai "Installing with admin UI (--with-admin specified)"
-      return true
-    end
-
+    # Check for explicit CLI-only option
     if build.with? "cli-only"
       ohai "Installing CLI only (--cli-only specified)"
       return false
     end
 
-    ohai "Detecting Node.js for optional admin UI installation..."
+    # Admin UI is installed by default, but requires Node.js
+    ohai "Admin UI will be installed (default behavior)"
 
-    # Try to detect Node.js
-    begin
-      # Use which_formula to check if node formula is installed
-      node_installed = Formula["node"].any_version_installed? rescue false
+    # Check if Node.js is already installed
+    node_installed = system("which", "node", out: File::NULL, err: File::NULL)
 
-      # Also check if node command is available in PATH
-      node_in_path = !`which node 2>/dev/null`.strip.empty?
+    if node_installed
+      # Node.js exists, check version compatibility
+      begin
+        verify_nodejs_version
+        ohai "✅ Using existing Node.js installation"
+        return true
+      rescue => e
+        # Node.js version is too old
+        onoe "#{e.message}"
+        ohai "Installing compatible Node.js version..."
 
-      node_available = node_installed || node_in_path
-
-      if node_available
-        # Get Node.js version more reliably
-        node_path = `which node 2>/dev/null`.strip
-        ohai "Node.js path found: #{node_path}" if !node_path.empty?
-
-        node_version = nil
-
-        if !node_path.empty?
-          node_version = `#{node_path} --version 2>/dev/null`.strip
-          ohai "Node.js version output: '#{node_version}'"
-        end
-
-        if node_version && !node_version.empty? && node_version.start_with?("v")
-          ohai "✅ Node.js detected: #{node_version}"
-
-          # Verify Node.js version compatibility
-          begin
-            verify_nodejs_version
-          rescue => e
-            opoo "Node.js version check warning: #{e.message}"
-          end
-
-          # Always prompt if Node.js is available (unless in CI)
-          if ENV["CI"].nil?
-            ohai "🎨 The admin UI provides a web interface for managing jobs"
-
-            # Use a simple approach that should always work
-            print "\n🤔 Would you like to install the web admin UI? [Y/n]: "
-            $stdout.flush
-
-            # Try to read input - if it fails, default to no
-            begin
-              # Give user 10 seconds to respond
-              require 'io/console'
-              response = nil
-
-              # Simple timeout approach
-              thread = Thread.new { response = $stdin.gets }
-              thread.join(10) # Wait up to 10 seconds
-
-              if response
-                answer = response.strip.downcase
-                if answer.empty? || answer == 'y' || answer == 'yes'
-                  ohai "Installing with admin UI..."
-                  return true
-                else
-                  ohai "Installing CLI only"
-                  return false
-                end
-              else
-                ohai "No response received, defaulting to CLI only"
-                ohai "To install with admin UI later, use: brew reinstall rnx --with-admin"
-                return false
-              end
-            rescue => e
-              opoo "Could not read input: #{e.message}"
-              ohai "Installing CLI only (use --with-admin to force admin UI)"
-              return false
-            end
-          else
-            ohai "CI environment detected, installing CLI only"
-            return false
-          end
-        else
-          ohai "Node.js found but unable to determine version"
-          ohai "Node path: #{node_path}" if !node_path.empty?
-          ohai "Version output: #{node_version}" if node_version
-          ohai "Installing CLI only (use --with-admin to force admin UI)"
-          return false
-        end
-      else
-        ohai "❌ Node.js not detected"
-
-        # Interactive prompt with default No
-        if ENV["HOMEBREW_NO_ENV_HINTS"] != "1" && ENV["CI"].nil?
-          print "🤔 Would you like to install Node.js and the web admin UI? (y/N): "
-          response = STDIN.gets
-
-          if response && response.strip.downcase.start_with?("y")
-            # Install Node.js as a dependency
-            ohai "Installing Node.js..."
-            Formula["node"].install
-            # Verify Node.js version after installation
-            verify_nodejs_version
-            return true
-          else
-            return false
-          end
-        else
-          ohai "Non-interactive mode, installing CLI only"
+        # Install Node.js via Homebrew
+        begin
+          system("brew", "install", "node")
+          verify_nodejs_version
+          return true
+        rescue => install_error
+          opoo "Failed to install Node.js: #{install_error.message}"
+          opoo "Admin UI installation skipped"
           return false
         end
       end
-    rescue => e
-      # Fallback to CLI-only installation if anything goes wrong
-      opoo "Installation detection failed: #{e.message}"
-      opoo "Installing CLI only (use --with-admin to force admin UI installation)"
-      false
+    else
+      # Node.js not installed
+      ohai "Node.js not found, installing for Admin UI..."
+
+      begin
+        system("brew", "install", "node")
+        verify_nodejs_version
+        ohai "✅ Node.js installed successfully"
+        return true
+      rescue => e
+        opoo "Failed to install Node.js: #{e.message}"
+        opoo "Admin UI installation skipped"
+        opoo "To install CLI only: brew install rnx --cli-only"
+        return false
+      end
     end
   end
 

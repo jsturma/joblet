@@ -68,13 +68,14 @@ sudo systemctl start joblet
 ```bash
 # Add the Joblet tap
 brew tap ehsaniara/joblet https://github.com/ehsaniara/joblet
-brew install rnx                                    # Interactive setup
-brew install ehsaniara/joblet/rnx --with-admin     # Includes Web UI
-brew install ehsaniara/joblet/rnx --without-admin  # CLI only
+brew install rnx              # Installs RNX CLI + Admin UI (default, requires Node.js 18+)
+brew install rnx --cli-only   # CLI only (without Admin UI and Node.js)
 
 # Copy configuration from server
 scp user@joblet-server:/opt/joblet/config/rnx-config.yml ~/.rnx/
 ```
+
+**Note**: Admin UI requires Node.js 18+. If not installed or version is too old, Homebrew will automatically install/upgrade it.
 
 #### Windows
 

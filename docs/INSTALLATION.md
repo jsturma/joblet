@@ -635,11 +635,25 @@ rnx job run echo "Hello from AWS EC2!"
 
 ```bash
 # Add Joblet tap
-brew tap ehsaniara/joblet
+brew tap ehsaniara/joblet https://github.com/ehsaniara/joblet
 
-# Install RNX client
+# Install RNX client with Admin UI (default)
 brew install rnx
+
+# Or install CLI only without Admin UI
+brew install rnx --cli-only
 ```
+
+The Homebrew installation includes:
+- **RNX CLI**: Command-line interface for job management
+- **Admin UI** (default): Web-based interface at http://localhost:5173
+- **Node.js** (if needed): Automatically installed if not present or upgraded if version < 18
+
+**Behavior:**
+- **Default**: Installs RNX CLI + Admin UI (requires Node.js 18+)
+- **With `--cli-only`**: Installs only RNX CLI (skips Admin UI and Node.js)
+- If Node.js is already installed with version 18+, it will be reused
+- If Node.js is missing or too old, Homebrew will install/upgrade it automatically
 
 ### Manual Binary Installation
 
