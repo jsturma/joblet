@@ -11,7 +11,7 @@
 - ✅ **Historical Replay**: Complete metrics timeline available for completed jobs
 - ✅ **Live Streaming**: Real-time metrics streaming via gRPC with pub/sub
 - ✅ **Short UUID Support**: Commands work with both full and short (8-char) UUIDs
-- ✅ **CLI Commands**: `rnx job metrics` and `rnx job metrics --watch` fully functional
+- ✅ **CLI Commands**: `rnx job metrics` streams historical + live metrics (no flags needed)
 - ⏳ **Retention Cleanup**: Automatic cleanup based on retention period (TODO)
 - ⏳ **Aggregations/Rollups**: Historical data aggregation for long-term storage (TODO)
 
@@ -28,13 +28,14 @@
    - One job metrics file per job: `/opt/joblet/metrics/<uuid>/<timestamp>.jsonl.gz`
 
 3. **Historical + Live Streaming**: Metrics stream serves historical data first, then live data
-   - Users can replay complete job timeline with `--watch` flag
-   - Works for both running and completed jobs
+   - Users can replay complete job timeline automatically
+   - For completed jobs: shows all metrics then exits
+   - For running jobs: shows historical metrics then continues streaming live until completion
 
 4. **No Pub/Sub for Storage**: Metrics are written directly to disk, pub/sub is optional
    - Simplifies architecture
    - Reduces memory overhead
-   - Pub/sub used only for live streaming to clients
+   - Pub/sub used only for live-streaming to clients
 
 5. **UUID Resolution**: Disk reader resolves short UUIDs by scanning metrics directory
    - Allows viewing metrics for completed jobs no longer in memory
@@ -104,7 +105,7 @@ considerations.
 - **Pattern**: Multiple concurrent subscribers
 - **Use Cases**:
     - Real-time monitoring dashboards
-    - CLI streaming (`rnx job metrics --watch`)
+    - CLI streaming (`rnx job metrics`)
     - External metric collectors
 - **Backpressure**: Slow consumers dropped (same as logs)
 
@@ -209,18 +210,21 @@ service JobService {
 #### CLI Commands
 
 ```bash
-# Live streaming
-rnx job metrics <job-id> --watch --interval=2s
+# Stream metrics (historical + live for running jobs)
+rnx job metrics <job-id>
 
+# JSON output
+rnx --json job metrics <job-id>
+
+# Future enhancements (not yet implemented):
 # Historical query
-rnx job metrics <job-id> --from="1h ago" --to="now"
-
+# rnx job metrics <job-id> --from="1h ago" --to="now"
+#
 # Aggregated view
-rnx job metrics <job-id> --summary --period=5m
-
+# rnx job metrics <job-id> --summary --period=5m
+#
 # Export formats
-rnx job metrics <job-id> --format=json
-rnx job metrics <job-id> --format=prometheus
+# rnx job metrics <job-id> --format=prometheus
 ```
 
 ### Comparison with Log System

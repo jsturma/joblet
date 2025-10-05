@@ -56,12 +56,11 @@ type NetworkStorageConfig struct {
 
 // ServerConfig holds server-specific configuration
 type ServerConfig struct {
-	Address       string        `yaml:"address" json:"address"`
-	Port          int           `yaml:"port" json:"port"`
-	Mode          string        `yaml:"mode" json:"mode"`
-	Timeout       time.Duration `yaml:"timeout" json:"timeout"`
-	MinTLSVersion string        `yaml:"minTlsVersion" json:"minTlsVersion"`
-	NodeId        string        `yaml:"nodeId" json:"nodeId"`
+	Address string        `yaml:"address" json:"address"`
+	Port    int           `yaml:"port" json:"port"`
+	Mode    string        `yaml:"mode" json:"mode"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
+	NodeId  string        `yaml:"nodeId" json:"nodeId"`
 }
 
 // SecurityConfig holds all certificates as embedded PEM content
@@ -79,15 +78,6 @@ type JobletConfig struct {
 	MaxConcurrentJobs  int           `yaml:"maxConcurrentJobs" json:"maxConcurrentJobs"`
 	JobTimeout         time.Duration `yaml:"jobTimeout" json:"jobTimeout"`
 	CleanupTimeout     time.Duration `yaml:"cleanupTimeout" json:"cleanupTimeout"`
-	ValidateCommands   bool          `yaml:"validateCommands" json:"validateCommands"`
-
-	// Resource validation limits
-	MinCPULimit    int32 `yaml:"minCpuLimit" json:"minCpuLimit"`       // Minimum CPU percentage (0 = no limit)
-	MaxCPULimit    int32 `yaml:"maxCpuLimit" json:"maxCpuLimit"`       // Maximum CPU percentage
-	MinMemoryLimit int32 `yaml:"minMemoryLimit" json:"minMemoryLimit"` // Minimum memory MB (0 = no limit)
-	MaxMemoryLimit int32 `yaml:"maxMemoryLimit" json:"maxMemoryLimit"` // Maximum memory MB
-	MinIOLimit     int32 `yaml:"minIoLimit" json:"minIoLimit"`         // Minimum IO BPS (0 = no limit)
-	MaxIOLimit     int32 `yaml:"maxIoLimit" json:"maxIoLimit"`         // Maximum IO BPS
 }
 
 // CgroupConfig holds cgroup-related configuration
@@ -215,11 +205,10 @@ type JobMetricsConfig struct {
 var DefaultConfig = Config{
 	Version: "3.0",
 	Server: ServerConfig{
-		Address:       "0.0.0.0",
-		Port:          50051,
-		Mode:          "server",
-		Timeout:       30 * time.Second,
-		MinTLSVersion: "1.3",
+		Address: "0.0.0.0",
+		Port:    50051,
+		Mode:    "server",
+		Timeout: 30 * time.Second,
 	},
 	Security: SecurityConfig{
 		// Will be populated by certificate generation
@@ -234,15 +223,6 @@ var DefaultConfig = Config{
 		MaxConcurrentJobs:  100,
 		JobTimeout:         1 * time.Hour,
 		CleanupTimeout:     5 * time.Second,
-		ValidateCommands:   true,
-
-		// Resource validation limits (0 = no minimum/maximum)
-		MinCPULimit:    0,       // No minimum CPU limit
-		MaxCPULimit:    1000,    // 10 cores worth (1000%)
-		MinMemoryLimit: 1,       // 1MB minimum - configurable!
-		MaxMemoryLimit: 32768,   // 32GB maximum
-		MinIOLimit:     0,       // No minimum IO limit
-		MaxIOLimit:     1000000, // 1GB/s maximum
 	},
 	Cgroup: CgroupConfig{
 		BaseDir:           "/sys/fs/cgroup/joblet.slice/joblet.service",
