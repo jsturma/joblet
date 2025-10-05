@@ -318,7 +318,7 @@ router.get('/:jobId/metrics', async (req, res) => {
         const samples = [];
         let hasStarted = false;
         let responseSet = false;
-        const maxSamples = 1; // Get just the first sample for HTTP endpoint
+        const maxSamples = 10; // Get up to 10 samples to ensure we have meaningful data
 
         process.stdout.on('data', (data) => {
             hasStarted = true;
@@ -372,13 +372,13 @@ router.get('/:jobId/metrics', async (req, res) => {
             error += data.toString();
         });
 
-        // Set a longer timeout to wait for metrics to start
+        // Set a timeout to collect enough samples before returning
         const timeout = setTimeout(() => {
             if (!hasStarted && samples.length === 0) {
                 console.log('Metrics stream timeout - no data received for job:', jobId);
             }
             process.kill();
-        }, 30000); // 30 second timeout for initial data
+        }, 5000); // 5 second timeout to collect multiple samples
 
         process.on('close', (code) => {
             clearTimeout(timeout);

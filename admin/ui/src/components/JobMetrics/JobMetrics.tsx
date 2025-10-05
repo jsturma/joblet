@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../../services/apiService';
 import { useMetricsStream } from '../../hooks/useMetricsStream';
-import { Activity, Clock, Cpu, HardDrive, MemoryStick, RefreshCw, Wifi, WifiOff, BarChart3 } from 'lucide-react';
+import { Activity, Clock, Cpu, HardDrive, MemoryStick, Wifi, WifiOff, BarChart3 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface JobMetricsProps {
@@ -41,17 +41,12 @@ export const JobMetrics: React.FC<JobMetricsProps> = ({ jobId }) => {
     const [fallbackMetrics, setFallbackMetrics] = useState<MetricPoint[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [refreshing, setRefreshing] = useState<boolean>(false);
     const [usingFallback, setUsingFallback] = useState<boolean>(false);
 
     // Fallback to HTTP when WebSocket fails
-    const fetchMetrics = async (showRefresh = false) => {
+    const fetchMetrics = async () => {
         try {
-            if (showRefresh) {
-                setRefreshing(true);
-            } else {
-                setLoading(true);
-            }
+            setLoading(true);
             setError(null);
 
             const metricsData = await apiService.getJobMetrics(jobId);
@@ -62,7 +57,6 @@ export const JobMetrics: React.FC<JobMetricsProps> = ({ jobId }) => {
             setError(err instanceof Error ? err.message : 'Failed to load metrics');
         } finally {
             setLoading(false);
-            setRefreshing(false);
         }
     };
 
@@ -177,17 +171,7 @@ export const JobMetrics: React.FC<JobMetricsProps> = ({ jobId }) => {
     if (error) {
         return (
             <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">Job Metrics</h4>
-                    <button
-                        onClick={() => fetchMetrics(true)}
-                        disabled={refreshing}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                    >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </button>
-                </div>
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white">Job Metrics</h4>
                 <div className="bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded p-4">
                     <p className="font-medium">Error loading metrics</p>
                     <p className="text-sm">{error}</p>
@@ -200,17 +184,7 @@ export const JobMetrics: React.FC<JobMetricsProps> = ({ jobId }) => {
     if (currentMetrics.length === 0) {
         return (
             <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">Job Metrics</h4>
-                    <button
-                        onClick={() => fetchMetrics(true)}
-                        disabled={refreshing}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                    >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </button>
-                </div>
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white">Job Metrics</h4>
                 <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-700 dark:text-yellow-300 rounded p-4">
                     <p className="font-medium">No metrics available</p>
                     <p className="text-sm">Metrics will appear here once the job starts running and begins collecting performance data.</p>
@@ -223,36 +197,26 @@ export const JobMetrics: React.FC<JobMetricsProps> = ({ jobId }) => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">Job Metrics</h4>
-                    <div className="flex items-center space-x-2">
-                        {connected && !usingFallback ? (
-                            <>
-                                <Wifi className="h-4 w-4 text-green-500" />
-                                <span className="text-sm text-green-600 dark:text-green-400">Live</span>
-                            </>
-                        ) : usingFallback ? (
-                            <>
-                                <WifiOff className="h-4 w-4 text-yellow-500" />
-                                <span className="text-sm text-yellow-600 dark:text-yellow-400">Static</span>
-                            </>
-                        ) : (
-                            <div className="animate-pulse flex items-center space-x-2">
-                                <div className="h-4 w-4 bg-gray-300 rounded"></div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Connecting...</span>
-                            </div>
-                        )}
-                    </div>
+            <div className="flex items-center space-x-3">
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white">Job Metrics</h4>
+                <div className="flex items-center space-x-2">
+                    {connected && !usingFallback ? (
+                        <>
+                            <Wifi className="h-4 w-4 text-green-500" />
+                            <span className="text-sm text-green-600 dark:text-green-400">Live</span>
+                        </>
+                    ) : usingFallback ? (
+                        <>
+                            <WifiOff className="h-4 w-4 text-yellow-500" />
+                            <span className="text-sm text-yellow-600 dark:text-yellow-400">Static</span>
+                        </>
+                    ) : (
+                        <div className="animate-pulse flex items-center space-x-2">
+                            <div className="h-4 w-4 bg-gray-300 rounded"></div>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Connecting...</span>
+                        </div>
+                    )}
                 </div>
-                <button
-                    onClick={() => fetchMetrics(true)}
-                    disabled={refreshing}
-                    className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
-                >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
             </div>
 
             {/* Current Metrics */}
