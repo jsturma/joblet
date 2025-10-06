@@ -439,6 +439,14 @@ func (j *Joblet) DeleteJob(ctx context.Context, req interfaces.DeleteJobRequest)
 		return fmt.Errorf("job deletion failed: %w", err)
 	}
 
+	// Delete metrics files if metrics system is enabled
+	if j.metricsStore != nil {
+		if err := j.metricsStore.DeleteJobMetrics(req.JobID); err != nil {
+			log.Warn("failed to delete job metrics", "error", err)
+			// Continue with deletion even if metrics cleanup fails
+		}
+	}
+
 	// Cleanup any remaining resources - handle runtime builds specially
 	if jb.Type.IsRuntimeBuild() {
 		// For runtime builds: only clean system resources, preserve artifacts
@@ -493,6 +501,15 @@ func (j *Joblet) DeleteAllJobs(ctx context.Context, req interfaces.DeleteAllJobs
 		if err != nil {
 			log.Warn("failed to delete logs for job", "jobID", job.Uuid, "error", err)
 			// Continue with deletion even if log cleanup fails
+		}
+
+		// Delete metrics for delete-all operations
+		if j.metricsStore != nil {
+			err = j.metricsStore.DeleteJobMetrics(job.Uuid)
+			if err != nil {
+				log.Warn("failed to delete metrics for job", "jobID", job.Uuid, "error", err)
+				// Continue with deletion even if metrics cleanup fails
+			}
 		}
 
 		deletedCount++
