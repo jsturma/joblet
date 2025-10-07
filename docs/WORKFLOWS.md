@@ -291,26 +291,26 @@ Error: workflow validation failed: network validation failed: missing networks: 
 
 ```bash
 # Execute workflow
-rnx job run --workflow=data-pipeline.yaml
+rnx workflow run data-pipeline.yaml
 
 # Execute with file uploads
-rnx job run --workflow=ml-workflow.yaml  # Automatically uploads files specified in YAML
+rnx workflow run ml-workflow.yaml  # Automatically uploads files specified in YAML
 ```
 
 ### Monitoring Progress
 
 ```bash
 # List all workflows
-rnx job list --workflow
+rnx workflow list
 
 # Check specific workflow status (enhanced with job names and dependencies)
-rnx job status --workflow <workflow-uuid>
+rnx workflow status <workflow-uuid>
 
 # View workflow status with original YAML content
-rnx job status --workflow --detail <workflow-uuid>
+rnx workflow status --detail <workflow-uuid>
 
 # Get workflow status with YAML content in JSON format (for scripting)
-rnx job status --workflow --json --detail <workflow-uuid>
+rnx workflow status --json --detail <workflow-uuid>
 
 # Monitor job logs
 rnx job log <job-uuid>
@@ -331,9 +331,9 @@ ID   NAME                 STATUS      PROGRESS
 **Detailed Workflow Status:**
 
 ```bash
-# rnx job status --workflow a1b2c3d4-e5f6-7890-1234-567890abcdef
+# rnx workflow status a1b2c3d4-e5f6-7890-1234-567890abcdef
 Workflow UUID: a1b2c3d4-e5f6-7890-1234-567890abcdef
-Workflow: data-pipeline.yaml
+
 Status: RUNNING
 Progress: 2/4 jobs completed
 
@@ -362,7 +362,7 @@ Use the `--detail` flag with workflow status to view the original YAML content:
 
 ```bash
 # Display workflow status with original YAML content
-rnx job status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+rnx workflow status --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
 ```
 
 **Key Benefits:**
@@ -376,7 +376,7 @@ rnx job status --workflow --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
 
 ```
 Workflow UUID: a1b2c3d4-e5f6-7890-1234-567890abcdef
-Workflow: data-pipeline.yaml
+
 Status: RUNNING
 Progress: 2/4 jobs completed
 
@@ -583,7 +583,7 @@ Check: Workflow validation passed
 
 ```bash
 # Check workflow validation
-rnx job run --workflow=my-workflow.yaml  # Shows validation details
+rnx workflow run my-workflow.yaml  # Shows validation details
 
 # Check available resources
 rnx runtime list

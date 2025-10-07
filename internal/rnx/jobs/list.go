@@ -308,15 +308,14 @@ func listWorkflows() error {
 
 // formatWorkflowList formats and displays workflows in a table
 func formatWorkflowList(workflows []*pb.WorkflowInfo) {
-	fmt.Printf("UUID                                 WORKFLOW             STATUS      PROGRESS\n")
-	fmt.Printf("------------------------------------ -------------------- ----------- ---------\n")
+	fmt.Printf("UUID                                 STATUS      PROGRESS\n")
+	fmt.Printf("------------------------------------ ----------- ---------\n")
 	for _, workflow := range workflows {
 		// Get status color
 		statusColor, resetColor := getStatusColor(workflow.Status)
 
-		fmt.Printf("%-36s %-20s %s%-11s%s %d/%d\n",
+		fmt.Printf("%-36s %s%-11s%s %d/%d\n",
 			workflow.Uuid,
-			truncateString(workflow.Workflow, 20),
 			statusColor, workflow.Status, resetColor,
 			workflow.CompletedJobs,
 			workflow.TotalJobs)
@@ -328,7 +327,6 @@ func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
 	// Convert protobuf workflows to a simpler structure for JSON output
 	type jsonWorkflow struct {
 		UUID          string `json:"uuid"`
-		Workflow      string `json:"workflow"`
 		Status        string `json:"status"`
 		TotalJobs     int32  `json:"total_jobs"`
 		CompletedJobs int32  `json:"completed_jobs"`
@@ -342,7 +340,6 @@ func outputWorkflowsJSON(workflows []*pb.WorkflowInfo) error {
 	for _, workflow := range workflows {
 		jsonWf := jsonWorkflow{
 			UUID:          workflow.Uuid,
-			Workflow:      workflow.Workflow,
 			Status:        workflow.Status,
 			TotalJobs:     workflow.TotalJobs,
 			CompletedJobs: workflow.CompletedJobs,

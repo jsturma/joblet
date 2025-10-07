@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"joblet/internal/rnx/common"
-	"joblet/internal/rnx/gpu"
 	"joblet/internal/rnx/jobs"
 	"joblet/internal/rnx/resources"
+	"joblet/internal/rnx/workflow"
 	"joblet/pkg/config"
 
 	"github.com/spf13/cobra"
@@ -32,8 +32,9 @@ Key Features:
 Quick Examples:
   rnx job run python script.py               # Run a simple job
   rnx job run --gpu=1 python train.py        # Run GPU-accelerated job
-  rnx job run --workflow=pipeline.yaml       # Execute a workflow
-  rnx job list --workflow                    # List all workflows
+  rnx workflow run pipeline.yaml             # Execute a workflow
+  rnx workflow list                          # List all workflows
+  rnx workflow status <uuid>                 # Check workflow status
   rnx job status <job-uuid>                  # Check job status (supports short UUIDs)
   rnx job log <job-uuid>                     # Stream job logs (supports short UUIDs)
   rnx job cancel <job-uuid>                  # Cancel a scheduled job (status: CANCELED)
@@ -90,8 +91,8 @@ func init() {
 
 	// Add subcommands
 	rootCmd.AddCommand(jobs.NewJobCmd())
+	rootCmd.AddCommand(workflow.NewWorkflowCmd())
 	rootCmd.AddCommand(jobs.NewMonitorCmd())
-	rootCmd.AddCommand(gpu.NewGPUCmd())
 	rootCmd.AddCommand(NewNodesCmd())
 	rootCmd.AddCommand(NewHelpConfigCmd())
 	rootCmd.AddCommand(resources.NewNetworkCmd())

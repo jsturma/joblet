@@ -498,7 +498,6 @@ func getWorkflowStatus(workflowID string) error {
 
 	// Display workflow summary
 	fmt.Printf("Workflow UUID: %s\n", workflow.Uuid)
-	fmt.Printf("Workflow: %s\n", workflow.Workflow)
 	fmt.Printf("\n")
 
 	// Display YAML content if detail flag is set
@@ -619,7 +618,6 @@ func outputWorkflowStatusJSON(res *pb.GetWorkflowStatusResponse) error {
 	// Convert protobuf workflow status to JSON structure
 	statusData := map[string]interface{}{
 		"uuid":           res.Workflow.Uuid,
-		"workflow":       res.Workflow.Workflow,
 		"status":         res.Workflow.Status,
 		"total_jobs":     res.Workflow.TotalJobs,
 		"completed_jobs": res.Workflow.CompletedJobs,

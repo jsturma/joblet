@@ -15,6 +15,10 @@ operations.
     - [metrics](#rnx-job-metrics)
     - [stop](#rnx-job-stop)
     - [delete](#rnx-job-delete)
+- [Workflow Commands](#workflow-commands)
+    - [run](#rnx-workflow-run)
+    - [list](#rnx-workflow-list)
+    - [status](#rnx-workflow-status)
 - [Volume Commands](#volume-commands)
     - [volume create](#rnx-volume-create)
     - [volume list](#rnx-volume-list)
@@ -87,7 +91,8 @@ rnx job run [parameters] <command> [arguments...]
 | `--env, -e`        | Environment variable (KEY=VALUE, visible in logs)          | none           |
 | `--secret-env, -s` | Secret environment variable (KEY=VALUE, hidden from logs)  | none           |
 | `--schedule`       | Schedule job execution (duration or RFC3339 time)          | immediate      |
-| `--workflow`       | YAML workflow file for workflow execution                  | none           |
+
+**Note**: For workflow execution, use the dedicated `rnx workflow run` command instead of `--workflow` flag.
 
 #### Examples
 
@@ -134,10 +139,6 @@ rnx job run --schedule="2025-08-03T15:00:00" maintenance.sh
 # Custom network
 rnx job run --network=isolated ping google.com
 
-# Workflow execution
-rnx job run --workflow=ml-pipeline.yaml           # Execute full workflow
-rnx job run --workflow=jobs.yaml:ml-analysis      # Execute specific job from workflow
-
 # Using runtime
 rnx job run --runtime=python-3.11-ml python -c "import torch; print(torch.__version__)"
 rnx job run --runtime=openjdk-21 java -version
@@ -162,50 +163,21 @@ rnx job run \
   python3 gpu_training.py --epochs=100
 ```
 
-#### Workflow Validation
-
-When using `--workflow`, Joblet performs comprehensive pre-execution validation:
-
-```bash
-$ rnx job run --workflow=my-workflow.yaml
-🔍 Validating workflow prerequisites...
-✅ No circular dependencies found
-✅ All required volumes exist
-✅ All required networks exist
-✅ All required runtimes exist
-✅ All job dependencies are valid
-🎉 Workflow validation completed successfully!
-```
-
-**Validation Checks:**
-
-- **Circular Dependencies**: Prevents infinite dependency loops
-- **Network Validation**: Confirms all specified networks exist (built-in: none, isolated, bridge + custom networks)
-- **Volume Validation**: Verifies all referenced volumes are available
-- **Runtime Validation**: Checks runtime availability with name normalization
-- **Job Dependencies**: Ensures all dependencies reference existing jobs
-
-**Error Example:**
-
-```bash
-Error: workflow validation failed: network validation failed: missing networks: [non-existent-network]. Available networks: [bridge isolated none custom-net]
-```
-
 ### `rnx job list`
 
-List all jobs or workflows on the server.
+List all jobs on the server.
 
 ```bash
 rnx job list [flags]              # List all jobs
-rnx job list --workflow [flags]   # List all workflows
 ```
+
+**Note**: For listing workflows, use `rnx workflow list` command instead.
 
 #### Flags
 
 | Flag         | Description                    | Default |
 |--------------|--------------------------------|---------|
 | `--json`     | Output in JSON format          | false   |
-| `--workflow` | List workflows instead of jobs | false   |
 
 #### Output Format
 
@@ -606,6 +578,147 @@ rnx job delete-all --json
 
 **Note:** This operation is irreversible. Once deleted, job information and logs cannot be recovered. Only non-running
 jobs are affected.
+
+## Workflow Commands
+
+### `rnx workflow run`
+
+Execute a workflow from a YAML file.
+
+```bash
+rnx workflow run <workflow-file>
+```
+
+Runs a multi-job workflow defined in a YAML file with automatic validation and dependency management.
+
+#### Workflow Validation
+
+Joblet performs comprehensive pre-execution validation:
+
+```bash
+$ rnx workflow run my-workflow.yaml
+🔍 Validating workflow prerequisites...
+✅ No circular dependencies found
+✅ All required volumes exist
+✅ All required networks exist
+✅ All required runtimes exist
+✅ All job dependencies are valid
+🎉 Workflow validation completed successfully!
+```
+
+**Validation Checks:**
+
+- **Circular Dependencies**: Prevents infinite dependency loops
+- **Network Validation**: Confirms all specified networks exist (built-in: none, isolated, bridge + custom networks)
+- **Volume Validation**: Verifies all referenced volumes are available
+- **Runtime Validation**: Checks runtime availability with name normalization
+- **Job Dependencies**: Ensures all dependencies reference existing jobs
+
+**Error Example:**
+
+```bash
+Error: workflow validation failed: network validation failed: missing networks: [non-existent-network]. Available networks: [bridge isolated none custom-net]
+```
+
+#### Examples
+
+```bash
+# Run workflow from current directory
+rnx workflow run pipeline.yaml
+
+# Run workflow from path
+rnx workflow run examples/ml-pipeline.yaml
+
+# Run workflow with absolute path
+rnx workflow run /path/to/workflow.yaml
+```
+
+### `rnx workflow list`
+
+List all workflows on the server.
+
+```bash
+rnx workflow list [flags]
+```
+
+#### Flags
+
+| Flag     | Description           | Default |
+|----------|-----------------------|---------|
+| `--json` | Output in JSON format | false   |
+
+#### Examples
+
+```bash
+# List all workflows (table format)
+rnx workflow list
+
+# Example output:
+# UUID                                 STATUS      PROGRESS
+# ------------------------------------ ----------- ---------
+# a1b2c3d4-e5f6-7890-1234-567890abcdef RUNNING     3/5
+# b2c3d4e5-f6a7-8901-2345-678901bcdefg COMPLETED   5/5
+
+# JSON output for scripting
+rnx workflow list --json
+```
+
+### `rnx workflow status`
+
+Get detailed status of a specific workflow.
+
+```bash
+rnx workflow status [flags] <workflow-uuid>
+rnx workflow status --detail <workflow-uuid>  # Include original YAML content
+```
+
+#### Workflow Status Features
+
+- Displays job names, dependencies, status, and exit codes in a tabular format
+- Shows dependency relationships between workflow jobs
+- Real-time progress tracking with job-level details
+- Color-coded status indicators (RUNNING, COMPLETED, FAILED, etc.)
+- **YAML Content Display**: Use `--detail` flag to view the original workflow YAML content
+- **Multi-workstation Access**: YAML content is stored server-side, accessible from any client
+- **Job UUID Display**: Started jobs show actual job UUIDs, non-started jobs show "00000000-0000-0000-0000-000000000000"
+
+#### Flags
+
+| Flag          | Description                | Default | Notes                    |
+|---------------|----------------------------|---------|--------------------------|
+| `--detail`    | Show original YAML content | false   |                          |
+| `--json`      | Output in JSON format      | false   | Available with --detail  |
+
+#### Examples
+
+```bash
+# Get workflow status (readable format)
+rnx workflow status a1b2c3d4-e5f6-7890-1234-567890abcdef
+
+# Get workflow status with original YAML content
+rnx workflow status --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+
+# Get status in JSON format
+rnx workflow status --json a1b2c3d4-e5f6-7890-1234-567890abcdef
+
+# Get status with YAML content in JSON format
+rnx workflow status --json --detail a1b2c3d4-e5f6-7890-1234-567890abcdef
+
+# Example workflow status output:
+# Workflow UUID: a1b2c3d4-e5f6-7890-1234-567890abcdef
+#
+# Status: RUNNING
+# Progress: 2/4 jobs completed
+#
+# Jobs in Workflow:
+# -----------------------------------------------------------------------------------------
+# JOB UUID                             JOB NAME             STATUS       EXIT CODE  DEPENDENCIES
+# -----------------------------------------------------------------------------------------
+# f47ac10b-58cc-4372-a567-0e02b2c3d479 setup-data           COMPLETED    0          -
+# a1b2c3d4-e5f6-7890-abcd-ef1234567890 process-data         RUNNING      -          setup-data
+# 00000000-0000-0000-0000-000000000000 validate-results     PENDING      -          process-data
+# 00000000-0000-0000-0000-000000000000 generate-report      PENDING      -          validate-results
+```
 
 ## Volume Commands
 

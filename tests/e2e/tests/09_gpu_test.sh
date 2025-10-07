@@ -226,7 +226,7 @@ jobs:
 EOF
 
     # Run the workflow
-    local workflow_output=$("$RNX_BINARY" --json job run --workflow="$workflow_file" 2>&1)
+    local workflow_output=$("$RNX_BINARY" --json workflow run "$workflow_file" 2>&1)
     local exit_code=$?
 
     # Clean up workflow file

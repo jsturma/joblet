@@ -573,7 +573,6 @@ func (s *WorkflowServiceServer) convertUploadsToStringArray(uploads []domain.Fil
 func (s *WorkflowServiceServer) convertWorkflowStateToInfo(ws *workflow.WorkflowState) *pb.WorkflowInfo {
 	info := &pb.WorkflowInfo{
 		Uuid:          s.getFullUuidForWorkflowID(ws.ID),
-		Workflow:      ws.Workflow,
 		Status:        string(ws.Status),
 		TotalJobs:     int32(ws.TotalJobs),
 		CompletedJobs: int32(ws.CompletedJobs),
