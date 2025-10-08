@@ -312,6 +312,28 @@ func displaySystemStatus(status *pb.SystemStatusRes) {
 		fmt.Println()
 	}
 
+	// Server Version Information
+	if status.ServerVersion != nil {
+		fmt.Printf("Joblet Server:\n")
+		fmt.Printf("  Version:      %s\n", status.ServerVersion.Version)
+		if status.ServerVersion.GitTag != "" {
+			fmt.Printf("  Git Tag:      %s\n", status.ServerVersion.GitTag)
+		}
+		if status.ServerVersion.GitCommit != "" {
+			fmt.Printf("  Git Commit:   %s\n", status.ServerVersion.GitCommit)
+		}
+		if status.ServerVersion.BuildDate != "" {
+			fmt.Printf("  Build Date:   %s\n", status.ServerVersion.BuildDate)
+		}
+		if status.ServerVersion.GoVersion != "" {
+			fmt.Printf("  Go Version:   %s\n", status.ServerVersion.GoVersion)
+		}
+		if status.ServerVersion.Platform != "" {
+			fmt.Printf("  Platform:     %s\n", status.ServerVersion.Platform)
+		}
+		fmt.Println()
+	}
+
 	// CPU Information
 	if status.Cpu != nil {
 		fmt.Printf("CPU:\n")
@@ -361,11 +383,72 @@ func displaySystemStatus(status *pb.SystemStatusRes) {
 	// Network Information
 	if len(status.Networks) > 0 {
 		fmt.Printf("Network Interfaces:\n")
+
+		// Create maps to track which MACs and IPs we've assigned
+		macIndex := 0
+		macAddresses := status.Host.MacAddresses
+		serverIPs := status.Host.ServerIPs
+
+		// Track which IPs have been assigned
+		assignedIPs := make(map[string]bool)
+
 		for _, net := range status.Networks {
 			fmt.Printf("  %s:\n", net.Interface)
-			fmt.Printf("    RX: %s (%d packets, %d errors)\n",
+
+			// Determine if this is a physical interface
+			isPhysical := strings.HasPrefix(net.Interface, "ens") ||
+				strings.HasPrefix(net.Interface, "eth") ||
+				strings.HasPrefix(net.Interface, "enp") ||
+				strings.HasPrefix(net.Interface, "wlan")
+
+			// Try to assign IP address for this interface
+			var interfaceIP string
+			if net.Interface == "lo" {
+				interfaceIP = "127.0.0.1"
+			} else if isPhysical {
+				// For physical interfaces, prefer non-Docker/bridge IPs
+				for _, ip := range serverIPs {
+					if !assignedIPs[ip] && !strings.HasPrefix(ip, "172.") && !strings.HasPrefix(ip, "10.") {
+						interfaceIP = ip
+						assignedIPs[ip] = true
+						break
+					}
+				}
+				// Fallback to any unassigned IP
+				if interfaceIP == "" {
+					for _, ip := range serverIPs {
+						if !assignedIPs[ip] {
+							interfaceIP = ip
+							assignedIPs[ip] = true
+							break
+						}
+					}
+				}
+			} else {
+				// For virtual/bridge interfaces, prefer Docker/bridge IPs
+				for _, ip := range serverIPs {
+					if !assignedIPs[ip] && (strings.HasPrefix(ip, "172.") || strings.HasPrefix(ip, "10.")) {
+						interfaceIP = ip
+						assignedIPs[ip] = true
+						break
+					}
+				}
+			}
+
+			// Display IP if found
+			if interfaceIP != "" {
+				fmt.Printf("    IP:   %s\n", interfaceIP)
+			}
+
+			// Try to display MAC address for this interface (skip loopback)
+			if net.Interface != "lo" && macIndex < len(macAddresses) {
+				fmt.Printf("    MAC:  %s\n", macAddresses[macIndex])
+				macIndex++
+			}
+
+			fmt.Printf("    RX:   %s (%d packets, %d errors)\n",
 				formatBytes(net.BytesReceived), net.PacketsReceived, net.ErrorsIn)
-			fmt.Printf("    TX: %s (%d packets, %d errors)\n",
+			fmt.Printf("    TX:   %s (%d packets, %d errors)\n",
 				formatBytes(net.BytesSent), net.PacketsSent, net.ErrorsOut)
 			fmt.Printf("    Rate: RX %s/s TX %s/s\n",
 				formatBytes(int64(net.ReceiveRate)), formatBytes(int64(net.TransmitRate)))

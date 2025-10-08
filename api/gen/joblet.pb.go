@@ -2910,6 +2910,8 @@ type NetworkMetrics struct {
 	DropsOut        int64                  `protobuf:"varint,9,opt,name=dropsOut,proto3" json:"dropsOut,omitempty"`
 	ReceiveRate     float64                `protobuf:"fixed64,10,opt,name=receiveRate,proto3" json:"receiveRate,omitempty"`   // bytes/sec
 	TransmitRate    float64                `protobuf:"fixed64,11,opt,name=transmitRate,proto3" json:"transmitRate,omitempty"` // bytes/sec
+	IpAddresses     []string               `protobuf:"bytes,12,rep,name=ipAddresses,proto3" json:"ipAddresses,omitempty"`     // IP addresses assigned to this interface (e.g., ["192.168.1.10", "fe80::1"])
+	MacAddress      string                 `protobuf:"bytes,13,opt,name=macAddress,proto3" json:"macAddress,omitempty"`       // Hardware MAC address (e.g., "00:1a:2b:3c:4d:5e")
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3019,6 +3021,20 @@ func (x *NetworkMetrics) GetTransmitRate() float64 {
 		return x.TransmitRate
 	}
 	return 0
+}
+
+func (x *NetworkMetrics) GetIpAddresses() []string {
+	if x != nil {
+		return x.IpAddresses
+	}
+	return nil
+}
+
+func (x *NetworkMetrics) GetMacAddress() string {
+	if x != nil {
+		return x.MacAddress
+	}
+	return ""
 }
 
 type IOMetrics struct {
@@ -7722,7 +7738,7 @@ const file_joblet_proto_rawDesc = "" +
 	"inodesFree\x18\n" +
 	" \x01(\x03R\n" +
 	"inodesFree\x12.\n" +
-	"\x12inodesUsagePercent\x18\v \x01(\x01R\x12inodesUsagePercent\"\xf4\x02\n" +
+	"\x12inodesUsagePercent\x18\v \x01(\x01R\x12inodesUsagePercent\"\xb6\x03\n" +
 	"\x0eNetworkMetrics\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12$\n" +
 	"\rbytesReceived\x18\x02 \x01(\x03R\rbytesReceived\x12\x1c\n" +
@@ -7735,7 +7751,11 @@ const file_joblet_proto_rawDesc = "" +
 	"\bdropsOut\x18\t \x01(\x03R\bdropsOut\x12 \n" +
 	"\vreceiveRate\x18\n" +
 	" \x01(\x01R\vreceiveRate\x12\"\n" +
-	"\ftransmitRate\x18\v \x01(\x01R\ftransmitRate\"\xf4\x01\n" +
+	"\ftransmitRate\x18\v \x01(\x01R\ftransmitRate\x12 \n" +
+	"\vipAddresses\x18\f \x03(\tR\vipAddresses\x12\x1e\n" +
+	"\n" +
+	"macAddress\x18\r \x01(\tR\n" +
+	"macAddress\"\xf4\x01\n" +
 	"\tIOMetrics\x12\x1e\n" +
 	"\n" +
 	"totalReads\x18\x01 \x01(\x03R\n" +
