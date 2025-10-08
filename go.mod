@@ -26,3 +26,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
+
+tool github.com/maxbrunsfeld/counterfeiter/v6

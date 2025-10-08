@@ -769,12 +769,42 @@ func (s *JobServiceServer) GetJobMetricsSummary(ctx context.Context, req *pb.Job
 		return nil, status.Errorf(codes.Unimplemented, "metrics collection not enabled")
 	}
 
-	// TODO: Implement metrics aggregation
-	// This would involve:
-	// 1. Getting all samples for the job
-	// 2. Calculating min, max, avg, p50, p95, p99 for each metric type
-	// 3. Returning the aggregated results
+	// Check if job exists
+	jobID := req.GetUuid()
+	_, exists := s.jobStore.Job(jobID)
+	if !exists {
+		log.Warn("job not found")
+		return nil, status.Errorf(codes.NotFound, "job not found")
+	}
 
-	log.Warn("metrics summary not yet implemented")
-	return nil, status.Errorf(codes.Unimplemented, "metrics summary not yet implemented")
+	// Calculate time range for metrics
+	var from time.Time
+	if req.PeriodSeconds > 0 {
+		from = time.Now().Add(-time.Duration(req.PeriodSeconds) * time.Second)
+	}
+
+	// Get all metrics samples for the job
+	samples, err := s.metricsStore.GetHistoricalMetrics(jobID, from, time.Time{})
+	if err != nil {
+		log.Error("failed to read job metrics", "error", err)
+		return nil, status.Errorf(codes.Internal, "failed to read metrics: %v", err)
+	}
+
+	if len(samples) == 0 {
+		log.Warn("no metrics samples found for job")
+		return nil, status.Errorf(codes.NotFound, "no metrics samples found for job")
+	}
+
+	log.Debug("aggregating metrics", "sampleCount", len(samples))
+
+	// Aggregate metrics
+	response := &pb.JobMetricsSummaryResponse{
+		Cpu:     s.aggregateCPUMetrics(samples),
+		Memory:  s.aggregateMemoryMetrics(samples),
+		Io:      s.aggregateIOMetrics(samples),
+		Network: s.aggregateNetworkMetrics(samples),
+	}
+
+	log.Info("metrics summary calculated", "samples", len(samples))
+	return response, nil
 }

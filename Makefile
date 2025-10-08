@@ -2,7 +2,10 @@
 REMOTE_HOST ?= 192.168.1.161
 REMOTE_USER ?= jay
 
-.PHONY: all clean deploy test
+# Fix GOPATH if IntelliJ IDEA has set it incorrectly
+export GOPATH := $(HOME)/go
+
+.PHONY: all clean deploy test proto help
 
 all: proto
 	@echo "Building all components..."

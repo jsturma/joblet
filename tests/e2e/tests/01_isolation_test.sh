@@ -229,22 +229,32 @@ test_filesystem_isolation() {
 }
 
 test_chroot_environment() {
+    # Check 1: Try to access /proc/1/root - should fail in chroot
     local output=$(run_remote_job "ls -la /proc/1/root/ 2>/dev/null | head -10 || echo 'CHROOTED'")
-    
+
     if echo "$output" | grep -q "CHROOTED\|Permission denied"; then
-        echo "    Chroot environment detected"
+        echo "    Chroot environment detected (cannot access /proc/1/root)"
         return 0
     fi
-    
-    # Alternative check
-    local root_check=$(run_remote_job "stat / | grep Inode")
-    if echo "$root_check" | grep -q "Inode: 2"; then
-        echo "    Not in chroot (inode 2 indicates real root)"
-        return 1
+
+    # Check 2: Verify limited filesystem - real root has many more directories
+    local root_dirs=$(run_remote_job "ls -1 / 2>/dev/null | wc -l")
+    local dir_count=$(echo "$root_dirs" | grep -E '^[0-9]+$' | head -1)
+
+    if [[ -n "$dir_count" ]] && [[ "$dir_count" -lt 30 ]]; then
+        echo "    Chroot environment detected (limited root directories: $dir_count)"
+        return 0
     fi
-    
-    echo "    Chroot environment likely active"
-    return 0
+
+    # Check 3: Verify essential host directories are NOT accessible
+    local host_check=$(run_remote_job "[ -d /home/jay ] && echo 'HOST' || echo 'ISOLATED'")
+    if echo "$host_check" | grep -q "ISOLATED"; then
+        echo "    Chroot environment detected (host directories not accessible)"
+        return 0
+    fi
+
+    echo "    Chroot detection inconclusive"
+    return 1
 }
 
 run_test_check "Mount namespace isolation" test_mount_namespace

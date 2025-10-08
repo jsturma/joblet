@@ -67,7 +67,6 @@ func GetWorkflowStatus(workflowUUID string, detail bool) error {
 }
 
 // DeleteWorkflow deletes a workflow and its jobs
-// TODO: Implement once DeleteWorkflow RPC is added to proto
 func DeleteWorkflow(workflowUUID string) error {
 	return fmt.Errorf("workflow delete not yet implemented - please use 'rnx job delete' for individual jobs")
 }

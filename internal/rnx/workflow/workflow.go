@@ -26,7 +26,6 @@ Examples:
 	workflowCmd.AddCommand(NewWorkflowRunCmd())
 	workflowCmd.AddCommand(NewWorkflowListCmd())
 	workflowCmd.AddCommand(NewWorkflowStatusCmd())
-	// TODO: Add delete command once DeleteWorkflow RPC is available in proto
 
 	return workflowCmd
 }

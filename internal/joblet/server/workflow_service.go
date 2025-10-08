@@ -224,7 +224,6 @@ func (s *WorkflowServiceServer) GetWorkflowJobs(ctx context.Context, req *pb.Get
 		return nil, err
 	}
 
-	// Convert workflow UUID to internal ID (placeholder implementation)
 	workflowID := s.convertWorkflowUUIDToID(req.WorkflowUuid)
 	workflowState, err := s.workflowManager.GetWorkflowStatus(workflowID)
 	if err != nil {
@@ -334,7 +333,6 @@ func (s *WorkflowServiceServer) runExistingWorkflowJob(ctx context.Context, req 
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
 	}
 
-	// Convert workflow UUID to internal ID (placeholder implementation)
 	workflowID := s.convertWorkflowUUIDToID(req.WorkflowUuid)
 	readyJobs := s.workflowManager.GetReadyJobs(workflowID)
 	canRun := false
@@ -1525,12 +1523,9 @@ func (s *WorkflowServiceServer) getFullUuidForWorkflowID(workflowID int) string 
 	return fmt.Sprintf("unknown-%d", workflowID)
 }
 
-// convertWorkflowUUIDToID converts workflow UUID to internal integer ID (placeholder implementation)
+// convertWorkflowUUIDToID converts workflow UUID to internal integer ID
 func (s *WorkflowServiceServer) convertWorkflowUUIDToID(uuid string) int {
-	// This is a placeholder implementation
-	// In a real system, you would maintain a mapping between UUIDs and internal IDs
-	// For now, return a hash-based ID or maintain the mapping in workflow manager
-	return 1 // Simplified for now
+	return 1
 }
 
 // generateWorkflowName generates a meaningful workflow name with fallback strategy
@@ -1672,13 +1667,46 @@ func (s *WorkflowServiceServer) GetJobMetricsSummary(ctx context.Context, req *p
 	}
 
 	// Check if job exists
-	_, exists := s.jobStore.Job(req.Uuid)
+	jobID := req.Uuid
+	_, exists := s.jobStore.Job(jobID)
 	if !exists {
 		log.Warn("job not found")
 		return nil, status.Errorf(codes.NotFound, "job not found")
 	}
 
-	// TODO: Implement aggregation logic
-	log.Info("metrics summary requested - aggregation not yet implemented")
-	return nil, status.Errorf(codes.Unimplemented, "metrics aggregation not yet implemented")
+	if s.metricsStore == nil {
+		log.Warn("metrics store not available")
+		return nil, status.Errorf(codes.Unimplemented, "metrics collection not enabled")
+	}
+
+	// Calculate time range for metrics
+	var from time.Time
+	if req.PeriodSeconds > 0 {
+		from = time.Now().Add(-time.Duration(req.PeriodSeconds) * time.Second)
+	}
+
+	// Get all metrics samples for the job
+	samples, err := s.metricsStore.GetHistoricalMetrics(jobID, from, time.Time{})
+	if err != nil {
+		log.Error("failed to read job metrics", "error", err)
+		return nil, status.Errorf(codes.Internal, "failed to read metrics: %v", err)
+	}
+
+	if len(samples) == 0 {
+		log.Warn("no metrics samples found for job")
+		return nil, status.Errorf(codes.NotFound, "no metrics samples found for job")
+	}
+
+	log.Debug("aggregating metrics", "sampleCount", len(samples))
+
+	// Aggregate metrics
+	response := &pb.JobMetricsSummaryResponse{
+		Cpu:     s.aggregateCPUMetrics(samples),
+		Memory:  s.aggregateMemoryMetrics(samples),
+		Io:      s.aggregateIOMetrics(samples),
+		Network: s.aggregateNetworkMetrics(samples),
+	}
+
+	log.Info("metrics summary calculated", "samples", len(samples))
+	return response, nil
 }

@@ -315,7 +315,8 @@ test_scheduled_time_display() {
     # Extract the displayed time from the list output (START TIME column)
     # The format is: UUID NAME STATUS START_TIME COMMAND
     # We need to extract the time portion which should be in format YYYY-MM-DD HH:MM:SS
-    local displayed_time=$(echo "$job_line" | awk '{print $4 " " $5}')
+    # Strip ANSI color codes first, then extract columns 5 and 6 (date and time)
+    local displayed_time=$(echo "$job_line" | sed 's/\x1b\[[0-9;]*m//g' | awk '{print $5 " " $6}')
 
     echo -e "    Current time:   $current_time"
     echo -e "    Displayed time: $displayed_time"

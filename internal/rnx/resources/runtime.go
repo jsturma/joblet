@@ -305,9 +305,7 @@ func runRuntimeTest(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("runtime test failed")
 	}
 
-	// Use runtime.yml defined test command instead of hardcoded language-specific commands
-	testCmd := "echo 'Runtime available'" // Generic fallback
-	// TODO: Read test_command from runtime.yml when implementing generic approach
+	testCmd := "echo 'Runtime available'"
 
 	fmt.Printf("\nTo test the runtime in a job:\n")
 	fmt.Printf("  rnx job run --runtime=%s %s\n", runtimeSpec, testCmd)
