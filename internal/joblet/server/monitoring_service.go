@@ -260,6 +260,8 @@ func (s *MonitoringServiceServer) networkMetricsToProto(networks []domain.Networ
 			DropsOut:        int64(n.DropsSent),
 			ReceiveRate:     n.RxThroughputBPS,
 			TransmitRate:    n.TxThroughputBPS,
+			IpAddresses:     n.IPAddresses,
+			MacAddress:      n.MACAddress,
 		}
 	}
 	return result

@@ -74,19 +74,21 @@ type DiskMetrics struct {
 
 // NetworkMetrics contains network interface statistics
 type NetworkMetrics struct {
-	Interface       string  `json:"interface"`
-	BytesReceived   uint64  `json:"bytes_received"`
-	BytesSent       uint64  `json:"bytes_sent"`
-	PacketsReceived uint64  `json:"packets_received"`
-	PacketsSent     uint64  `json:"packets_sent"`
-	ErrorsReceived  uint64  `json:"errors_received"`
-	ErrorsSent      uint64  `json:"errors_sent"`
-	DropsReceived   uint64  `json:"drops_received"`
-	DropsSent       uint64  `json:"drops_sent"`
-	RxThroughputBPS float64 `json:"rx_throughput_bps"`
-	TxThroughputBPS float64 `json:"tx_throughput_bps"`
-	RxPacketsPerSec float64 `json:"rx_packets_per_sec"`
-	TxPacketsPerSec float64 `json:"tx_packets_per_sec"`
+	Interface       string   `json:"interface"`
+	BytesReceived   uint64   `json:"bytes_received"`
+	BytesSent       uint64   `json:"bytes_sent"`
+	PacketsReceived uint64   `json:"packets_received"`
+	PacketsSent     uint64   `json:"packets_sent"`
+	ErrorsReceived  uint64   `json:"errors_received"`
+	ErrorsSent      uint64   `json:"errors_sent"`
+	DropsReceived   uint64   `json:"drops_received"`
+	DropsSent       uint64   `json:"drops_sent"`
+	RxThroughputBPS float64  `json:"rx_throughput_bps"`
+	TxThroughputBPS float64  `json:"tx_throughput_bps"`
+	RxPacketsPerSec float64  `json:"rx_packets_per_sec"`
+	TxPacketsPerSec float64  `json:"tx_packets_per_sec"`
+	IPAddresses     []string `json:"ip_addresses"` // IP addresses assigned to this interface
+	MACAddress      string   `json:"mac_address"`  // Hardware MAC address
 }
 
 // IOMetrics contains block device I/O statistics

@@ -384,66 +384,23 @@ func displaySystemStatus(status *pb.SystemStatusRes) {
 	if len(status.Networks) > 0 {
 		fmt.Printf("Network Interfaces:\n")
 
-		// Create maps to track which MACs and IPs we've assigned
-		macIndex := 0
-		macAddresses := status.Host.MacAddresses
-		serverIPs := status.Host.ServerIPs
-
-		// Track which IPs have been assigned
-		assignedIPs := make(map[string]bool)
-
 		for _, net := range status.Networks {
 			fmt.Printf("  %s:\n", net.Interface)
 
-			// Determine if this is a physical interface
-			isPhysical := strings.HasPrefix(net.Interface, "ens") ||
-				strings.HasPrefix(net.Interface, "eth") ||
-				strings.HasPrefix(net.Interface, "enp") ||
-				strings.HasPrefix(net.Interface, "wlan")
-
-			// Try to assign IP address for this interface
-			var interfaceIP string
-			if net.Interface == "lo" {
-				interfaceIP = "127.0.0.1"
-			} else if isPhysical {
-				// For physical interfaces, prefer non-Docker/bridge IPs
-				for _, ip := range serverIPs {
-					if !assignedIPs[ip] && !strings.HasPrefix(ip, "172.") && !strings.HasPrefix(ip, "10.") {
-						interfaceIP = ip
-						assignedIPs[ip] = true
-						break
-					}
-				}
-				// Fallback to any unassigned IP
-				if interfaceIP == "" {
-					for _, ip := range serverIPs {
-						if !assignedIPs[ip] {
-							interfaceIP = ip
-							assignedIPs[ip] = true
-							break
-						}
-					}
-				}
-			} else {
-				// For virtual/bridge interfaces, prefer Docker/bridge IPs
-				for _, ip := range serverIPs {
-					if !assignedIPs[ip] && (strings.HasPrefix(ip, "172.") || strings.HasPrefix(ip, "10.")) {
-						interfaceIP = ip
-						assignedIPs[ip] = true
+			// Display IP addresses (from protobuf data, not guessing)
+			if len(net.IpAddresses) > 0 {
+				// Display first IPv4 address as primary
+				for _, ip := range net.IpAddresses {
+					if !strings.Contains(ip, ":") { // Simple IPv4 check
+						fmt.Printf("    IP:   %s\n", ip)
 						break
 					}
 				}
 			}
 
-			// Display IP if found
-			if interfaceIP != "" {
-				fmt.Printf("    IP:   %s\n", interfaceIP)
-			}
-
-			// Try to display MAC address for this interface (skip loopback)
-			if net.Interface != "lo" && macIndex < len(macAddresses) {
-				fmt.Printf("    MAC:  %s\n", macAddresses[macIndex])
-				macIndex++
+			// Display MAC address (from protobuf data, not guessing)
+			if net.MacAddress != "" {
+				fmt.Printf("    MAC:  %s\n", net.MacAddress)
 			}
 
 			fmt.Printf("    RX:   %s (%d packets, %d errors)\n",

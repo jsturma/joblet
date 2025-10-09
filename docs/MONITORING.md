@@ -136,18 +136,70 @@ Displays comprehensive **remote server** status including all server resources a
 
 **Features:**
 
-- Complete remote server overview
-- Server cloud environment detection
-- Server-side volume usage statistics
-- Server process state breakdown
-- Server network interface details
+- **Complete remote server overview** with version information
+- **Joblet server version** - Full version, git tag, commit hash, build date
+- **Host information** - Hostname, OS, kernel, uptime, node ID
+- **Network interfaces** - IP addresses, MAC addresses, traffic statistics per interface
+- **Server cloud environment detection** - AWS, GCP, Azure, KVM support
+- **Server-side volume usage statistics** - All joblet volumes tracked
+- **Server process state breakdown** - Running, sleeping, zombie processes
+- **Resource utilization** - CPU, memory, disk, I/O metrics
+
+**Enhanced Display (v4.7.2+):**
+
+The status command now includes:
+1. **Joblet Server Version Information** - Shows version, git tag, commit, build date, Go version
+2. **Network Interface Details** - Each interface displays:
+   - IP address (intelligently mapped to interfaces)
+   - MAC address (hardware address)
+   - RX/TX statistics with real-time rates
+   - Packet counts and error tracking
 
 **Usage:**
 
 ```bash
-rnx monitor status                    # Server status
+rnx monitor status                    # Server status with version info
 rnx monitor status --json            # JSON format (server data)
 rnx --node=production monitor status # Specific server node
+```
+
+**Example Output:**
+
+```
+System Status - 2025-10-08T18:45:14Z
+Available: true
+
+Host Information:
+  Hostname:     joblet-server
+  OS:           Ubuntu 22.04.2 LTS
+  Kernel:       5.15.0-153-generic
+  Architecture: amd64
+  Uptime:       33d 4h 58m
+  Node ID:      8eb41e22-2940-4f83-9066-7d739d057ad2
+  Server IPs:   192.168.1.161, 172.20.0.1
+  MAC Addresses: 5e:9f:b0:c0:61:22, 1e:45:87:fe:bc:53
+
+Joblet Server:
+  Version:      v4.7.2
+  Git Tag:      v4.7.2
+  Git Commit:   00df3a5ee3d6ae7e25078d610e05b977cd8a1812
+  Build Date:   2025-10-08T18:44:40Z
+  Go Version:   go1.24.0
+  Platform:     linux/amd64
+
+Network Interfaces:
+  ens18:
+    IP:   192.168.1.161
+    MAC:  5e:9f:b0:c0:61:22
+    RX:   16.1 GB (10264780 packets, 0 errors)
+    TX:   986.9 MB (3558641 packets, 0 errors)
+    Rate: RX 167 B/s TX 699 B/s
+  joblet0:
+    IP:   172.20.0.1
+    MAC:  1e:45:87:fe:bc:53
+    RX:   5.7 MB (73297 packets, 0 errors)
+    TX:   6.7 MB (73490 packets, 0 errors)
+    Rate: RX 0 B/s TX 0 B/s
 ```
 
 ### `rnx monitor top`
@@ -217,10 +269,25 @@ rnx monitor watch --json --interval=10       # JSON server streaming
 
 ### Network Metrics
 
-- **Interface Statistics**: All network interfaces
-- **Traffic Throughput**: Real-time RX/TX rates
-- **Packet Counts**: Received/transmitted packets
-- **Error Statistics**: Network errors and drops
+- **Interface Statistics**: All network interfaces with IP and MAC addresses
+- **IP Addresses**: Per-interface IP address assignment (IPv4 and IPv6)
+- **MAC Addresses**: Hardware addresses for physical network interfaces
+- **Traffic Throughput**: Real-time RX/TX rates (bytes per second)
+- **Packet Counts**: Received/transmitted packets with error tracking
+- **Error Statistics**: Network errors and drops per interface
+- **Rate Calculation**: Automatic throughput rate computation
+
+**NetworkCollector Implementation:**
+The monitoring system uses a dedicated NetworkCollector that:
+- Reads interface statistics from `/proc/net/dev` for bandwidth metrics
+- Retrieves actual IP addresses and MAC addresses directly from each interface using Go's `net` package
+- Calculates real-time throughput metrics
+- Filters virtual interfaces (veth, bridges, loopback)
+- Tracks cumulative and rate-based metrics
+- Supports both IPv4 and IPv6 addressing
+- **No heuristics or guessing** - all interface data comes directly from the system
+
+Location: `/internal/joblet/monitoring/collectors/network.go`
 
 ### Process Metrics
 

@@ -1102,9 +1102,18 @@ rnx monitor <subcommand> [flags]
 - Real-time server resource utilization tracking from client
 - Server cloud environment detection (AWS, GCP, Azure, KVM, etc.)
 - Remote joblet volume usage and availability monitoring
-- Server network throughput and packet statistics
+- Server network throughput and packet statistics with accurate per-interface IP and MAC addresses
 - Server process state tracking (running, sleeping, stopped, zombie)
 - Server per-core CPU utilization breakdown
+- Joblet server version information (version, git tag, commit, build date, Go version)
+
+**Network Interface Display (v4.7.3+):**
+
+The `rnx monitor status` command displays accurate network interface information retrieved directly from the joblet server:
+- **IP Addresses**: Actual IP addresses assigned to each interface (not guessed)
+- **MAC Addresses**: Hardware MAC addresses for physical interfaces (not guessed)
+- **Traffic Statistics**: Real-time RX/TX rates, packet counts, and error tracking
+- **Implementation**: Data collected using Go's `net` package for accuracy, no heuristics
 
 **Remote JSON Data Format:**
 

@@ -3,6 +3,7 @@ package collectors
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -65,6 +66,11 @@ func (c *NetworkCollector) Collect() ([]domain.NetworkMetrics, error) {
 			DropsReceived:   current.dropsReceived,
 			DropsSent:       current.dropsSent,
 		}
+
+		// Get IP addresses and MAC address for this interface
+		ipAddrs, macAddr := c.getInterfaceAddresses(interfaceName)
+		metric.IPAddresses = ipAddrs
+		metric.MACAddress = macAddr
 
 		// Calculate throughput metrics if we have previous stats
 		if last, exists := c.lastStats[interfaceName]; exists && c.lastTime.Before(currentTime) {
@@ -175,4 +181,33 @@ func (c *NetworkCollector) shouldSkipInterface(interfaceName string) bool {
 	}
 
 	return false
+}
+
+// getInterfaceAddresses retrieves IP addresses and MAC address for a network interface
+func (c *NetworkCollector) getInterfaceAddresses(interfaceName string) ([]string, string) {
+	iface, err := net.InterfaceByName(interfaceName)
+	if err != nil {
+		c.logger.Debug("failed to get interface details", "interface", interfaceName, "error", err)
+		return nil, ""
+	}
+
+	// Get MAC address
+	macAddr := iface.HardwareAddr.String()
+
+	// Get IP addresses
+	addrs, err := iface.Addrs()
+	if err != nil {
+		c.logger.Debug("failed to get interface addresses", "interface", interfaceName, "error", err)
+		return nil, macAddr
+	}
+
+	var ipAddresses []string
+	for _, addr := range addrs {
+		// Parse the address to get just the IP (without CIDR notation)
+		if ipNet, ok := addr.(*net.IPNet); ok {
+			ipAddresses = append(ipAddresses, ipNet.IP.String())
+		}
+	}
+
+	return ipAddresses, macAddr
 }
