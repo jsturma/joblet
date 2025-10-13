@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 
-	"joblet/internal/joblet/domain"
-	"joblet/internal/joblet/pubsub"
-	"joblet/pkg/config"
-	"joblet/pkg/logger"
+	"github.com/ehsaniara/joblet/internal/joblet/domain"
+	"github.com/ehsaniara/joblet/internal/joblet/pubsub"
+	"github.com/ehsaniara/joblet/pkg/config"
+	"github.com/ehsaniara/joblet/pkg/logger"
 )
 
 // Direct constructors to replace the over-engineered factory pattern
@@ -31,11 +31,7 @@ func NewJobStore(cfg *config.BuffersConfig, logger *logger.Logger) JobStorer {
 
 	logMgr := NewSimpleLogManager()
 
-	// Create with log persistence if configured
-	if cfg != nil && cfg.LogPersistence.Directory != "" {
-		return NewJobStorerWithLogPersistence(store, logMgr, pubsubSystem, &cfg.LogPersistence, logger)
-	}
-
+	// Logs are buffered in-memory for real-time streaming and forwarded to persist via IPC
 	return NewJobStorer(store, logMgr, pubsubSystem, logger)
 }
 

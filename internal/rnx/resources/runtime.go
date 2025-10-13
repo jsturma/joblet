@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ehsaniara/joblet/internal/rnx/common"
+	"github.com/ehsaniara/joblet/pkg/client"
 	"io"
-	"joblet/internal/rnx/common"
-	"joblet/pkg/client"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,7 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	pb "joblet/api/gen"
+	pb "github.com/ehsaniara/joblet/api/gen"
 
 	"github.com/spf13/cobra"
 )
@@ -623,13 +623,8 @@ func runGitHubRuntimeList(githubRepo string) error {
 	fmt.Fprintln(w, "-------\t-------\t--------\t---------\t-----------")
 
 	for name, rt := range runtimes {
-		// Count supported platforms
-		platformCount := 0
-		for _, platform := range rt.Platforms {
-			if platform.Supported {
-				platformCount++
-			}
-		}
+		// Count supported platforms (now platforms is a string array)
+		platformCount := len(rt.Platforms)
 		platformStr := fmt.Sprintf("%d platforms", platformCount)
 
 		// Truncate description if too long
@@ -665,24 +660,20 @@ type GitHubManifest struct {
 }
 
 type ManifestRuntime struct {
-	Name          string                      `json:"name"`
-	DisplayName   string                      `json:"display_name"`
-	Version       string                      `json:"version"`
-	Description   string                      `json:"description"`
-	Category      string                      `json:"category"`
-	Language      string                      `json:"language"`
-	Platforms     map[string]ManifestPlatform `json:"platforms"`
-	Requirements  ManifestRequirements        `json:"requirements"`
-	Provides      ManifestProvides            `json:"provides"`
-	Documentation ManifestDocumentation       `json:"documentation"`
-	Tags          []string                    `json:"tags"`
-}
-
-type ManifestPlatform struct {
-	Supported   bool   `json:"supported"`
-	ArchiveURL  string `json:"archive_url"`
-	ArchiveSize int64  `json:"archive_size"`
-	Checksum    string `json:"checksum"`
+	Name          string                `json:"name"`
+	DisplayName   string                `json:"display_name"`
+	Version       string                `json:"version"`
+	Description   string                `json:"description"`
+	Category      string                `json:"category"`
+	Language      string                `json:"language"`
+	ArchiveURL    string                `json:"archive_url"`
+	ArchiveSize   int64                 `json:"archive_size"`
+	Checksum      string                `json:"checksum"`
+	Platforms     []string              `json:"platforms"`
+	Requirements  ManifestRequirements  `json:"requirements"`
+	Provides      ManifestProvides      `json:"provides"`
+	Documentation ManifestDocumentation `json:"documentation"`
+	Tags          []string              `json:"tags"`
 }
 
 type ManifestRequirements struct {

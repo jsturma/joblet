@@ -37,6 +37,13 @@ fi
 
 echo "🔨 Building RPM package for $PACKAGE_NAME v$CLEAN_VERSION ($RPM_ARCH)..."
 
+# Build all binaries first
+echo "📦 Building all binaries..."
+make all || {
+    echo "❌ Build failed!"
+    exit 1
+}
+
 # Get the current date for changelog
 CHANGELOG_DATE=$(date '+%a %b %d %Y')
 
@@ -48,17 +55,23 @@ mkdir -p "$BUILD_DIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 mkdir -p "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}"
 
 # Copy binaries
-if [ ! -f "./joblet" ]; then
+if [ ! -f "./bin/joblet" ]; then
     echo "❌ Joblet binary not found!"
     exit 1
 fi
-cp ./joblet "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+cp ./bin/joblet "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
 
-if [ ! -f "./rnx" ]; then
+if [ ! -f "./bin/rnx" ]; then
     echo "❌ RNX CLI binary not found!"
     exit 1
 fi
-cp ./rnx "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+cp ./bin/rnx "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+
+if [ ! -f "./bin/joblet-persist" ]; then
+    echo "❌ joblet-persist binary not found!"
+    exit 1
+fi
+cp ./bin/joblet-persist "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
 
 # Copy scripts and configs
 cp -r ./scripts "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/" || {
@@ -79,6 +92,8 @@ for file in joblet-config-template.yml rnx-config-template.yml joblet.service ce
         fi
     fi
 done
+
+# Note: joblet-persist now runs as a subprocess of joblet, no separate service needed
 
 # Create the spec file with network support
 cat > "$BUILD_DIR/SPECS/${PACKAGE_NAME}.spec" << EOF
@@ -133,20 +148,23 @@ management, and network isolation features (bridge, isolated, and custom network
 rm -rf \$RPM_BUILD_ROOT
 
 # Create directories
-mkdir -p \$RPM_BUILD_ROOT/opt/joblet
+mkdir -p \$RPM_BUILD_ROOT/opt/joblet/bin
 mkdir -p \$RPM_BUILD_ROOT/opt/joblet/scripts
 mkdir -p \$RPM_BUILD_ROOT/etc/systemd/system
 mkdir -p \$RPM_BUILD_ROOT/usr/local/bin
 mkdir -p \$RPM_BUILD_ROOT/var/lib/joblet
 mkdir -p \$RPM_BUILD_ROOT/etc/modules-load.d
 
-# Install binaries
-cp joblet \$RPM_BUILD_ROOT/opt/joblet/
-cp rnx \$RPM_BUILD_ROOT/opt/joblet/
+# Install binaries to /opt/joblet/bin
+cp joblet \$RPM_BUILD_ROOT/opt/joblet/bin/
+cp rnx \$RPM_BUILD_ROOT/opt/joblet/bin/
+cp joblet-persist \$RPM_BUILD_ROOT/opt/joblet/bin/
 
 # Install config templates and scripts
 cp scripts/joblet-config-template.yml \$RPM_BUILD_ROOT/opt/joblet/scripts/
 cp scripts/rnx-config-template.yml \$RPM_BUILD_ROOT/opt/joblet/scripts/
+
+# joblet-persist runs as subprocess, no separate service needed
 
 # Install systemd service
 cp scripts/joblet.service \$RPM_BUILD_ROOT/etc/systemd/system/
@@ -156,7 +174,7 @@ cp scripts/certs_gen_embedded.sh \$RPM_BUILD_ROOT/usr/local/bin/
 chmod +x \$RPM_BUILD_ROOT/usr/local/bin/certs_gen_embedded.sh
 
 # Create symlinks for system-wide commands
-ln -sf /opt/joblet/rnx \$RPM_BUILD_ROOT/usr/local/bin/rnx
+ln -sf /opt/joblet/bin/rnx \$RPM_BUILD_ROOT/usr/local/bin/rnx
 
 # Create br_netfilter module loading config
 cat > \$RPM_BUILD_ROOT/etc/modules-load.d/joblet.conf << 'MODULESEOF'
@@ -185,7 +203,7 @@ echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-joblet.conf
 systemctl daemon-reload
 
 # Enable and start the service
-echo "To start Joblet service, run:"
+echo "To start Joblet service (includes joblet-persist as subprocess), run:"
 echo "  sudo systemctl start joblet"
 echo "  sudo systemctl enable joblet"
 echo ""
@@ -242,8 +260,9 @@ fi
 
 %files
 %defattr(-,root,root,-)
-/opt/joblet/joblet
-/opt/joblet/rnx
+/opt/joblet/bin/joblet
+/opt/joblet/bin/rnx
+/opt/joblet/bin/joblet-persist
 /opt/joblet/scripts/joblet-config-template.yml
 /opt/joblet/scripts/rnx-config-template.yml
 /etc/systemd/system/joblet.service
@@ -252,6 +271,7 @@ fi
 /etc/modules-load.d/joblet.conf
 
 %dir /opt/joblet
+%dir /opt/joblet/bin
 %dir /opt/joblet/scripts
 %dir /var/lib/joblet
 %dir /etc/modules-load.d

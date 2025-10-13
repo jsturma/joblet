@@ -6,14 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	pb "joblet/api/gen"
-	"joblet/internal/rnx/common"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	pb "github.com/ehsaniara/joblet/api/gen"
+	persistpb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
+	"github.com/ehsaniara/joblet/internal/rnx/common"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -58,10 +61,20 @@ func runLog(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		<-sigCh
-		fmt.Println("\nℹ️ Stopping log stream...")
+		fmt.Println("\nStopping log stream...")
 		cancel()
 	}()
 
+	// Step 1: Try to fetch historical logs from joblet-persist first
+	if err := streamHistoricalLogs(ctx, jobID); err != nil {
+		// If persist is unavailable, not implemented, or has no data, that's OK - we'll just stream live logs
+		// Only show warning for unexpected errors
+		if !errors.Is(err, io.EOF) && !isUnavailableError(err) && !isNotImplementedError(err) {
+			fmt.Fprintf(os.Stderr, "⚠️  Warning: couldn't fetch historical logs: %v\n", err)
+		}
+	}
+
+	// Step 2: Stream live logs from joblet-core
 	jobClient, err := common.NewJobClient()
 	if err != nil {
 		return fmt.Errorf("couldn't connect to joblet server: %w", err)
@@ -110,4 +123,96 @@ func outputLogChunkJSON(chunk *pb.DataChunk) error {
 
 	encoder := json.NewEncoder(os.Stdout)
 	return encoder.Encode(logEntry)
+}
+
+// streamHistoricalLogs fetches and displays historical logs from joblet-persist
+func streamHistoricalLogs(ctx context.Context, jobID string) error {
+	persistClient, err := common.NewPersistClient()
+	if err != nil {
+		return fmt.Errorf("couldn't connect to joblet-persist: %w", err)
+	}
+	defer persistClient.Close()
+
+	// Query all historical logs (no limit)
+	req := &persistpb.QueryLogsRequest{
+		JobId: jobID,
+		// stream: UNSPECIFIED means both STDOUT and STDERR
+		Limit:  0, // No limit - fetch all
+		Offset: 0,
+	}
+
+	stream, err := persistClient.QueryLogs(ctx, req)
+	if err != nil {
+		return fmt.Errorf("couldn't query historical logs: %w", err)
+	}
+
+	// Read all historical log lines
+	for {
+		logLine, e := stream.Recv()
+		if e == io.EOF {
+			// End of historical logs - this is expected
+			return nil
+		}
+		if e != nil {
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return nil
+			}
+			// Check for expected/non-critical errors
+			if s, ok := status.FromError(e); ok {
+				switch s.Code() {
+				case codes.NotFound:
+					// No historical logs exist - silently continue to live logs
+					return nil
+				case codes.Unimplemented:
+					// QueryLogs not implemented yet - silently continue to live logs
+					return nil
+				case codes.Unknown:
+					// Check if it's the "not implemented yet" message
+					if strings.Contains(s.Message(), "not implemented") {
+						return nil
+					}
+				}
+			}
+			return fmt.Errorf("error receiving historical log: %v", e)
+		}
+
+		// Output the historical log line
+		if common.JSONOutput {
+			logEntry := map[string]interface{}{
+				"timestamp": time.Unix(0, logLine.Timestamp).Format(time.RFC3339),
+				"data":      logLine.Content,
+				"stream":    logLine.Stream.String(),
+				"sequence":  logLine.Sequence,
+			}
+			encoder := json.NewEncoder(os.Stdout)
+			if err := encoder.Encode(logEntry); err != nil {
+				return fmt.Errorf("couldn't format log as JSON: %v", err)
+			}
+		} else {
+			fmt.Printf("%s", logLine.Content)
+		}
+	}
+}
+
+// isUnavailableError checks if the error is due to service being unavailable
+func isUnavailableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s, ok := status.FromError(err)
+	return ok && s.Code() == codes.Unavailable
+}
+
+// isNotImplementedError checks if the error is due to feature not being implemented
+func isNotImplementedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	// Check for Unimplemented code or Unknown with "not implemented" message
+	return s.Code() == codes.Unimplemented ||
+		(s.Code() == codes.Unknown && strings.Contains(s.Message(), "not implemented"))
 }

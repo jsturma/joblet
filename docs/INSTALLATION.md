@@ -40,15 +40,17 @@ sudo apt install -y curl tar make gcc
 curl -L https://github.com/ehsaniara/joblet/releases/latest/download/joblet-linux-amd64.tar.gz | tar xz
 sudo mv joblet /usr/local/bin/
 sudo mv rnx /usr/local/bin/
-sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx
+sudo mv joblet-persist /usr/local/bin/
+sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx /usr/local/bin/joblet-persist
 
 # Create directories
-sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes}
+sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes,logs,metrics,run}
 sudo mkdir -p /var/log/joblet
 
 # Verify installation
 joblet --version
 rnx --version
+joblet-persist version
 ```
 
 ### Red Hat Enterprise Linux/CentOS/Fedora Installation (Version 8 and Later)
@@ -61,10 +63,11 @@ sudo dnf install -y curl tar make gcc
 curl -L https://github.com/ehsaniara/joblet/releases/latest/download/joblet-linux-amd64.tar.gz | tar xz
 sudo mv joblet /usr/local/bin/
 sudo mv rnx /usr/local/bin/
-sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx
+sudo mv joblet-persist /usr/local/bin/
+sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx /usr/local/bin/joblet-persist
 
 # Create directories
-sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes}
+sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes,logs,metrics,run}
 sudo mkdir -p /var/log/joblet
 
 # Enable cgroups v2 if needed
@@ -82,10 +85,11 @@ sudo yum install -y curl tar make gcc
 curl -L https://github.com/ehsaniara/joblet/releases/latest/download/joblet-linux-amd64.tar.gz | tar xz
 sudo mv joblet /usr/local/bin/
 sudo mv rnx /usr/local/bin/
-sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx
+sudo mv joblet-persist /usr/local/bin/
+sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx /usr/local/bin/joblet-persist
 
 # Create directories
-sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes}
+sudo mkdir -p /opt/joblet/{config,state,certs,jobs,volumes,logs,metrics,run}
 sudo mkdir -p /var/log/joblet
 ```
 
@@ -109,7 +113,8 @@ sudo mv rnx /usr/local/bin/
 curl -L https://github.com/ehsaniara/joblet/releases/latest/download/joblet-linux-arm64.tar.gz | tar xz
 sudo mv joblet /usr/local/bin/
 sudo mv rnx /usr/local/bin/
-sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx
+sudo mv joblet-persist /usr/local/bin/
+sudo chmod +x /usr/local/bin/joblet /usr/local/bin/rnx /usr/local/bin/joblet-persist
 ```
 
 ## AWS EC2 Deployment with Terraform
@@ -732,11 +737,12 @@ git clone https://github.com/ehsaniara/joblet.git
 cd joblet
 
 # Build all binaries
-make build
+make all
 
 # Or build manually
-go build -o joblet ./cmd/joblet
-go build -o rnx ./cmd/rnx
+go build -o bin/joblet ./cmd/joblet
+go build -o bin/rnx ./cmd/rnx
+cd persist && go build -o ../bin/joblet-persist ./cmd/joblet-persist
 
 # Run tests
 make test
@@ -828,12 +834,16 @@ openssl x509 -req -in client.csr -CA ca-cert.pem -CAkey ca-key.pem \
 
 ## 🚀 Systemd Service Setup
 
-### Create Service File
+Joblet uses a single systemd service. The persistence layer (joblet-persist) runs as an embedded subprocess.
+
+### Create Joblet Service File
+
+**Note:** joblet-persist now runs as a subprocess of joblet. Only one service is needed.
 
 ```bash
 sudo tee /etc/systemd/system/joblet.service > /dev/null <<EOF
 [Unit]
-Description=Joblet Job Execution Service
+Description=Joblet Job Execution Service with Embedded Persistence
 After=network-online.target
 Wants=network-online.target
 
@@ -866,17 +876,18 @@ EOF
 # Reload systemd
 sudo systemctl daemon-reload
 
-# Enable service
+# Enable and start joblet service
 sudo systemctl enable joblet
-
-# Start service
 sudo systemctl start joblet
 
 # Check status
 sudo systemctl status joblet
 
-# View logs
+# View logs (includes both joblet and persist subprocess logs)
 sudo journalctl -u joblet -f
+
+# View only persist subprocess logs
+sudo journalctl -u joblet -f | grep '\[PERSIST\]'
 ```
 
 ## 🖥️ Development Environment Setup
@@ -926,14 +937,20 @@ Joblet provides native Linux process isolation with:
 ### Server Health Check
 
 ```bash
-# Check if server is running
+# Check if both services are running
+sudo systemctl is-active joblet-persist
 sudo systemctl is-active joblet
 
-# Test server locally
+# Test binaries locally
 sudo joblet --version
+sudo joblet-persist version
 
-# Check listening port
-sudo ss -tlnp | grep 50051
+# Check listening ports
+sudo ss -tlnp | grep 50051  # Main joblet service
+sudo ss -tlnp | grep 50052  # Persist service (optional gRPC)
+
+# Verify Unix socket for IPC
+ls -la /opt/joblet/run/persist.sock
 ```
 
 ### Client Connectivity Test

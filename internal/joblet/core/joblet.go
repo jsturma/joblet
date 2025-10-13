@@ -10,22 +10,22 @@ import (
 	"strings"
 	"time"
 
-	"joblet/internal/joblet/adapters"
-	"joblet/internal/joblet/core/cleanup"
-	"joblet/internal/joblet/core/filesystem"
-	"joblet/internal/joblet/core/interfaces"
-	"joblet/internal/joblet/core/job"
-	"joblet/internal/joblet/core/process"
-	"joblet/internal/joblet/core/resource"
-	"joblet/internal/joblet/core/unprivileged"
-	"joblet/internal/joblet/core/upload"
-	"joblet/internal/joblet/domain"
-	"joblet/internal/joblet/gpu"
-	metricsdomain "joblet/internal/joblet/metrics/domain"
-	"joblet/internal/joblet/scheduler"
-	"joblet/pkg/config"
-	"joblet/pkg/logger"
-	"joblet/pkg/platform"
+	"github.com/ehsaniara/joblet/internal/joblet/adapters"
+	"github.com/ehsaniara/joblet/internal/joblet/core/cleanup"
+	"github.com/ehsaniara/joblet/internal/joblet/core/filesystem"
+	"github.com/ehsaniara/joblet/internal/joblet/core/interfaces"
+	"github.com/ehsaniara/joblet/internal/joblet/core/job"
+	"github.com/ehsaniara/joblet/internal/joblet/core/process"
+	"github.com/ehsaniara/joblet/internal/joblet/core/resource"
+	"github.com/ehsaniara/joblet/internal/joblet/core/unprivileged"
+	"github.com/ehsaniara/joblet/internal/joblet/core/upload"
+	"github.com/ehsaniara/joblet/internal/joblet/domain"
+	"github.com/ehsaniara/joblet/internal/joblet/gpu"
+	metricsdomain "github.com/ehsaniara/joblet/internal/joblet/metrics/domain"
+	"github.com/ehsaniara/joblet/internal/joblet/scheduler"
+	"github.com/ehsaniara/joblet/pkg/config"
+	"github.com/ehsaniara/joblet/pkg/logger"
+	"github.com/ehsaniara/joblet/pkg/platform"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
@@ -253,12 +253,10 @@ func (j *Joblet) executeJob(ctx context.Context, job *domain.Job, req job.BuildR
 	// Update job state
 	j.updateJobRunning(job, cmd)
 
-	// Start metrics collection if enabled
-	if j.metricsStore != nil && j.config.JobMetrics.Enabled {
-		sampleInterval := j.config.JobMetrics.DefaultSampleRate
-		if sampleInterval == 0 {
-			sampleInterval = 5 * time.Second // Default to 5 seconds
-		}
+	// Start metrics collection (always enabled for pubsub live streaming)
+	// Metrics are sent to pubsub for real-time clients AND to persist via IPC
+	if j.metricsStore != nil {
+		sampleInterval := 5 * time.Second // Default sample interval
 
 		// Get GPU indices from job if allocated
 		var gpuIndices []int
@@ -540,6 +538,10 @@ func (j *Joblet) monitorJob(ctx context.Context, cmd platform.Command, job *doma
 
 	// Wait for completion
 	err := cmd.Wait()
+
+	// Give a brief moment for final log chunks to be written and published
+	// cmd.Wait() ensures pipes are closed, but async pubsub publishes might still be in flight
+	time.Sleep(300 * time.Millisecond)
 
 	// Determine final status
 	var exitCode int32

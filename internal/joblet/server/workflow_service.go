@@ -9,19 +9,19 @@ import (
 	"sync"
 	"time"
 
-	pb "joblet/api/gen"
-	"joblet/internal/joblet/adapters"
-	auth2 "joblet/internal/joblet/auth"
-	"joblet/internal/joblet/core/interfaces"
-	"joblet/internal/joblet/core/validation"
-	"joblet/internal/joblet/core/volume"
-	"joblet/internal/joblet/domain"
-	"joblet/internal/joblet/mappers"
-	metricsdomain "joblet/internal/joblet/metrics/domain"
-	"joblet/internal/joblet/runtime"
-	"joblet/internal/joblet/workflow"
-	"joblet/internal/joblet/workflow/types"
-	"joblet/pkg/logger"
+	pb "github.com/ehsaniara/joblet/api/gen"
+	"github.com/ehsaniara/joblet/internal/joblet/adapters"
+	auth2 "github.com/ehsaniara/joblet/internal/joblet/auth"
+	"github.com/ehsaniara/joblet/internal/joblet/core/interfaces"
+	"github.com/ehsaniara/joblet/internal/joblet/core/validation"
+	"github.com/ehsaniara/joblet/internal/joblet/core/volume"
+	"github.com/ehsaniara/joblet/internal/joblet/domain"
+	"github.com/ehsaniara/joblet/internal/joblet/mappers"
+	metricsdomain "github.com/ehsaniara/joblet/internal/joblet/metrics/domain"
+	"github.com/ehsaniara/joblet/internal/joblet/runtime"
+	"github.com/ehsaniara/joblet/internal/joblet/workflow"
+	"github.com/ehsaniara/joblet/internal/joblet/workflow/types"
+	"github.com/ehsaniara/joblet/pkg/logger"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1380,48 +1380,37 @@ func (s *WorkflowServiceServer) mergeEnvironmentVariables(workflowYAML *Workflow
 	mergedEnvironment := make(map[string]string)
 	mergedSecretEnvironment := make(map[string]string)
 
-	// Copy global workflow environment variables
-	if workflowYAML.Environment != nil {
-		for key, value := range workflowYAML.Environment {
-			// Apply basic templating to global variables
-			processedValue := s.processEnvironmentTemplating(value, workflowYAML.Environment, workflowYAML.SecretEnvironment)
-			mergedEnvironment[key] = processedValue
-			log.Debug("inherited global environment variable", "key", key, "value", processedValue)
-		}
-	}
-
-	// Copy global workflow secret environment variables
-	if workflowYAML.SecretEnvironment != nil {
-		for key, value := range workflowYAML.SecretEnvironment {
-			// Apply basic templating to global secret variables
-			processedValue := s.processEnvironmentTemplating(value, workflowYAML.Environment, workflowYAML.SecretEnvironment)
-			mergedSecretEnvironment[key] = processedValue
-			log.Debug("inherited global secret environment variable", "key", key)
-		}
-	}
-
-	// Override with job-specific environment variables
+	// Process job-specific environment variables
 	if jobSpec.Environment != nil {
 		for key, value := range jobSpec.Environment {
-			// Apply templating to job-specific variables (can reference global vars)
-			processedValue := s.processEnvironmentTemplating(value, mergedEnvironment, mergedSecretEnvironment)
-			mergedEnvironment[key] = processedValue
-			log.Debug("job-specific environment variable", "key", key, "value", processedValue, "overrode_global", workflowYAML.Environment != nil && workflowYAML.Environment[key] != "")
-		}
-	}
-
-	// Override with job-specific secret environment variables
-	if jobSpec.SecretEnvironment != nil {
-		for key, value := range jobSpec.SecretEnvironment {
-			// Apply templating to job-specific secret variables
-			processedValue := s.processEnvironmentTemplating(value, mergedEnvironment, mergedSecretEnvironment)
-			mergedSecretEnvironment[key] = processedValue
-			log.Debug("job-specific secret environment variable", "key", key, "overrode_global", workflowYAML.SecretEnvironment != nil && workflowYAML.SecretEnvironment[key] != "")
+			// Separate secrets from regular environment variables based on naming convention
+			if isSecretKey(key) {
+				// Apply templating to secret variables
+				processedValue := s.processEnvironmentTemplating(value, mergedEnvironment, mergedSecretEnvironment)
+				mergedSecretEnvironment[key] = processedValue
+				log.Debug("job secret environment variable", "key", key)
+			} else {
+				// Apply templating to regular variables
+				processedValue := s.processEnvironmentTemplating(value, mergedEnvironment, mergedSecretEnvironment)
+				mergedEnvironment[key] = processedValue
+				log.Debug("job environment variable", "key", key, "value", processedValue)
+			}
 		}
 	}
 
 	log.Info("environment variables merged", "total_env_vars", len(mergedEnvironment), "total_secret_vars", len(mergedSecretEnvironment))
 	return mergedEnvironment, mergedSecretEnvironment
+}
+
+// isSecretKey determines if an environment variable key represents a secret based on naming conventions.
+// Keys starting with "SECRET_" or ending with "_TOKEN", "_KEY", "_PASSWORD", "_SECRET" are considered secrets.
+func isSecretKey(key string) bool {
+	key = strings.ToUpper(key)
+	return strings.HasPrefix(key, "SECRET_") ||
+		strings.HasSuffix(key, "_TOKEN") ||
+		strings.HasSuffix(key, "_KEY") ||
+		strings.HasSuffix(key, "_PASSWORD") ||
+		strings.HasSuffix(key, "_SECRET")
 }
 
 // processEnvironmentTemplating processes basic environment variable templating.
@@ -1608,49 +1597,8 @@ func (s *WorkflowServiceServer) StreamJobMetrics(req *pb.JobMetricsRequest, stre
 	return nil
 }
 
-// GetJobMetricsHistory retrieves historical metrics for a job
-func (s *WorkflowServiceServer) GetJobMetricsHistory(ctx context.Context, req *pb.JobMetricsHistoryRequest) (*pb.JobMetricsHistoryResponse, error) {
-	log := s.logger.WithFields("operation", "GetJobMetricsHistory", "uuid", req.Uuid)
-	log.Debug("get job metrics history request received")
-
-	if err := s.auth.Authorized(ctx, auth2.GetJobOp); err != nil {
-		log.Warn("authorization failed", "error", err)
-		return nil, err
-	}
-
-	if req.Uuid == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "uuid is required")
-	}
-
-	// Check if job exists
-	_, exists := s.jobStore.Job(req.Uuid)
-	if !exists {
-		log.Warn("job not found")
-		return nil, status.Errorf(codes.NotFound, "job not found")
-	}
-
-	// Convert timestamps to time.Time
-	fromTime := time.Unix(req.FromTimestamp, 0)
-	toTime := time.Unix(req.ToTimestamp, 0)
-
-	// Get historical metrics from the store
-	samples, err := s.metricsStore.GetHistoricalMetrics(req.Uuid, fromTime, toTime)
-	if err != nil {
-		log.Error("failed to retrieve historical metrics", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to retrieve metrics: %v", err)
-	}
-
-	// Convert to protobuf
-	pbSamples := make([]*pb.JobMetricsSample, len(samples))
-	for i, sample := range samples {
-		pbSamples[i] = convertMetricsSampleToProto(sample)
-	}
-
-	log.Debug("historical metrics retrieved", "sampleCount", len(pbSamples))
-	return &pb.JobMetricsHistoryResponse{
-		Samples: pbSamples,
-	}, nil
-}
+// NOTE: GetJobMetricsHistory has been removed - historical metrics are now handled
+// by joblet-persist service. Use the persist QueryMetrics RPC instead.
 
 // GetJobMetricsSummary returns aggregated metrics summary for a job
 func (s *WorkflowServiceServer) GetJobMetricsSummary(ctx context.Context, req *pb.JobMetricsSummaryRequest) (*pb.JobMetricsSummaryResponse, error) {
