@@ -28,18 +28,12 @@ if [ ! -f "${PROTO_DIR}/ipc.proto" ]; then
     exit 1
 fi
 
-if [ ! -f "${PROTO_DIR}/persist.proto" ]; then
-    echo "❌ Error: persist.proto not found at ${PROTO_DIR}/persist.proto"
-    exit 1
-fi
-
 # Clean and create output directory
 echo "Cleaning output directory..."
 rm -rf "${GEN_DIR}"
 mkdir -p "${GEN_DIR}/ipc"
-mkdir -p "${GEN_DIR}/persist"
 
-# Generate IPC proto
+# Generate IPC proto only (persist is now external in joblet-proto/v2)
 echo "Generating IPC protobuf code..."
 protoc \
     --proto_path="${PROTO_DIR}" \
@@ -47,32 +41,12 @@ protoc \
     --go_opt=paths=source_relative \
     "${PROTO_DIR}/ipc.proto"
 
-# Generate Persist proto
-echo "Generating Persist protobuf code..."
-protoc \
-    --proto_path="${PROTO_DIR}" \
-    --go_out="${GEN_DIR}/persist" \
-    --go_opt=paths=source_relative \
-    --go-grpc_out="${GEN_DIR}/persist" \
-    --go-grpc_opt=paths=source_relative \
-    "${PROTO_DIR}/persist.proto"
-
 # Verify generation succeeded
 if [ ! -f "${GEN_DIR}/ipc/ipc.pb.go" ]; then
     echo "❌ Error: Proto generation failed - ipc.pb.go not found"
     exit 1
 fi
 
-if [ ! -f "${GEN_DIR}/persist/persist.pb.go" ]; then
-    echo "❌ Error: Proto generation failed - persist.pb.go not found"
-    exit 1
-fi
-
-if [ ! -f "${GEN_DIR}/persist/persist_grpc.pb.go" ]; then
-    echo "❌ Error: Proto generation failed - persist_grpc.pb.go not found"
-    exit 1
-fi
-
 echo "✅ Internal protocol buffer generation complete"
 echo "Generated files:"
-ls -la "${GEN_DIR}"/ipc/*.go "${GEN_DIR}"/persist/*.go
+ls -la "${GEN_DIR}"/ipc/*.go

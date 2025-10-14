@@ -3,8 +3,9 @@
 Data loading script - demonstrates final stage of Joblet workflow
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting data loading...")

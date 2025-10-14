@@ -3,8 +3,9 @@
 Report generation script - demonstrates Joblet workflow final output
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting report generation...")

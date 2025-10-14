@@ -4,9 +4,10 @@ Comprehensive Python runtime test
 Tests Python environment, package availability, and basic functionality
 """
 
-import sys
-import os
 import json
+import os
+import sys
+
 
 def test_python_environment():
     """Test basic Python environment"""

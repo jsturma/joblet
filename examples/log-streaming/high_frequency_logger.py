@@ -13,10 +13,11 @@ Features:
 - Memory usage simulation for HPC workload testing
 """
 
-import time
-import sys
 import os
+import sys
+import time
 from datetime import datetime
+
 
 def log_with_timestamp(message):
     """Log message with precise timestamp"""

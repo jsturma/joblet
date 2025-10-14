@@ -3,8 +3,9 @@
 Data transformation script - demonstrates Joblet workflow processing
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting data transformation...")

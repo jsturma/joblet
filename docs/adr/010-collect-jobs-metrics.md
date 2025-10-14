@@ -201,10 +201,11 @@ service JobService {
   // Existing log streaming
   rpc GetJobLogs(GetJobLogsReq) returns (stream GetJobLogsRes);
 
-  // New metrics endpoints
+  // Metrics streaming endpoint (IMPLEMENTED)
   rpc StreamJobMetrics(JobMetricsRequest) returns (stream JobMetricsResponse);
-  rpc GetJobMetricsHistory(JobMetricsHistoryRequest) returns (JobMetricsHistoryResponse);
-  rpc GetJobMetricsSummary(JobMetricsSummaryRequest) returns (JobMetricsSummaryResponse);
+
+  // Historical queries handled by persist.QueryMetrics service
+  // Aggregation should be performed client-side using StreamJobMetrics
 }
 ```
 

@@ -8,6 +8,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 
+
 def segment_customers():
     print("=== Customer Segmentation Analysis ===")
     

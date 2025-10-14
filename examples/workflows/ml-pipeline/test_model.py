@@ -3,8 +3,9 @@
 Model testing script for deployment validation
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting model testing for deployment...")

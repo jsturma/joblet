@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import json
-import time
+import logging
 import os
 import threading
-from datetime import datetime
-import logging
+import time
 import uuid
+from datetime import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

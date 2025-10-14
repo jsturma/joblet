@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pb "github.com/ehsaniara/joblet/api/gen"
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/rnx/common"
 	"io"
 	"os"
@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	persistpb "github.com/ehsaniara/joblet-proto/v2/gen"
 	ipcpb "github.com/ehsaniara/joblet/internal/proto/gen/ipc"
-	persistpb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -329,8 +329,8 @@ func streamHistoricalMetrics(ctx context.Context, jobID string) (int, error) {
 
 		sampleCount++
 
-		// Convert IPC metric to joblet metric format
-		sample := convertIPCMetricToJobMetric(metricSample)
+		// Convert persist metric to joblet metric format
+		sample := convertPersistMetricToJobMetric(metricSample)
 
 		// Output the historical metric sample
 		if common.JSONOutput {
@@ -341,6 +341,65 @@ func streamHistoricalMetrics(ctx context.Context, jobID string) (int, error) {
 			outputMetricsHuman(sample)
 		}
 	}
+}
+
+// convertPersistMetricToJobMetric converts a Persist Metric to joblet JobMetricsSample
+// This is used for historical metrics from joblet-persist
+func convertPersistMetricToJobMetric(persistMetric *persistpb.Metric) *pb.JobMetricsSample {
+	sample := &pb.JobMetricsSample{
+		JobId:                 persistMetric.JobId,
+		Timestamp:             persistMetric.Timestamp / 1000000, // Convert nanoseconds to seconds
+		SampleIntervalSeconds: 1,                                 // Persist metrics don't include interval, default to 1s
+	}
+
+	if persistMetric.Data == nil {
+		return sample
+	}
+
+	// Convert CPU metrics
+	if persistMetric.Data.CpuUsage > 0 {
+		sample.Cpu = &pb.JobCPUMetrics{
+			UsagePercent: persistMetric.Data.CpuUsage * 100, // Convert cores to percentage
+		}
+	}
+
+	// Convert Memory metrics
+	if persistMetric.Data.MemoryUsage > 0 {
+		sample.Memory = &pb.JobMemoryMetrics{
+			Current: uint64(persistMetric.Data.MemoryUsage),
+		}
+	}
+
+	// Convert GPU metrics (simple format from persist)
+	if persistMetric.Data.GpuUsage > 0 {
+		sample.Gpu = []*pb.JobGPUMetrics{
+			{
+				Index:       0,
+				Name:        "GPU",
+				Utilization: persistMetric.Data.GpuUsage * 100, // Convert 0-1 to percentage
+			},
+		}
+	}
+
+	// Convert I/O metrics
+	if persistMetric.Data.DiskIo != nil {
+		sample.Io = &pb.JobIOMetrics{
+			TotalReadBytes:  uint64(persistMetric.Data.DiskIo.ReadBytes),
+			TotalWriteBytes: uint64(persistMetric.Data.DiskIo.WriteBytes),
+		}
+	}
+
+	// Convert Network metrics
+	if persistMetric.Data.NetworkIo != nil {
+		sample.Network = &pb.JobNetworkMetrics{
+			TotalRxBytes:   uint64(persistMetric.Data.NetworkIo.RxBytes),
+			TotalTxBytes:   uint64(persistMetric.Data.NetworkIo.TxBytes),
+			TotalRxPackets: uint64(persistMetric.Data.NetworkIo.RxPackets),
+			TotalTxPackets: uint64(persistMetric.Data.NetworkIo.TxPackets),
+		}
+	}
+
+	return sample
 }
 
 // convertIPCMetricToJobMetric converts an IPC Metric to joblet JobMetricsSample

@@ -4,7 +4,7 @@ import (
 	"math"
 	"sort"
 
-	pb "github.com/ehsaniara/joblet/api/gen"
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/metrics/domain"
 )
 

@@ -3,8 +3,9 @@
 Parallel processing script - Batch 3
 """
 import json
-import time
 import os
+import time
+
 
 def main():
     print("Starting batch 3 processing...")

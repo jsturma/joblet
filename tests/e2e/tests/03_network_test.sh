@@ -500,7 +500,7 @@ test_none_network_interfaces() {
 
 test_none_network_no_internet() {
     echo -e "    ${BLUE}Testing none network blocks internet access on remote host $REMOTE_HOST${NC}"
-    
+
     local job_id=$(run_job_with_network "
         # Test that internet connectivity is blocked in none network mode
         echo 'NONE_INTERNET_TEST:STARTED'
@@ -517,7 +517,7 @@ test_none_network_no_internet() {
                 echo 'NONE_INTERNET:UNEXPECTED_SUCCESS:wget'
             else
                 echo 'NONE_INTERNET:BLOCKED:wget_failed'
-            fi  
+            fi
         elif command -v ping >/dev/null 2>&1; then
             # Use ping - should fail in none network
             if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
@@ -535,10 +535,30 @@ test_none_network_no_internet() {
         fi
         echo 'NONE_INTERNET_TEST:DONE'
     " "none")
-    
-    local logs=$(get_job_logs "$job_id")
-    local clean_output=$(get_clean_output "$logs")
-    
+
+    # Get logs with retries to handle timing issues
+    local logs=""
+    local clean_output=""
+    local retry_count=0
+    local max_retries=5
+
+    while [[ $retry_count -lt $max_retries ]]; do
+        logs=$(get_job_logs "$job_id")
+        clean_output=$(get_clean_output "$logs")
+
+        # Check if we got the expected output markers
+        if echo "$clean_output" | grep -q "NONE_INTERNET_TEST:STARTED" && \
+           echo "$clean_output" | grep -q "NONE_INTERNET_TEST:DONE"; then
+            break
+        fi
+
+        # Retry with additional wait
+        retry_count=$((retry_count + 1))
+        if [[ $retry_count -lt $max_retries ]]; then
+            sleep 2
+        fi
+    done
+
     if assert_contains "$clean_output" "NONE_INTERNET:BLOCKED" "None network should have no internet access"; then
         echo -e "    ${GREEN}✓ None network properly blocks internet access${NC}"
         return 0
@@ -548,6 +568,12 @@ test_none_network_no_internet() {
             local method=$(echo "$clean_output" | grep "NONE_INTERNET:UNEXPECTED_SUCCESS" | cut -d: -f3)
             echo -e "    ${YELLOW}Warning: None network has internet access via $method (may be policy-dependent)${NC}"
             return 0  # Don't fail - network policies may vary
+        fi
+        # Debug output for troubleshooting
+        if [[ -n "$clean_output" ]]; then
+            echo -e "    ${RED}Debug: Unexpected output: $clean_output${NC}" >&2
+        else
+            echo -e "    ${RED}Debug: No output received after $max_retries retries${NC}" >&2
         fi
         return 1
     fi

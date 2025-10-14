@@ -5,6 +5,7 @@ ML Data preparation script - demonstrates ML workflow
 import json
 import os
 
+
 def main():
     print("Starting ML data preparation...")
     

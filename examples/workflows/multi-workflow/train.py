@@ -3,8 +3,9 @@
 ML Model training script
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting model training...")

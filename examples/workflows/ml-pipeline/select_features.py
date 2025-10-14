@@ -3,8 +3,9 @@
 ML Feature selection script
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting feature selection...")

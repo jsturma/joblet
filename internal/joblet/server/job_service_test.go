@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/ehsaniara/joblet/api/gen"
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/adapters"
 	"github.com/ehsaniara/joblet/internal/joblet/adapters/adaptersfakes"
 	"github.com/ehsaniara/joblet/internal/joblet/auth/authfakes"

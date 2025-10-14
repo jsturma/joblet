@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	pb "github.com/ehsaniara/joblet/api/gen"
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/adapters"
 	auth2 "github.com/ehsaniara/joblet/internal/joblet/auth"
 	"github.com/ehsaniara/joblet/internal/joblet/core"

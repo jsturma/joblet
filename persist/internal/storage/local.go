@@ -1,10 +1,12 @@
 package storage
 
 import (
+	"bufio"
 	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -239,14 +241,291 @@ func (lb *LocalBackend) getOrCreateMetricFile(jobID string) (*metricFile, error)
 
 // ReadLogs returns a log reader for streaming logs
 func (lb *LocalBackend) ReadLogs(ctx context.Context, query *LogQuery) (*LogReader, error) {
-	// TODO: Implement log reading
-	return nil, fmt.Errorf("ReadLogs not implemented yet")
+	lb.logger.Debug("ReadLogs called", "jobID", query.JobID, "stream", query.Stream, "limit", query.Limit, "offset", query.Offset)
+
+	// Build log directory path
+	logDir := filepath.Join(lb.config.Local.Logs.Directory, query.JobID)
+
+	// Check if directory exists
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		lb.logger.Debug("No log directory found", "jobID", query.JobID, "path", logDir)
+		return nil, fmt.Errorf("no logs found for job %s", query.JobID)
+	}
+
+	// Create reader
+	reader := &LogReader{
+		Channel: make(chan *ipcpb.LogLine, 100),
+		Error:   make(chan error, 1),
+		Done:    make(chan struct{}),
+	}
+
+	// Start reading in background
+	go func() {
+		defer close(reader.Channel)
+		defer close(reader.Error)
+		defer close(reader.Done)
+
+		// Determine which files to read based on stream filter
+		var files []struct {
+			path   string
+			stream ipcpb.StreamType
+		}
+
+		if query.Stream == ipcpb.StreamType_STREAM_TYPE_UNSPECIFIED || query.Stream == ipcpb.StreamType_STREAM_TYPE_STDOUT {
+			files = append(files, struct {
+				path   string
+				stream ipcpb.StreamType
+			}{
+				path:   filepath.Join(logDir, "stdout.log.gz"),
+				stream: ipcpb.StreamType_STREAM_TYPE_STDOUT,
+			})
+		}
+
+		if query.Stream == ipcpb.StreamType_STREAM_TYPE_UNSPECIFIED || query.Stream == ipcpb.StreamType_STREAM_TYPE_STDERR {
+			files = append(files, struct {
+				path   string
+				stream ipcpb.StreamType
+			}{
+				path:   filepath.Join(logDir, "stderr.log.gz"),
+				stream: ipcpb.StreamType_STREAM_TYPE_STDERR,
+			})
+		}
+
+		count := 0
+		skipped := 0
+
+		// Read each file
+		for _, fileInfo := range files {
+			if _, err := os.Stat(fileInfo.path); os.IsNotExist(err) {
+				lb.logger.Debug("Log file not found", "path", fileInfo.path)
+				continue
+			}
+
+			file, err := os.Open(fileInfo.path)
+			if err != nil {
+				reader.Error <- fmt.Errorf("failed to open log file %s: %w", fileInfo.path, err)
+				return
+			}
+
+			gzReader, err := gzip.NewReader(file)
+			if err != nil {
+				file.Close()
+				if err == io.EOF || err == io.ErrUnexpectedEOF {
+					// Empty or corrupted gzip file, skip it
+					lb.logger.Warn("Empty or corrupted gzip file", "path", fileInfo.path)
+					continue
+				}
+				reader.Error <- fmt.Errorf("failed to create gzip reader for %s: %w", fileInfo.path, err)
+				return
+			}
+
+			scanner := bufio.NewScanner(gzReader)
+			scanner.Buffer(make([]byte, 64*1024), 1024*1024) // 64KB initial, 1MB max
+
+			for scanner.Scan() {
+				select {
+				case <-ctx.Done():
+					gzReader.Close()
+					file.Close()
+					lb.logger.Debug("ReadLogs cancelled", "jobID", query.JobID)
+					return
+				default:
+				}
+
+				line := scanner.Bytes()
+				if len(line) == 0 {
+					continue
+				}
+
+				var logLine ipcpb.LogLine
+				if err := json.Unmarshal(line, &logLine); err != nil {
+					lb.logger.Warn("Failed to unmarshal log line", "error", err, "line", string(line[:min(len(line), 100)]))
+					continue
+				}
+
+				// Apply time range filter
+				if query.StartTime != nil && logLine.Timestamp < *query.StartTime {
+					continue
+				}
+				if query.EndTime != nil && logLine.Timestamp > *query.EndTime {
+					continue
+				}
+
+				// Apply text filter if specified
+				if query.Filter != "" && !contains(string(logLine.Content), query.Filter) {
+					continue
+				}
+
+				// Apply offset
+				if skipped < query.Offset {
+					skipped++
+					continue
+				}
+
+				// Apply limit
+				if query.Limit > 0 && count >= query.Limit {
+					gzReader.Close()
+					file.Close()
+					return
+				}
+
+				select {
+				case reader.Channel <- &logLine:
+					count++
+				case <-ctx.Done():
+					gzReader.Close()
+					file.Close()
+					lb.logger.Debug("ReadLogs cancelled while sending", "jobID", query.JobID)
+					return
+				}
+			}
+
+			if err := scanner.Err(); err != nil {
+				gzReader.Close()
+				file.Close()
+				reader.Error <- fmt.Errorf("error reading log file %s: %w", fileInfo.path, err)
+				return
+			}
+
+			gzReader.Close()
+			file.Close()
+		}
+
+		lb.logger.Debug("Finished reading logs", "jobID", query.JobID, "count", count, "skipped", skipped)
+	}()
+
+	return reader, nil
+}
+
+// contains is a simple case-insensitive substring check helper
+func contains(s, substr string) bool {
+	return len(substr) == 0 || len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) && (s[:len(substr)] == substr ||
+			s[len(s)-len(substr):] == substr ||
+			indexSubstring(s, substr) >= 0)))
+}
+
+// indexSubstring finds the index of substr in s (case-sensitive)
+func indexSubstring(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
 }
 
 // ReadMetrics returns a metric reader for streaming metrics
 func (lb *LocalBackend) ReadMetrics(ctx context.Context, query *MetricQuery) (*MetricReader, error) {
-	// TODO: Implement metrics reading
-	return nil, fmt.Errorf("ReadMetrics not implemented yet")
+	lb.logger.Debug("ReadMetrics called", "jobID", query.JobID, "limit", query.Limit, "offset", query.Offset)
+
+	// Build metrics file path
+	metricsPath := filepath.Join(lb.config.Local.Metrics.Directory, query.JobID, "metrics.jsonl.gz")
+
+	// Check if file exists
+	if _, err := os.Stat(metricsPath); os.IsNotExist(err) {
+		lb.logger.Debug("No metrics file found", "jobID", query.JobID, "path", metricsPath)
+		return nil, fmt.Errorf("no metrics found for job %s", query.JobID)
+	}
+
+	// Create reader
+	reader := &MetricReader{
+		Channel: make(chan *ipcpb.Metric, 100),
+		Error:   make(chan error, 1),
+		Done:    make(chan struct{}),
+	}
+
+	// Start reading in background
+	go func() {
+		defer close(reader.Channel)
+		defer close(reader.Error)
+		defer close(reader.Done)
+
+		file, err := os.Open(metricsPath)
+		if err != nil {
+			reader.Error <- fmt.Errorf("failed to open metrics file: %w", err)
+			return
+		}
+		defer file.Close()
+
+		gzReader, err := gzip.NewReader(file)
+		if err != nil {
+			reader.Error <- fmt.Errorf("failed to create gzip reader: %w", err)
+			return
+		}
+		defer gzReader.Close()
+
+		scanner := bufio.NewScanner(gzReader)
+		// Increase buffer size for large metric lines
+		scanner.Buffer(make([]byte, 64*1024), 1024*1024) // 64KB initial, 1MB max
+
+		count := 0
+		skipped := 0
+
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				lb.logger.Debug("ReadMetrics cancelled", "jobID", query.JobID)
+				return
+			default:
+			}
+
+			line := scanner.Bytes()
+			if len(line) == 0 {
+				continue
+			}
+
+			var metric ipcpb.Metric
+			if err := json.Unmarshal(line, &metric); err != nil {
+				lb.logger.Warn("Failed to unmarshal metric", "error", err, "line", string(line[:min(len(line), 100)]))
+				continue
+			}
+
+			// Apply time range filter
+			if query.StartTime != nil && metric.Timestamp < *query.StartTime {
+				continue
+			}
+			if query.EndTime != nil && metric.Timestamp > *query.EndTime {
+				continue
+			}
+
+			// Apply offset
+			if skipped < query.Offset {
+				skipped++
+				continue
+			}
+
+			// Apply limit
+			if query.Limit > 0 && count >= query.Limit {
+				break
+			}
+
+			select {
+			case reader.Channel <- &metric:
+				count++
+			case <-ctx.Done():
+				lb.logger.Debug("ReadMetrics cancelled while sending", "jobID", query.JobID)
+				return
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			reader.Error <- fmt.Errorf("error reading metrics: %w", err)
+			return
+		}
+
+		lb.logger.Debug("Finished reading metrics", "jobID", query.JobID, "count", count, "skipped", skipped)
+	}()
+
+	return reader, nil
+}
+
+// min helper function
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // DeleteJob deletes all data for a job

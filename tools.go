@@ -7,5 +7,5 @@ package main
 // The proto generation uses the version specified in go.mod.
 
 import (
-	_ "github.com/ehsaniara/joblet-proto"
+	_ "github.com/ehsaniara/joblet-proto/v2"
 )

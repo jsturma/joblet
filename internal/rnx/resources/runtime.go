@@ -14,7 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	pb "github.com/ehsaniara/joblet/api/gen"
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 
 	"github.com/spf13/cobra"
 )

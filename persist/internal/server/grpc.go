@@ -7,15 +7,95 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 
+	persistpb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/auth"
-	persistpb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
+	ipcpb "github.com/ehsaniara/joblet/internal/proto/gen/ipc"
 	"github.com/ehsaniara/joblet/persist/internal/config"
 	"github.com/ehsaniara/joblet/persist/internal/storage"
 	"github.com/ehsaniara/joblet/persist/pkg/logger"
 	"github.com/ehsaniara/joblet/pkg/security"
 )
+
+// Conversion functions between ipc (internal) and gen (external proto) types
+
+func streamTypeIPCToGen(ipc ipcpb.StreamType) persistpb.StreamType {
+	switch ipc {
+	case ipcpb.StreamType_STREAM_TYPE_STDOUT:
+		return persistpb.StreamType_STREAM_TYPE_STDOUT
+	case ipcpb.StreamType_STREAM_TYPE_STDERR:
+		return persistpb.StreamType_STREAM_TYPE_STDERR
+	default:
+		return persistpb.StreamType_STREAM_TYPE_UNSPECIFIED
+	}
+}
+
+func streamTypeGenToIPC(gen persistpb.StreamType) ipcpb.StreamType {
+	switch gen {
+	case persistpb.StreamType_STREAM_TYPE_STDOUT:
+		return ipcpb.StreamType_STREAM_TYPE_STDOUT
+	case persistpb.StreamType_STREAM_TYPE_STDERR:
+		return ipcpb.StreamType_STREAM_TYPE_STDERR
+	default:
+		return ipcpb.StreamType_STREAM_TYPE_UNSPECIFIED
+	}
+}
+
+func logLineIPCToGen(ipc *ipcpb.LogLine) *persistpb.LogLine {
+	if ipc == nil {
+		return nil
+	}
+	return &persistpb.LogLine{
+		JobId:     ipc.JobId,
+		Stream:    streamTypeIPCToGen(ipc.Stream),
+		Timestamp: ipc.Timestamp,
+		Sequence:  ipc.Sequence,
+		Content:   ipc.Content,
+	}
+}
+
+func metricIPCToGen(ipc *ipcpb.Metric) *persistpb.Metric {
+	if ipc == nil {
+		return nil
+	}
+
+	gen := &persistpb.Metric{
+		JobId:     ipc.JobId,
+		Timestamp: ipc.Timestamp,
+		Sequence:  ipc.Sequence,
+	}
+
+	if ipc.Data != nil {
+		gen.Data = &persistpb.MetricData{
+			CpuUsage:    ipc.Data.CpuUsage,
+			MemoryUsage: ipc.Data.MemoryUsage,
+			GpuUsage:    ipc.Data.GpuUsage,
+		}
+
+		if ipc.Data.DiskIo != nil {
+			gen.Data.DiskIo = &persistpb.DiskIO{
+				ReadBytes:  ipc.Data.DiskIo.ReadBytes,
+				WriteBytes: ipc.Data.DiskIo.WriteBytes,
+				ReadOps:    ipc.Data.DiskIo.ReadOps,
+				WriteOps:   ipc.Data.DiskIo.WriteOps,
+			}
+		}
+
+		if ipc.Data.NetworkIo != nil {
+			gen.Data.NetworkIo = &persistpb.NetworkIO{
+				RxBytes:   ipc.Data.NetworkIo.RxBytes,
+				TxBytes:   ipc.Data.NetworkIo.TxBytes,
+				RxPackets: ipc.Data.NetworkIo.RxPackets,
+				TxPackets: ipc.Data.NetworkIo.TxPackets,
+			}
+		}
+	}
+
+	return gen
+}
 
 // GRPCServer is the gRPC server for persist service
 type GRPCServer struct {
@@ -140,10 +220,69 @@ func (s *GRPCServer) QueryLogs(req *persistpb.QueryLogsRequest, stream persistpb
 		return err
 	}
 
-	s.logger.Debug("QueryLogs request", "jobID", req.JobId)
+	s.logger.Info("QueryLogs request", "jobID", req.JobId, "limit", req.Limit, "offset", req.Offset, "stream", req.Stream)
 
-	// TODO: Implement log querying
-	return fmt.Errorf("QueryLogs not implemented yet")
+	// Build query
+	query := &storage.LogQuery{
+		JobID:  req.JobId,
+		Stream: streamTypeGenToIPC(req.Stream),
+		Limit:  int(req.Limit),
+		Offset: int(req.Offset),
+	}
+
+	// Add time range if specified
+	if req.StartTime > 0 {
+		query.StartTime = &req.StartTime
+	}
+	if req.EndTime > 0 {
+		query.EndTime = &req.EndTime
+	}
+
+	// Read logs from backend
+	reader, err := s.backend.ReadLogs(stream.Context(), query)
+	if err != nil {
+		s.logger.Error("Failed to read logs", "error", err, "jobID", req.JobId)
+		return status.Errorf(codes.Internal, "failed to read logs: %v", err)
+	}
+
+	// Stream logs to client
+	logCount := 0
+	for {
+		select {
+		case <-stream.Context().Done():
+			s.logger.Debug("QueryLogs cancelled by client", "jobID", req.JobId, "logCount", logCount)
+			return stream.Context().Err()
+
+		case logLine, ok := <-reader.Channel:
+			if !ok {
+				// Channel closed, check for errors
+				select {
+				case err := <-reader.Error:
+					if err != nil {
+						s.logger.Error("Error reading logs", "error", err, "jobID", req.JobId)
+						return status.Errorf(codes.Internal, "error reading logs: %v", err)
+					}
+				default:
+				}
+				// Successful completion
+				s.logger.Info("QueryLogs completed", "jobID", req.JobId, "logCount", logCount)
+				return nil
+			}
+
+			// Send log line to client (convert from ipc to gen)
+			if err := stream.Send(logLineIPCToGen(logLine)); err != nil {
+				s.logger.Error("Failed to send log line", "error", err, "jobID", req.JobId)
+				return status.Errorf(codes.Internal, "failed to send log: %v", err)
+			}
+			logCount++
+
+		case err := <-reader.Error:
+			if err != nil {
+				s.logger.Error("Error from log reader", "error", err, "jobID", req.JobId)
+				return status.Errorf(codes.Internal, "error reading logs: %v", err)
+			}
+		}
+	}
 }
 
 // QueryMetrics implements the QueryMetrics RPC
@@ -153,124 +292,103 @@ func (s *GRPCServer) QueryMetrics(req *persistpb.QueryMetricsRequest, stream per
 		return err
 	}
 
-	s.logger.Debug("QueryMetrics request", "jobID", req.JobId)
+	s.logger.Info("QueryMetrics request", "jobID", req.JobId, "limit", req.Limit, "offset", req.Offset)
 
-	// TODO: Implement metrics querying
-	return fmt.Errorf("QueryMetrics not implemented yet")
+	// Build query
+	query := &storage.MetricQuery{
+		JobID:  req.JobId,
+		Limit:  int(req.Limit),
+		Offset: int(req.Offset),
+	}
+
+	// Add time range if specified
+	if req.StartTime > 0 {
+		query.StartTime = &req.StartTime
+	}
+	if req.EndTime > 0 {
+		query.EndTime = &req.EndTime
+	}
+
+	// Read metrics from backend
+	reader, err := s.backend.ReadMetrics(stream.Context(), query)
+	if err != nil {
+		s.logger.Error("Failed to read metrics", "error", err, "jobID", req.JobId)
+		return status.Errorf(codes.Internal, "failed to read metrics: %v", err)
+	}
+
+	// Stream metrics to client
+	metricCount := 0
+	for {
+		select {
+		case <-stream.Context().Done():
+			s.logger.Debug("QueryMetrics cancelled by client", "jobID", req.JobId, "metricCount", metricCount)
+			return stream.Context().Err()
+
+		case metric, ok := <-reader.Channel:
+			if !ok {
+				// Channel closed, check for errors
+				select {
+				case err := <-reader.Error:
+					if err != nil {
+						s.logger.Error("Error reading metrics", "error", err, "jobID", req.JobId)
+						return status.Errorf(codes.Internal, "error reading metrics: %v", err)
+					}
+				default:
+				}
+				// Successful completion
+				s.logger.Info("QueryMetrics completed", "jobID", req.JobId, "metricCount", metricCount)
+				return nil
+			}
+
+			// Send metric to client (convert from ipc to gen)
+			if err := stream.Send(metricIPCToGen(metric)); err != nil {
+				s.logger.Error("Failed to send metric", "error", err, "jobID", req.JobId)
+				return status.Errorf(codes.Internal, "failed to send metric: %v", err)
+			}
+			metricCount++
+
+		case err := <-reader.Error:
+			if err != nil {
+				s.logger.Error("Error from metric reader", "error", err, "jobID", req.JobId)
+				return status.Errorf(codes.Internal, "error reading metrics: %v", err)
+			}
+		}
+	}
 }
 
-// NOTE: The following RPC methods are not yet implemented in persist.proto
-// They are commented out until the proto definitions are added
+// DeleteJob implements the DeleteJob RPC
+func (s *GRPCServer) DeleteJob(ctx context.Context, req *persistpb.DeleteJobRequest) (*persistpb.DeleteJobResponse, error) {
+	// Check authorization
+	if err := s.auth.Authorized(ctx, auth.DeleteJobOp); err != nil {
+		return &persistpb.DeleteJobResponse{
+			Success: false,
+			Message: fmt.Sprintf("Unauthorized: %v", err),
+		}, nil
+	}
 
-// // GetJobInfo implements the GetJobInfo RPC
-// func (s *GRPCServer) GetJobInfo(ctx context.Context, req *persistpb.GetJobInfoRequest) (*persistpb.GetJobInfoResponse, error) {
-// 	s.logger.Debug("GetJobInfo request", "jobID", req.JobId)
-//
-// 	info, err := s.backend.GetJobInfo(req.JobId)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to get job info: %w", err)
-// 	}
-//
-// 	return &persistpb.GetJobInfoResponse{
-// 		JobId:       info.JobID,
-// 		CreatedAt:   info.CreatedAt,
-// 		LastUpdated: info.LastUpdated,
-// 		LogCount:    info.LogCount,
-// 		MetricCount: info.MetricCount,
-// 		SizeBytes:   info.SizeBytes,
-// 	}, nil
-// }
-//
-// // ListJobs implements the ListJobs RPC
-// func (s *GRPCServer) ListJobs(ctx context.Context, req *persistpb.ListJobsRequest) (*persistpb.ListJobsResponse, error) {
-// 	s.logger.Debug("ListJobs request", "since", req.Since, "until", req.Until)
-//
-// 	filter := &storage.JobFilter{
-// 		Limit:  int(req.Limit),
-// 		Offset: int(req.Offset),
-// 	}
-//
-// 	if req.Since > 0 {
-// 		since := req.Since
-// 		filter.Since = &since
-// 	}
-//
-// 	if req.Until > 0 {
-// 		until := req.Until
-// 		filter.Until = &until
-// 	}
-//
-// 	jobIDs, err := s.backend.ListJobs(filter)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to list jobs: %w", err)
-// 	}
-//
-// 	// Get info for each job
-// 	jobs := make([]*persistpb.JobInfo, 0, len(jobIDs))
-// 	for _, jobID := range jobIDs {
-// 		info, err := s.backend.GetJobInfo(jobID)
-// 		if err != nil {
-// 			s.logger.Warn("Failed to get job info", "jobID", jobID, "error", err)
-// 			continue
-// 		}
-//
-// 		jobs = append(jobs, &persistpb.JobInfo{
-// 			JobId:       info.JobID,
-// 			CreatedAt:   info.CreatedAt,
-// 			LastUpdated: info.LastUpdated,
-// 			LogCount:    info.LogCount,
-// 			MetricCount: info.MetricCount,
-// 			SizeBytes:   info.SizeBytes,
-// 		})
-// 	}
-//
-// 	return &persistpb.ListJobsResponse{
-// 		Jobs:       jobs,
-// 		TotalCount: int32(len(jobs)),
-// 	}, nil
-// }
-//
-// // DeleteJob implements the DeleteJob RPC
-// func (s *GRPCServer) DeleteJob(ctx context.Context, req *persistpb.DeleteJobRequest) (*persistpb.DeleteJobResponse, error) {
-// 	s.logger.Info("DeleteJob request", "jobID", req.JobId)
-//
-// 	if err := s.backend.DeleteJob(req.JobId); err != nil {
-// 		return &persistpb.DeleteJobResponse{
-// 			Success: false,
-// 			Message: fmt.Sprintf("Failed to delete job: %v", err),
-// 		}, nil
-// 	}
-//
-// 	return &persistpb.DeleteJobResponse{
-// 		Success: true,
-// 		Message: "Job deleted successfully",
-// 	}, nil
-// }
-//
-// // GetStats implements the GetStats RPC
-// func (s *GRPCServer) GetStats(ctx context.Context, req *persistpb.GetStatsRequest) (*persistpb.GetStatsResponse, error) {
-// 	s.logger.Debug("GetStats request")
-//
-// 	// TODO: Implement stats collection
-// 	return &persistpb.GetStatsResponse{
-// 		TotalJobs:        0,
-// 		TotalLogs:        0,
-// 		TotalMetrics:     0,
-// 		TotalSizeBytes:   0,
-// 		MessagesReceived: 0,
-// 		MessagesWritten:  0,
-// 		WriteErrors:      0,
-// 	}, nil
-// }
-//
-// // CleanupOldData implements the CleanupOldData RPC
-// func (s *GRPCServer) CleanupOldData(ctx context.Context, req *persistpb.CleanupRequest) (*persistpb.CleanupResponse, error) {
-// 	s.logger.Info("CleanupOldData request", "dryRun", req.DryRun)
-//
-// 	// TODO: Implement cleanup logic
-// 	return &persistpb.CleanupResponse{
-// 		JobsDeleted:   0,
-// 		BytesFreed:    0,
-// 		DeletedJobIds: []string{},
-// 	}, nil
-// }
+	s.logger.Info("DeleteJob request", "jobID", req.JobId)
+
+	// Validate job ID
+	if req.JobId == "" {
+		return &persistpb.DeleteJobResponse{
+			Success: false,
+			Message: "Job ID cannot be empty",
+		}, nil
+	}
+
+	// Delete job from backend storage
+	if err := s.backend.DeleteJob(req.JobId); err != nil {
+		s.logger.Error("Failed to delete job", "jobID", req.JobId, "error", err)
+		return &persistpb.DeleteJobResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to delete job: %v", err),
+		}, nil
+	}
+
+	s.logger.Info("Job deleted successfully", "jobID", req.JobId)
+
+	return &persistpb.DeleteJobResponse{
+		Success: true,
+		Message: "Job deleted successfully",
+	}, nil
+}

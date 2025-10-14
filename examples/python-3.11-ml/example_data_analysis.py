@@ -3,22 +3,22 @@
 ML Analysis Example
 Demonstrates packaging ML dependencies with the project for python:3.11 runtime
 """
-import sys
 import os
+import sys
 
 # Add local lib directory to path for packaged dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 
 # Now import ML packages from local lib/
 try:
-    import pandas as pd
-    import numpy as np
     import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import requests
     import seaborn as sns
     from sklearn.ensemble import RandomForestClassifier
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import accuracy_score, classification_report
-    import requests
+    from sklearn.model_selection import train_test_split
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("🔧 Make sure to run: pip install -r requirements.txt --target lib/")

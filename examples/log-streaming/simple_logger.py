@@ -2,10 +2,11 @@
 """
 Simple high-frequency logger for quick rnx demo
 """
-import time
-import sys
 import os
+import sys
+import time
 from datetime import datetime
+
 
 def main():
     start_num = int(os.getenv('START_NUM', '0'))

@@ -6,8 +6,9 @@ Sales data analysis script using Python standard library
 import csv
 import json
 import statistics
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+
 
 def analyze_sales():
     print("=== Sales Data Analysis ===")

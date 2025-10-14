@@ -3,8 +3,9 @@
 Data analysis script for multi-job workflow test
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("=== Data Analyzer Job ===")

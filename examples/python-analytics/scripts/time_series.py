@@ -7,8 +7,9 @@ import json
 import math
 import random
 import statistics
-from datetime import datetime, timedelta
 from collections import defaultdict
+from datetime import datetime, timedelta
+
 
 def analyze_time_series():
     print("=== Time Series Analysis ===")

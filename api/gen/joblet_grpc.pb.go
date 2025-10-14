@@ -28,7 +28,6 @@ const (
 	JobService_GetJobLogs_FullMethodName           = "/joblet.JobService/GetJobLogs"
 	JobService_ListJobs_FullMethodName             = "/joblet.JobService/ListJobs"
 	JobService_StreamJobMetrics_FullMethodName     = "/joblet.JobService/StreamJobMetrics"
-	JobService_GetJobMetricsHistory_FullMethodName = "/joblet.JobService/GetJobMetricsHistory"
 	JobService_GetJobMetricsSummary_FullMethodName = "/joblet.JobService/GetJobMetricsSummary"
 	JobService_RunWorkflow_FullMethodName          = "/joblet.JobService/RunWorkflow"
 	JobService_GetWorkflowStatus_FullMethodName    = "/joblet.JobService/GetWorkflowStatus"
@@ -51,9 +50,8 @@ type JobServiceClient interface {
 	DeleteAllJobs(ctx context.Context, in *DeleteAllJobsReq, opts ...grpc.CallOption) (*DeleteAllJobsRes, error)
 	GetJobLogs(ctx context.Context, in *GetJobLogsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DataChunk], error)
 	ListJobs(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*Jobs, error)
-	// Job metrics operations
+	// Job metrics operations (live streaming only - historical metrics via persist.QueryMetrics)
 	StreamJobMetrics(ctx context.Context, in *JobMetricsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[JobMetricsSample], error)
-	GetJobMetricsHistory(ctx context.Context, in *JobMetricsHistoryRequest, opts ...grpc.CallOption) (*JobMetricsHistoryResponse, error)
 	GetJobMetricsSummary(ctx context.Context, in *JobMetricsSummaryRequest, opts ...grpc.CallOption) (*JobMetricsSummaryResponse, error)
 	// Workflow operations
 	RunWorkflow(ctx context.Context, in *RunWorkflowRequest, opts ...grpc.CallOption) (*RunWorkflowResponse, error)
@@ -178,16 +176,6 @@ func (c *jobServiceClient) StreamJobMetrics(ctx context.Context, in *JobMetricsR
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type JobService_StreamJobMetricsClient = grpc.ServerStreamingClient[JobMetricsSample]
 
-func (c *jobServiceClient) GetJobMetricsHistory(ctx context.Context, in *JobMetricsHistoryRequest, opts ...grpc.CallOption) (*JobMetricsHistoryResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(JobMetricsHistoryResponse)
-	err := c.cc.Invoke(ctx, JobService_GetJobMetricsHistory_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *jobServiceClient) GetJobMetricsSummary(ctx context.Context, in *JobMetricsSummaryRequest, opts ...grpc.CallOption) (*JobMetricsSummaryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(JobMetricsSummaryResponse)
@@ -253,9 +241,8 @@ type JobServiceServer interface {
 	DeleteAllJobs(context.Context, *DeleteAllJobsReq) (*DeleteAllJobsRes, error)
 	GetJobLogs(*GetJobLogsReq, grpc.ServerStreamingServer[DataChunk]) error
 	ListJobs(context.Context, *EmptyRequest) (*Jobs, error)
-	// Job metrics operations
+	// Job metrics operations (live streaming only - historical metrics via persist.QueryMetrics)
 	StreamJobMetrics(*JobMetricsRequest, grpc.ServerStreamingServer[JobMetricsSample]) error
-	GetJobMetricsHistory(context.Context, *JobMetricsHistoryRequest) (*JobMetricsHistoryResponse, error)
 	GetJobMetricsSummary(context.Context, *JobMetricsSummaryRequest) (*JobMetricsSummaryResponse, error)
 	// Workflow operations
 	RunWorkflow(context.Context, *RunWorkflowRequest) (*RunWorkflowResponse, error)
@@ -298,9 +285,6 @@ func (UnimplementedJobServiceServer) ListJobs(context.Context, *EmptyRequest) (*
 }
 func (UnimplementedJobServiceServer) StreamJobMetrics(*JobMetricsRequest, grpc.ServerStreamingServer[JobMetricsSample]) error {
 	return status.Errorf(codes.Unimplemented, "method StreamJobMetrics not implemented")
-}
-func (UnimplementedJobServiceServer) GetJobMetricsHistory(context.Context, *JobMetricsHistoryRequest) (*JobMetricsHistoryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetJobMetricsHistory not implemented")
 }
 func (UnimplementedJobServiceServer) GetJobMetricsSummary(context.Context, *JobMetricsSummaryRequest) (*JobMetricsSummaryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetJobMetricsSummary not implemented")
@@ -486,24 +470,6 @@ func _JobService_StreamJobMetrics_Handler(srv interface{}, stream grpc.ServerStr
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type JobService_StreamJobMetricsServer = grpc.ServerStreamingServer[JobMetricsSample]
 
-func _JobService_GetJobMetricsHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(JobMetricsHistoryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(JobServiceServer).GetJobMetricsHistory(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: JobService_GetJobMetricsHistory_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(JobServiceServer).GetJobMetricsHistory(ctx, req.(*JobMetricsHistoryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _JobService_GetJobMetricsSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(JobMetricsSummaryRequest)
 	if err := dec(in); err != nil {
@@ -628,10 +594,6 @@ var JobService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListJobs",
 			Handler:    _JobService_ListJobs_Handler,
-		},
-		{
-			MethodName: "GetJobMetricsHistory",
-			Handler:    _JobService_GetJobMetricsHistory_Handler,
 		},
 		{
 			MethodName: "GetJobMetricsSummary",

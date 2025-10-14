@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	persistpb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
+	persistpb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/pkg/config"
 
 	"google.golang.org/grpc"

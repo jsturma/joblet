@@ -6,10 +6,11 @@ Works with Python 3 standard library only
 
 import csv
 import json
-import statistics
 import os
-from datetime import datetime
+import statistics
 from collections import defaultdict
+from datetime import datetime
+
 
 def analyze_sales():
     """Simple sales analysis using only Python standard library"""

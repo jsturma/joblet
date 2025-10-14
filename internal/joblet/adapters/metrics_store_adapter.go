@@ -16,9 +16,13 @@ import (
 // Metrics are published to pubsub for:
 // 1. Real-time streaming to clients (StreamJobMetrics)
 // 2. IPC forwarding to persist subprocess for disk storage
+// 3. Buffering in memory to prevent gaps during persist→live transition
 type MetricsStoreAdapter struct {
 	// Pub-sub for real-time metrics streaming and IPC forwarding
 	pubsub pubsub.PubSub[MetricsEvent]
+
+	// Buffer for recent metrics to prevent gaps during persist→live transition
+	buffer *metrics.MetricsBuffer
 
 	// Active collectors per job
 	collectors      map[string]*metrics.Collector
@@ -48,6 +52,7 @@ func NewMetricsStoreAdapter(
 
 	adapter := &MetricsStoreAdapter{
 		pubsub:     pubsub,
+		buffer:     metrics.NewMetricsBuffer(100), // Store last 100 samples per job
 		collectors: make(map[string]*metrics.Collector),
 		logger:     log,
 	}
@@ -56,7 +61,7 @@ func NewMetricsStoreAdapter(
 	if pubsub == nil {
 		log.Warn("metrics store adapter created with nil pubsub - live streaming will not work")
 	} else {
-		log.Info("metrics store adapter created with pubsub - live streaming enabled")
+		log.Info("metrics store adapter created with pubsub and buffer - live streaming enabled")
 	}
 
 	return adapter
@@ -133,10 +138,16 @@ func (a *MetricsStoreAdapter) StopCollector(jobID string) error {
 
 // PublishMetrics implements the MetricsPublisher interface
 // This is called by the Collector to publish metrics samples
-// Metrics are published to pubsub for:
-// 1. Real-time streaming to clients (StreamJobMetrics)
-// 2. IPC forwarding to persist subprocess (MetricsSubscriber listens and forwards)
+// Metrics are:
+// 1. Stored in buffer for gap-free streaming
+// 2. Published to pubsub for real-time streaming to clients (StreamJobMetrics)
+// 3. IPC forwarding to persist subprocess (MetricsSubscriber listens and forwards)
 func (a *MetricsStoreAdapter) PublishMetrics(ctx context.Context, sample *domain.JobMetricsSample) error {
+	// Store in buffer first (this prevents gaps during persist→live transition)
+	if a.buffer != nil {
+		a.buffer.Add(sample)
+	}
+
 	// Publish to pub-sub for real-time streaming and IPC forwarding
 	if a.pubsub != nil {
 		event := MetricsEvent{
@@ -153,7 +164,7 @@ func (a *MetricsStoreAdapter) PublishMetrics(ctx context.Context, sample *domain
 			a.logger.Warn("failed to publish metrics event", "jobId", sample.JobID, "error", err)
 			// Don't return error - pubsub failure shouldn't fail the collector
 		} else {
-			a.logger.Info("published metrics sample to pubsub", "jobId", sample.JobID, "topic", topic, "timestamp", sample.Timestamp)
+			a.logger.Debug("published metrics sample", "jobId", sample.JobID, "timestamp", sample.Timestamp)
 		}
 	}
 
@@ -161,6 +172,9 @@ func (a *MetricsStoreAdapter) PublishMetrics(ctx context.Context, sample *domain
 }
 
 // StreamMetrics streams real-time metrics for a job
+// This method:
+// 1. First sends buffered samples (prevents gaps during persist→live transition)
+// 2. Then streams live samples from pub-sub
 // Historical metrics are retrieved via joblet-persist gRPC service (not implemented here)
 func (a *MetricsStoreAdapter) StreamMetrics(
 	ctx context.Context,
@@ -174,7 +188,31 @@ func (a *MetricsStoreAdapter) StreamMetrics(
 	hasCollector := a.collectors[jobID] != nil
 	a.collectorsMutex.RUnlock()
 
-	// If no pubsub, we can't stream live metrics
+	// Track latest timestamp sent to avoid duplicates
+	var lastTimestamp time.Time
+
+	// Step 1: Send buffered samples first (prevents gaps)
+	// The buffer contains the last ~100 samples collected for this job
+	// This ensures continuity even if persist hasn't caught up yet
+	if a.buffer != nil {
+		bufferedSamples := a.buffer.GetRecent(jobID, 100)
+		if len(bufferedSamples) > 0 {
+			a.logger.Debug("sending buffered metrics samples", "jobId", jobID, "count", len(bufferedSamples))
+			for _, sample := range bufferedSamples {
+				if err := callback(sample); err != nil {
+					return fmt.Errorf("error sending buffered sample: %w", err)
+				}
+				if sample.Timestamp.After(lastTimestamp) {
+					lastTimestamp = sample.Timestamp
+				}
+			}
+			a.logger.Debug("buffered samples sent", "jobId", jobID, "lastTimestamp", lastTimestamp)
+		} else {
+			a.logger.Debug("no buffered samples for job", "jobId", jobID)
+		}
+	}
+
+	// If no pubsub, we can't stream live metrics beyond the buffer
 	if a.pubsub == nil {
 		a.logger.Warn("no pubsub available for live streaming", "jobId", jobID)
 		return nil
@@ -186,7 +224,7 @@ func (a *MetricsStoreAdapter) StreamMetrics(
 		a.logger.Debug("no active collector - will stream any remaining metrics with drain timeout", "jobId", jobID)
 	}
 
-	// Subscribe to live metrics via pub-sub (single "metrics" topic for all jobs)
+	// Step 2: Subscribe to live metrics via pub-sub (single "metrics" topic for all jobs)
 	topic := "metrics"
 	a.logger.Debug("subscribing to live metrics stream", "jobId", jobID, "topic", topic)
 
@@ -262,6 +300,15 @@ func (a *MetricsStoreAdapter) StreamMetrics(
 			event := msg.Payload
 			// Filter for this specific job since all jobs use the same topic
 			if event.Type == "METRICS_SAMPLE" && event.Sample != nil && event.JobID == jobID {
+				// Deduplicate: skip samples we've already sent from buffer
+				if !lastTimestamp.IsZero() && !event.Sample.Timestamp.After(lastTimestamp) {
+					a.logger.Debug("skipping duplicate metric (already sent from buffer)",
+						"jobId", jobID,
+						"timestamp", event.Sample.Timestamp,
+						"lastSentTimestamp", lastTimestamp)
+					continue
+				}
+
 				receivedAnySample = true
 
 				if err := callback(event.Sample); err != nil {
@@ -269,20 +316,12 @@ func (a *MetricsStoreAdapter) StreamMetrics(
 					return err
 				}
 
+				// Update last timestamp
+				lastTimestamp = event.Sample.Timestamp
 				a.logger.Debug("streamed metrics sample", "jobId", jobID, "timestamp", event.Sample.Timestamp)
 			}
 		}
 	}
-}
-
-// GetHistoricalMetrics reads historical metrics from joblet-persist service
-// This is a placeholder - actual implementation should query persist gRPC service
-func (a *MetricsStoreAdapter) GetHistoricalMetrics(
-	jobID string,
-	from time.Time,
-	to time.Time,
-) ([]*domain.JobMetricsSample, error) {
-	return nil, fmt.Errorf("historical metrics should be queried from joblet-persist gRPC service")
 }
 
 // DeleteJobMetrics deletes all metrics for a specific job
@@ -295,8 +334,13 @@ func (a *MetricsStoreAdapter) DeleteJobMetrics(jobID string) error {
 	}
 	a.collectorsMutex.Unlock()
 
+	// Clear buffer for this job
+	if a.buffer != nil {
+		a.buffer.Clear(jobID)
+	}
+
 	// Metrics files are stored by persist - deletion should be requested from persist gRPC service
-	a.logger.Info("stopped metrics collector for job (files managed by persist)", "jobId", jobID)
+	a.logger.Info("stopped metrics collector and cleared buffer for job (files managed by persist)", "jobId", jobID)
 	return nil
 }
 

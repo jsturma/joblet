@@ -28,6 +28,7 @@ const (
 	RunJobOp       Operation = "run_job"
 	GetJobOp       Operation = "get_job"
 	StopJobOp      Operation = "stop_job"
+	DeleteJobOp    Operation = "delete_job"
 	ListJobsOp     Operation = "list_jobs"
 	StreamJobsOp   Operation = "stream_jobs"
 	GetJobLogsOp   Operation = "get_job_logs"
@@ -101,7 +102,7 @@ func (s *grpcAuthorization) isOperationAllowed(role ClientRole, operation Operat
 		// Job operations - viewers can read but not modify
 		case GetJobOp, ListJobsOp, StreamJobsOp, GetJobLogsOp, GetJobStatusOp:
 			return true
-		case RunJobOp, StopJobOp:
+		case RunJobOp, StopJobOp, DeleteJobOp:
 			return false
 		// Network operations - viewers can list but not create/remove
 		case ListNetworksOp:

@@ -3,8 +3,9 @@
 Data validation script - demonstrates Joblet workflow with shared volumes
 """
 import json
-import sys
 import os
+import sys
+
 
 def main():
     print("Starting data validation...")
