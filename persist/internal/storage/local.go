@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -450,6 +451,14 @@ func (lb *LocalBackend) ReadMetrics(ctx context.Context, query *MetricQuery) (*M
 
 		gzReader, err := gzip.NewReader(file)
 		if err != nil {
+			if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
+				// Empty or incomplete gzip file - this can happen if:
+				// 1. The job just started and no metrics written yet
+				// 2. The gzip writer hasn't been closed yet (job still running)
+				// Just return empty result, no error
+				lb.logger.Debug("Empty or incomplete gzip metrics file", "path", metricsPath, "jobID", query.JobID)
+				return
+			}
 			reader.Error <- fmt.Errorf("failed to create gzip reader: %w", err)
 			return
 		}
@@ -510,6 +519,13 @@ func (lb *LocalBackend) ReadMetrics(ctx context.Context, query *MetricQuery) (*M
 		}
 
 		if err := scanner.Err(); err != nil {
+			// If we hit unexpected EOF in the middle of reading, it means the gzip
+			// stream is incomplete (e.g., job still running and writer not closed)
+			// Return what we read so far instead of erroring
+			if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
+				lb.logger.Debug("Incomplete gzip stream, returning partial metrics", "jobID", query.JobID, "count", count)
+				return
+			}
 			reader.Error <- fmt.Errorf("error reading metrics: %w", err)
 			return
 		}
