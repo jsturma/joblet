@@ -14,7 +14,6 @@ import (
 	"time"
 
 	persistpb "github.com/ehsaniara/joblet-proto/v2/gen"
-	ipcpb "github.com/ehsaniara/joblet/internal/proto/gen/ipc"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -396,65 +395,6 @@ func convertPersistMetricToJobMetric(persistMetric *persistpb.Metric) *pb.JobMet
 			TotalTxBytes:   uint64(persistMetric.Data.NetworkIo.TxBytes),
 			TotalRxPackets: uint64(persistMetric.Data.NetworkIo.RxPackets),
 			TotalTxPackets: uint64(persistMetric.Data.NetworkIo.TxPackets),
-		}
-	}
-
-	return sample
-}
-
-// convertIPCMetricToJobMetric converts an IPC Metric to joblet JobMetricsSample
-// The IPC Metric format is simpler - just CPU, memory, GPU, disk, and network basics
-func convertIPCMetricToJobMetric(ipcMetric *ipcpb.Metric) *pb.JobMetricsSample {
-	sample := &pb.JobMetricsSample{
-		JobId:                 ipcMetric.JobId,
-		Timestamp:             ipcMetric.Timestamp / 1000000, // Convert nanoseconds to seconds
-		SampleIntervalSeconds: 1,                             // IPC metrics don't include interval, default to 1s
-	}
-
-	if ipcMetric.Data == nil {
-		return sample
-	}
-
-	// Convert CPU metrics
-	if ipcMetric.Data.CpuUsage > 0 {
-		sample.Cpu = &pb.JobCPUMetrics{
-			UsagePercent: ipcMetric.Data.CpuUsage * 100, // Convert cores to percentage
-		}
-	}
-
-	// Convert Memory metrics
-	if ipcMetric.Data.MemoryUsage > 0 {
-		sample.Memory = &pb.JobMemoryMetrics{
-			Current: uint64(ipcMetric.Data.MemoryUsage),
-		}
-	}
-
-	// Convert GPU metrics (simple format from IPC)
-	if ipcMetric.Data.GpuUsage > 0 {
-		sample.Gpu = []*pb.JobGPUMetrics{
-			{
-				Index:       0,
-				Name:        "GPU",
-				Utilization: ipcMetric.Data.GpuUsage * 100, // Convert 0-1 to percentage
-			},
-		}
-	}
-
-	// Convert I/O metrics
-	if ipcMetric.Data.DiskIo != nil {
-		sample.Io = &pb.JobIOMetrics{
-			TotalReadBytes:  uint64(ipcMetric.Data.DiskIo.ReadBytes),
-			TotalWriteBytes: uint64(ipcMetric.Data.DiskIo.WriteBytes),
-		}
-	}
-
-	// Convert Network metrics
-	if ipcMetric.Data.NetworkIo != nil {
-		sample.Network = &pb.JobNetworkMetrics{
-			TotalRxBytes:   uint64(ipcMetric.Data.NetworkIo.RxBytes),
-			TotalTxBytes:   uint64(ipcMetric.Data.NetworkIo.TxBytes),
-			TotalRxPackets: uint64(ipcMetric.Data.NetworkIo.RxPackets),
-			TotalTxPackets: uint64(ipcMetric.Data.NetworkIo.TxPackets),
 		}
 	}
 

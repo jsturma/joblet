@@ -12,8 +12,9 @@ import (
 // Similar to logs buffer, it retains recent samples in memory
 type MetricsBuffer struct {
 	// jobBuffers maps jobID to a circular buffer of samples
-	jobBuffers map[string]*circularBuffer
-	mutex      sync.RWMutex
+	jobBuffers     map[string]*circularBuffer
+	capacityPerJob int
+	mutex          sync.RWMutex
 }
 
 // circularBuffer stores metrics samples in a circular buffer
@@ -32,7 +33,8 @@ func NewMetricsBuffer(capacityPerJob int) *MetricsBuffer {
 	}
 
 	return &MetricsBuffer{
-		jobBuffers: make(map[string]*circularBuffer),
+		jobBuffers:     make(map[string]*circularBuffer),
+		capacityPerJob: capacityPerJob,
 	}
 }
 

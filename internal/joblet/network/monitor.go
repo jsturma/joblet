@@ -279,7 +279,7 @@ func (nm *NetworkMonitor) applyBandwidthLimits(jobID string, limits *NetworkLimi
 		"burst_kb", limits.BurstSize)
 
 	// Remove any existing qdisc first (cleanup)
-	nm.removeTC(interfaceName)
+	_ = nm.removeTC(interfaceName) // Ignore error - qdisc may not exist
 
 	var lastErr error
 
