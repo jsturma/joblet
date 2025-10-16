@@ -27,6 +27,7 @@ import (
 	"github.com/ehsaniara/joblet/internal/joblet/server"
 	"github.com/ehsaniara/joblet/internal/modes/isolation"
 	"github.com/ehsaniara/joblet/internal/modes/jobexec"
+	"github.com/ehsaniara/joblet/pkg/client"
 	"github.com/ehsaniara/joblet/pkg/config"
 	"github.com/ehsaniara/joblet/pkg/constants"
 	"github.com/ehsaniara/joblet/pkg/logger"
@@ -101,11 +102,23 @@ func RunServer(cfg *config.Config) error {
 		}
 	}()
 
+	// Create persist client for historical data deletion (shared by both adapters)
+	persistSocketPath := "/opt/joblet/run/persist-grpc.sock"
+	persistClient, err := client.NewPersistClientUnix(persistSocketPath)
+	if err != nil {
+		log.Warn("failed to connect to persist service - historical data deletion will not work",
+			"socket", persistSocketPath, "error", err)
+		persistClient = nil // Continue without persist client
+	} else {
+		log.Info("connected to persist service for historical data deletion", "socket", persistSocketPath)
+	}
+
 	// Create pub-sub for metrics events to enable live streaming and IPC forwarding
 	metricsPubSub := pubsub.NewPubSub[adapters.MetricsEvent]()
 
 	metricsStoreAdapter := adapters.NewMetricsStoreAdapter(
 		metricsPubSub,
+		persistClient,
 		logger.WithField("component", "metrics-store"),
 	)
 

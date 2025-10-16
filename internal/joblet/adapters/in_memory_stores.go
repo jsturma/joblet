@@ -6,6 +6,7 @@ import (
 
 	"github.com/ehsaniara/joblet/internal/joblet/domain"
 	"github.com/ehsaniara/joblet/internal/joblet/pubsub"
+	"github.com/ehsaniara/joblet/pkg/client"
 	"github.com/ehsaniara/joblet/pkg/config"
 	"github.com/ehsaniara/joblet/pkg/logger"
 )
@@ -31,8 +32,19 @@ func NewJobStore(cfg *config.BuffersConfig, logger *logger.Logger) JobStorer {
 
 	logMgr := NewSimpleLogManager()
 
+	// Create persist client for historical log/metric deletion
+	persistSocketPath := "/opt/joblet/run/persist-grpc.sock"
+	persistClient, err := client.NewPersistClientUnix(persistSocketPath)
+	if err != nil {
+		logger.Warn("failed to connect to persist service - historical data deletion will not work",
+			"socket", persistSocketPath, "error", err)
+		persistClient = nil // Continue without persist client
+	} else {
+		logger.Info("connected to persist service for historical data deletion", "socket", persistSocketPath)
+	}
+
 	// Logs are buffered in-memory for real-time streaming and forwarded to persist via IPC
-	return NewJobStorer(store, logMgr, pubsubSystem, logger)
+	return NewJobStorer(store, logMgr, pubsubSystem, persistClient, logger)
 }
 
 // NewVolumeStore creates a volume store directly

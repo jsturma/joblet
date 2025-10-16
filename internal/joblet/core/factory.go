@@ -11,6 +11,7 @@ import (
 	"github.com/ehsaniara/joblet/internal/joblet/pubsub"
 	"github.com/ehsaniara/joblet/internal/joblet/runtime"
 	"github.com/ehsaniara/joblet/internal/joblet/workflow"
+	"github.com/ehsaniara/joblet/pkg/client"
 	"github.com/ehsaniara/joblet/pkg/config"
 	"github.com/ehsaniara/joblet/pkg/logger"
 	"github.com/ehsaniara/joblet/pkg/platform"
@@ -190,11 +191,23 @@ func (f *ComponentFactory) configureVolumeMonitoring(monitoringService *monitori
 func (f *ComponentFactory) createMetricsStore() *adapters.MetricsStoreAdapter {
 	f.logger.Debug("creating metrics store adapter")
 
+	// Create persist client for historical metrics deletion
+	persistSocketPath := "/opt/joblet/run/persist-grpc.sock"
+	persistClient, err := client.NewPersistClientUnix(persistSocketPath)
+	if err != nil {
+		f.logger.Warn("failed to connect to persist service - historical metrics deletion will not work",
+			"socket", persistSocketPath, "error", err)
+		persistClient = nil // Continue without persist client
+	} else {
+		f.logger.Info("connected to persist service for historical metrics deletion", "socket", persistSocketPath)
+	}
+
 	// Create a pub-sub for metrics events (live streaming + IPC forwarding)
 	metricsPubSub := pubsub.NewPubSub[adapters.MetricsEvent]()
 
 	metricsStore := adapters.NewMetricsStoreAdapter(
 		metricsPubSub,
+		persistClient,
 		logger.WithField("component", "metrics-store"),
 	)
 

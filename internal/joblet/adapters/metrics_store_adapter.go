@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/metrics"
 	"github.com/ehsaniara/joblet/internal/joblet/metrics/domain"
 	"github.com/ehsaniara/joblet/internal/joblet/pubsub"
@@ -23,6 +24,9 @@ type MetricsStoreAdapter struct {
 
 	// Buffer for recent metrics to prevent gaps during persist→live transition
 	buffer *metrics.MetricsBuffer
+
+	// Persist client for deleting historical metrics
+	persistClient pb.PersistServiceClient
 
 	// Active collectors per job
 	collectors      map[string]*metrics.Collector
@@ -44,6 +48,7 @@ type MetricsEvent struct {
 // NewMetricsStoreAdapter creates a new metrics store adapter
 func NewMetricsStoreAdapter(
 	pubsub pubsub.PubSub[MetricsEvent],
+	persistClient pb.PersistServiceClient,
 	log *logger.Logger,
 ) *MetricsStoreAdapter {
 	if log == nil {
@@ -51,10 +56,11 @@ func NewMetricsStoreAdapter(
 	}
 
 	adapter := &MetricsStoreAdapter{
-		pubsub:     pubsub,
-		buffer:     metrics.NewMetricsBuffer(100), // Store last 100 samples per job
-		collectors: make(map[string]*metrics.Collector),
-		logger:     log,
+		pubsub:        pubsub,
+		persistClient: persistClient,
+		buffer:        metrics.NewMetricsBuffer(100), // Store last 100 samples per job
+		collectors:    make(map[string]*metrics.Collector),
+		logger:        log,
 	}
 
 	// Debug log to verify pubsub is set
@@ -62,6 +68,10 @@ func NewMetricsStoreAdapter(
 		log.Warn("metrics store adapter created with nil pubsub - live streaming will not work")
 	} else {
 		log.Info("metrics store adapter created with pubsub and buffer - live streaming enabled")
+	}
+
+	if persistClient == nil {
+		log.Warn("metrics store adapter created without persist client - historical metrics deletion will not work")
 	}
 
 	return adapter
@@ -339,8 +349,30 @@ func (a *MetricsStoreAdapter) DeleteJobMetrics(jobID string) error {
 		a.buffer.Clear(jobID)
 	}
 
-	// Metrics files are stored by persist - deletion should be requested from persist gRPC service
-	a.logger.Info("stopped metrics collector and cleared buffer for job (files managed by persist)", "jobId", jobID)
+	// Metrics files are stored by persist - request deletion via persist gRPC service
+	if a.persistClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := a.persistClient.DeleteJob(ctx, &pb.DeleteJobRequest{
+			JobId: jobID,
+		})
+		if err != nil {
+			a.logger.Warn("failed to delete metrics from persist storage", "jobId", jobID, "error", err)
+			return fmt.Errorf("failed to delete metrics from persist storage: %w", err)
+		}
+
+		if !resp.Success {
+			a.logger.Warn("persist reported metrics deletion failure", "jobId", jobID, "message", resp.Message)
+			return fmt.Errorf("persist metrics deletion failed: %s", resp.Message)
+		}
+
+		a.logger.Info("successfully deleted metrics from persist storage", "jobId", jobID)
+	} else {
+		a.logger.Warn("persist client not available - cannot delete historical metrics files", "jobId", jobID)
+	}
+
+	a.logger.Info("stopped metrics collector and cleared buffer for job", "jobId", jobID)
 	return nil
 }
 

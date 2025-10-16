@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/domain"
 	"github.com/ehsaniara/joblet/internal/joblet/interfaces"
 	"github.com/ehsaniara/joblet/internal/joblet/pubsub"
@@ -41,6 +42,9 @@ type jobStoreAdapter struct {
 	jobStore jobStore[string, *domain.Job]
 	logMgr   *SimpleLogManager
 	pubsub   pubsub.PubSub[JobEvent]
+
+	// Persist client for deleting historical logs and metrics
+	persistClient pb.PersistServiceClient
 
 	// Task management (maintains compatibility with current Task-based approach)
 	tasks      map[string]*taskWrapper
@@ -89,6 +93,7 @@ func NewJobStorer(
 	store jobStore[string, *domain.Job],
 	logMgr *SimpleLogManager,
 	pubsub pubsub.PubSub[JobEvent],
+	persistClient pb.PersistServiceClient,
 	logger *logger.Logger,
 ) JobStorer {
 	if logger == nil {
@@ -96,11 +101,12 @@ func NewJobStorer(
 	}
 
 	return &jobStoreAdapter{
-		jobStore: store,
-		logMgr:   logMgr,
-		pubsub:   pubsub,
-		tasks:    make(map[string]*taskWrapper),
-		logger:   logger,
+		jobStore:      store,
+		logMgr:        logMgr,
+		pubsub:        pubsub,
+		persistClient: persistClient,
+		tasks:         make(map[string]*taskWrapper),
+		logger:        logger,
 	}
 }
 
@@ -623,7 +629,28 @@ func (a *jobStoreAdapter) DeleteJobLogs(jobID string) error {
 		return fmt.Errorf("failed to delete job logs: %w", err)
 	}
 
-	// Log files are managed by persist subprocess - deletion should be requested from persist gRPC service
+	// Log files are managed by persist subprocess - request deletion via persist gRPC service
+	if a.persistClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		resp, err := a.persistClient.DeleteJob(ctx, &pb.DeleteJobRequest{
+			JobId: resolvedUuid,
+		})
+		if err != nil {
+			a.logger.Warn("failed to delete logs from persist storage", "jobId", resolvedUuid, "error", err)
+			return fmt.Errorf("failed to delete logs from persist storage: %w", err)
+		}
+
+		if !resp.Success {
+			a.logger.Warn("persist reported log deletion failure", "jobId", resolvedUuid, "message", resp.Message)
+			return fmt.Errorf("persist log deletion failed: %s", resp.Message)
+		}
+
+		a.logger.Info("successfully deleted logs from persist storage", "jobId", resolvedUuid)
+	} else {
+		a.logger.Warn("persist client not available - cannot delete historical log files", "jobId", resolvedUuid)
+	}
 
 	return nil
 }
