@@ -221,6 +221,7 @@ npm run dev
 
 ## 🔗 Related Projects
 
+- **[Joblet Admin UI](https://github.com/ehsaniara/joblet-admin)**
 - **[Joblet Proto](https://github.com/ehsaniara/joblet-proto)**
 - **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)**
 - **[Joblet MCP Server](https://github.com/ehsaniara/joblet-mcp-server)**
