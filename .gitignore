@@ -49,3 +49,5 @@ rpmbuild/
 *.deb
 *.rpm
 
+# VERSION file (optional override for version info - git tags preferred)
+VERSION

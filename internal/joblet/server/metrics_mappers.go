@@ -3,6 +3,7 @@ package server
 import (
 	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/metrics/domain"
+	persistpb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
 )
 
 // convertMetricsSampleToProto converts domain JobMetricsSample to protobuf
@@ -220,7 +221,7 @@ func convertGPUMetricsToProto(gpu *domain.GPUMetrics) *pb.JobGPUMetrics {
 
 // convertPersistMetricToProto converts persist.Metric to JobMetricsSample
 // This is used for streaming historical metrics from persist storage
-func convertPersistMetricToProto(metric *pb.Metric) *pb.JobMetricsSample {
+func convertPersistMetricToProto(metric *persistpb.Metric) *pb.JobMetricsSample {
 	if metric == nil || metric.Data == nil {
 		return nil
 	}

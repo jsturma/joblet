@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/ehsaniara/joblet-proto/v2/gen"
 	"github.com/ehsaniara/joblet/internal/joblet/domain"
 	"github.com/ehsaniara/joblet/internal/joblet/interfaces"
 	"github.com/ehsaniara/joblet/internal/joblet/pubsub"
+	pb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
 	"github.com/ehsaniara/joblet/pkg/logger"
 )
 

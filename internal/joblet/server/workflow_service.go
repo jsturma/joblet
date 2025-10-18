@@ -21,6 +21,7 @@ import (
 	"github.com/ehsaniara/joblet/internal/joblet/runtime"
 	"github.com/ehsaniara/joblet/internal/joblet/workflow"
 	"github.com/ehsaniara/joblet/internal/joblet/workflow/types"
+	persistpb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
 	"github.com/ehsaniara/joblet/pkg/logger"
 
 	"google.golang.org/grpc"
@@ -51,7 +52,7 @@ type WorkflowServiceServer struct {
 	joblet            interfaces.Joblet
 	workflowManager   *workflow.WorkflowManager
 	workflowValidator *validation.WorkflowValidator
-	persistClient     pb.PersistServiceClient // Client for historical queries via Unix socket IPC
+	persistClient     persistpb.PersistServiceClient // Client for historical queries via Unix socket IPC
 	logger            *logger.Logger
 
 	// UUID to workflow ID mapping
@@ -63,7 +64,7 @@ type WorkflowServiceServer struct {
 // This server handles workflow creation, status monitoring, and job orchestration.
 // It requires authentication, job store access, joblet interface for job execution,
 // a workflow manager for dependency tracking and job coordination, and managers for validation.
-func NewWorkflowServiceServer(auth auth2.GRPCAuthorization, jobStore adapters.JobStorer, metricsStore *adapters.MetricsStoreAdapter, joblet interfaces.Joblet, workflowManager *workflow.WorkflowManager, volumeManager *volume.Manager, runtimeResolver *runtime.Resolver, persistClient pb.PersistServiceClient) *WorkflowServiceServer {
+func NewWorkflowServiceServer(auth auth2.GRPCAuthorization, jobStore adapters.JobStorer, metricsStore *adapters.MetricsStoreAdapter, joblet interfaces.Joblet, workflowManager *workflow.WorkflowManager, volumeManager *volume.Manager, runtimeResolver *runtime.Resolver, persistClient persistpb.PersistServiceClient) *WorkflowServiceServer {
 	// Create workflow validator with concrete managers (no adapter pattern needed)
 	workflowValidator := validation.NewWorkflowValidator(volumeManager, runtimeResolver)
 
@@ -1358,9 +1359,9 @@ func (s *WorkflowServiceServer) GetJobLogs(req *pb.GetJobLogsReq, stream pb.JobS
 	if s.persistClient != nil {
 		log.Debug("fetching historical logs from persist")
 
-		persistReq := &pb.QueryLogsRequest{
+		persistReq := &persistpb.QueryLogsRequest{
 			JobId:  req.GetUuid(),
-			Stream: pb.StreamType_STREAM_TYPE_UNSPECIFIED, // Both stdout and stderr
+			Stream: persistpb.StreamType_STREAM_TYPE_UNSPECIFIED, // Both stdout and stderr
 		}
 
 		persistStream, err := s.persistClient.QueryLogs(stream.Context(), persistReq)
@@ -1663,7 +1664,7 @@ func (s *WorkflowServiceServer) GetJobMetrics(req *pb.JobMetricsRequest, stream 
 	if s.persistClient != nil {
 		log.Debug("fetching historical metrics from persist")
 
-		persistReq := &pb.QueryMetricsRequest{
+		persistReq := &persistpb.QueryMetricsRequest{
 			JobId: resolvedUUID,
 		}
 
@@ -1739,7 +1740,7 @@ func (s *WorkflowServiceServer) checkPersistHealth(ctx context.Context) error {
 	defer cancel()
 
 	// Call the Ping RPC
-	resp, err := s.persistClient.Ping(checkCtx, &pb.PingRequest{})
+	resp, err := s.persistClient.Ping(checkCtx, &persistpb.PingRequest{})
 	if err != nil {
 		return fmt.Errorf("ping failed: %w", err)
 	}

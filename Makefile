@@ -5,32 +5,58 @@ REMOTE_USER ?= jay
 # Fix GOPATH if IntelliJ IDEA has set it incorrectly
 export GOPATH := $(HOME)/go
 
-.PHONY: all clean deploy test proto help joblet rnx persist
+# Version information
+# Priority: 1. VERSION env var, 2. VERSION file, 3. git tags, 4. fallback to "dev"
+#
+# Usage:
+#   make version                    # Show current version (from git tags)
+#   VERSION=v1.2.3 make all         # Build with custom version (CI/CD)
+#   echo "v1.2.3" > VERSION && make # Use VERSION file (no git required)
+#
+# Note: End users do NOT need git - version is embedded in binary at build time
+VERSION ?= $(shell [ -f VERSION ] && cat VERSION || git describe --tags --exact-match 2>/dev/null || git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || echo "unknown")
+BUILD_DATE := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+# Ldflags for version injection
+LDFLAGS := -s -w \
+	-X github.com/ehsaniara/joblet/pkg/version.Version=$(VERSION) \
+	-X github.com/ehsaniara/joblet/pkg/version.GitCommit=$(GIT_COMMIT) \
+	-X github.com/ehsaniara/joblet/pkg/version.GitTag=$(GIT_TAG) \
+	-X github.com/ehsaniara/joblet/pkg/version.BuildDate=$(BUILD_DATE)
+
+.PHONY: all clean deploy test proto help joblet rnx persist version
 
 all: proto joblet rnx persist
 	@echo "✅ Build complete - all binaries ready"
 
 joblet:
 	@echo "Building joblet daemon..."
-	@GOOS=linux GOARCH=amd64 go build -o bin/joblet ./cmd/joblet
-	@echo "✅ joblet built"
+	@GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=joblet" -o bin/joblet ./cmd/joblet
+	@echo "✅ joblet built (version: $(VERSION))"
 
 rnx:
 	@echo "Building rnx CLI..."
-	@GOOS=linux GOARCH=amd64 go build -o bin/rnx ./cmd/rnx
-	@echo "✅ rnx built"
+	@GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=rnx" -o bin/rnx ./cmd/rnx
+	@echo "✅ rnx built (version: $(VERSION))"
 
 persist:
 	@echo "Building joblet-persist..."
-	@cd persist && GOOS=linux GOARCH=amd64 go build -o ../bin/joblet-persist ./cmd/joblet-persist
-	@echo "✅ joblet-persist built"
+	@cd persist && GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=joblet-persist" -o ../bin/joblet-persist ./cmd/joblet-persist
+	@echo "✅ joblet-persist built (version: $(VERSION))"
 
 proto:
 	@echo "Generating proto files..."
 	@./scripts/generate-proto.sh
-	@./scripts/generate-internal-proto.sh
+	@go generate ./internal/proto
 	@echo "Proto generation complete"
 
+version:
+	@echo "Version: $(VERSION)"
+	@echo "Git Commit: $(GIT_COMMIT)"
+	@echo "Git Tag: $(GIT_TAG)"
+	@echo "Build Date: $(BUILD_DATE)"
 
 clean:
 	rm -rf bin/ dist/ api/gen/ internal/proto/gen/
@@ -65,9 +91,15 @@ help:
 	@echo "  make rnx       - Build rnx CLI only"
 	@echo "  make persist   - Build joblet-persist only"
 	@echo "  make proto     - Generate proto files"
+	@echo "  make version   - Show version information"
 	@echo "  make clean     - Remove build artifacts"
 	@echo "  make test      - Run all tests (both modules)"
 	@echo "  make deploy    - Deploy to remote server"
+	@echo ""
+	@echo "Version Information:"
+	@echo "  Version:    $(VERSION)"
+	@echo "  Git Commit: $(GIT_COMMIT)"
+	@echo "  Build Date: $(BUILD_DATE)"
 	@echo ""
 	@echo "Modules:"
 	@echo "  Main:    github.com/ehsaniara/joblet"

@@ -201,15 +201,22 @@ Both services support TLS encryption:
 
 ### Proto Generation
 
-Two scripts handle proto generation:
+Proto generation uses two approaches:
 
 1. **`scripts/generate-proto.sh`** - External public API
     - Downloads from `joblet-proto` module
     - Generates `api/gen/`
 
-2. **`scripts/generate-internal-proto.sh`** - Internal protos
-    - Uses local `internal/proto/`
-    - Generates `internal/proto/gen/`
+2. **`go generate ./internal/proto`** - Internal protos (IPC and Persist)
+    - Uses local `internal/proto/` files
+    - Generates `internal/proto/gen/ipc/` and `internal/proto/gen/persist/`
+    - Defined via `//go:generate` directives in `internal/proto/generate.go`
+
+Developers can regenerate protos with:
+```bash
+make proto              # Regenerate all protos
+go generate ./internal/proto  # Regenerate internal protos only
+```
 
 ## Data Flow
 

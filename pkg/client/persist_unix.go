@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	pb "github.com/ehsaniara/joblet-proto/v2/gen"
+	pb "github.com/ehsaniara/joblet/internal/proto/gen/persist"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
