@@ -82,16 +82,6 @@ seamless integration with existing infrastructure through a unified gRPC API and
 - **Runtime Catalog**: Curated collection of production-ready runtime environments including Python, Python ML with CUDA
   libraries, and JVM-based platforms
 
-## Web Interface
-
-### System Monitoring
-
-![System Monitoring](./AdminUI-SystemMonitoring1.png)
-
-### Workflow Management
-
-![Workflow Management](./AdminUI-Workflow1.png)
-
 ## Enterprise Use Cases
 
 ### Continuous Integration and Deployment

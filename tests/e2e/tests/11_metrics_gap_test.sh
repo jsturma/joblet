@@ -44,7 +44,7 @@ start_metrics_job() {
     local duration="$1"
 
     # Run job and extract ID (job runs in background on server)
-    local output=$(run_rnx_command "job run 'for i in \$(seq 1 $duration); do echo \"Iteration \$i\"; sleep 1; done'" 2>&1)
+    local output=$(run_rnx_command "job run sh -c 'for i in \$(seq 1 $duration); do echo \"Iteration \$i\"; sleep 1; done'" 2>&1)
 
     echo "$output" | grep "ID:" | awk '{print $2}' | head -1
 }

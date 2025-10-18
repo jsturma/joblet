@@ -22,7 +22,7 @@ test_persist_service_running() {
     echo "Checking if joblet-persist subprocess is running..."
 
     # Check if persist is running as subprocess of joblet
-    local persist_pid=$(ssh ${REMOTE_USER}@${REMOTE_HOST} "ps aux | grep 'joblet-persist -config' | grep -v grep | awk '{print \$2}'" 2>/dev/null)
+    local persist_pid=$(ssh ${REMOTE_USER}@${REMOTE_HOST} "ps aux | grep '/joblet-persist' | grep -v grep | awk '{print \$2}'" 2>/dev/null)
     local joblet_pid=$(ssh ${REMOTE_USER}@${REMOTE_HOST} "ps aux | grep '/opt/joblet/bin/joblet\$' | grep -v grep | awk '{print \$2}'" 2>/dev/null)
 
     if [[ -n "$persist_pid" ]] && [[ -n "$joblet_pid" ]]; then

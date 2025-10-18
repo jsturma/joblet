@@ -12,6 +12,10 @@ This guide shows you how to deploy Joblet on AWS EC2 using the automated user da
 - CloudWatch Logs enabled for production workloads
 - IAM role attached for CloudWatch permissions
 
+> **Note on CloudWatch Logs**: CloudWatch is **optional**. For simple deployments or development, set
+`ENABLE_CLOUDWATCH="false"` in the user data script and skip the IAM setup section entirely. Logs will be stored locally
+> on the EC2 instance instead.
+
 ## Prerequisites
 
 - AWS account with EC2 launch permissions
@@ -25,6 +29,13 @@ This guide shows you how to deploy Joblet on AWS EC2 using the automated user da
 - Amazon Linux 2023 (recommended for AL)
 - Amazon Linux 2
 - RHEL 8+ / CentOS Stream 8+ / Fedora 30+
+
+**Note on SSH Usernames:**
+Throughout this guide, `<EC2_USER>` refers to the default SSH user for your AMI:
+
+- Ubuntu/Debian: Use `ubuntu`
+- Amazon Linux: Use `ec2-user`
+- RHEL: Use `ec2-user`
 
 ## Quick Start (AWS Console)
 
@@ -73,8 +84,8 @@ This guide shows you how to deploy Joblet on AWS EC2 using the automated user da
 Installation takes 3-5 minutes. You can monitor progress:
 
 ```bash
-# SSH into instance
-ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP>
+# SSH into instance (use 'ubuntu' for Ubuntu AMI, 'ec2-user' for Amazon Linux)
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>
 
 # Watch installation log
 tail -f /var/log/joblet-install.log
@@ -231,7 +242,7 @@ From your **local machine**:
 mkdir -p ~/.rnx
 
 # Download config from EC2 instance
-scp -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP>:/opt/joblet/config/rnx-config.yml ~/.rnx/
+scp -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>:/opt/joblet/config/rnx-config.yml ~/.rnx/
 
 # Test connection
 rnx job list
@@ -267,6 +278,70 @@ nodes:
 rnx job list                      # Uses default node
 rnx --node=production job list    # Uses production node
 ```
+
+### SSH Tunneling (For Private Instances)
+
+If your EC2 instance is in a private subnet or you want to connect through SSH tunneling:
+
+**1. Create SSH tunnel:**
+
+```bash
+# Forward local port 50051 to the EC2 instance's internal IP on port 443
+ssh -N -v -L 50051:PRIVATE_IP:443 <EC2_USER>@EC2_PUBLIC_IP -i your-key.pem
+
+# Example with actual values (using Ubuntu):
+ssh -N -v -L 50051:10.0.1.100:443 ubuntu@3.15.123.45 -i ~/.ssh/joblet-key.pem
+```
+
+**Flags explained:**
+
+- `-N`: Don't execute remote commands (tunnel only)
+- `-v`: Verbose mode (helps debug connection issues)
+- `-L 50051:PRIVATE_IP:443`: Forward local port 50051 to PRIVATE_IP:443 on the remote side
+- `-i your-key.pem`: SSH private key
+
+**2. Configure rnx to use localhost:**
+
+Edit `~/.rnx/rnx-config.yml`:
+
+```yaml
+nodes:
+  tunnel:
+    address: "localhost:50051"  # Connect through SSH tunnel
+    cert: |
+      -----BEGIN CERTIFICATE-----
+      ...  # Use the same certificate from the EC2 instance
+```
+
+**3. Test connection:**
+
+```bash
+# Keep the SSH tunnel running in one terminal
+ssh -N -v -L 50051:10.0.1.100:443 ubuntu@3.15.123.45 -i ~/.ssh/joblet-key.pem
+
+# In another terminal, use the tunnel
+rnx --node=tunnel job list
+```
+
+**Persistent tunnel (optional):**
+
+For a persistent tunnel that reconnects automatically, use `autossh`:
+
+```bash
+# Install autossh
+sudo apt-get install autossh  # Ubuntu/Debian
+sudo yum install autossh      # Amazon Linux/RHEL
+
+# Create persistent tunnel
+autossh -M 0 -N -v -L 50051:10.0.1.100:443 ubuntu@3.15.123.45 -i ~/.ssh/joblet-key.pem
+```
+
+**Common use cases:**
+
+- EC2 instance in private subnet (no public IP)
+- Bastion host/jump server setup
+- Additional security layer (no direct gRPC port exposure)
+- Testing from environments where only SSH (port 22) is allowed
 
 ### Run Test Jobs
 
@@ -311,7 +386,7 @@ For advanced CloudWatch queries and monitoring, see [MONITORING.md](MONITORING.m
 
 **Check installation log:**
 ```bash
-ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP>
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>
 cat /var/log/joblet-install.log
 grep -i error /var/log/joblet-install.log
 ```
@@ -393,7 +468,7 @@ sudo systemctl restart joblet
 
 **Check server is listening:**
 ```bash
-ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP> "sudo ss -tlnp | grep 443"
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP> "sudo ss -tlnp | grep 443"
 ```
 
 **Common issues:**
@@ -409,7 +484,7 @@ ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP> "sudo ss -tlnp | grep 443"
 2. **Wrong IP in client config:**
    ```bash
    # Download fresh config
-   scp -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP>:/opt/joblet/config/rnx-config.yml ~/.rnx/
+   scp -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>:/opt/joblet/config/rnx-config.yml ~/.rnx/
    ```
 
 ### CloudWatch Logs Not Working
@@ -434,7 +509,7 @@ aws ec2 associate-iam-instance-profile \
   --iam-instance-profile Name=JobletCloudWatchRole
 
 # Restart joblet
-ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP> "sudo systemctl restart joblet"
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP> "sudo systemctl restart joblet"
 ```
 
 ## Configuration Options
@@ -494,7 +569,7 @@ aws ec2 run-instances \
 
 ```bash
 # SSH into instance
-ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP>
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>
 
 # For Ubuntu/Debian
 wget https://github.com/ehsaniara/joblet/releases/download/v1.2.0/joblet_1.2.0_amd64.deb
@@ -511,11 +586,11 @@ sudo systemctl restart joblet
 
 ```bash
 # Backup config and data
-ssh -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP> \
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP> \
   "sudo tar czf /tmp/joblet-backup.tar.gz /opt/joblet/config /opt/joblet/volumes"
 
 # Download backup
-scp -i ~/.ssh/your-key.pem ubuntu@<PUBLIC_IP>:/tmp/joblet-backup.tar.gz ./
+scp -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>:/tmp/joblet-backup.tar.gz ./
 ```
 
 **For production:** Use EBS snapshots for complete backups.

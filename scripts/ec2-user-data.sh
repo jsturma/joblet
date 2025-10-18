@@ -432,10 +432,11 @@ display_summary() {
     log ""
     log "Client Configuration:"
     log "  1. Copy config from server:"
-    log "     scp root@$EC2_INTERNAL_IP:/opt/joblet/config/rnx-config.yml ~/.rnx/"
+    log "     scp <EC2_USER>@$EC2_INTERNAL_IP:/opt/joblet/config/rnx-config.yml ~/.rnx/"
     if [ -n "$EC2_PUBLIC_IP" ]; then
-        log "     Or: scp root@$EC2_PUBLIC_IP:/opt/joblet/config/rnx-config.yml ~/.rnx/"
+        log "     Or: scp <EC2_USER>@$EC2_PUBLIC_IP:/opt/joblet/config/rnx-config.yml ~/.rnx/"
     fi
+    log "     (Use 'ubuntu' for Ubuntu, 'ec2-user' for Amazon Linux)"
     log ""
     log "  2. The certificate includes these connection options:"
     log "     - Internal IP: $EC2_INTERNAL_IP:$JOBLET_SERVER_PORT"

@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -211,25 +212,43 @@ func (s *Server) writeWorker(id int) {
 
 	batch := make([]*ipcpb.IPCMessage, 0, 100)
 
-	for msg := range s.writePipe {
-		batch = append(batch, msg)
+	// Add time-based flush to ensure metrics are written periodically
+	// even if batch size threshold (100) isn't reached
+	flushTicker := time.NewTicker(5 * time.Second)
+	defer flushTicker.Stop()
 
-		// Flush batch when full or channel empty
-		if len(batch) >= 100 {
-			s.processBatch(batch, workerLog)
-			batch = batch[:0]
-		} else if len(s.writePipe) == 0 && len(batch) > 0 {
-			s.processBatch(batch, workerLog)
-			batch = batch[:0]
+	for {
+		select {
+		case msg, ok := <-s.writePipe:
+			if !ok {
+				// Channel closed, flush remaining batch and exit
+				if len(batch) > 0 {
+					s.processBatch(batch, workerLog)
+				}
+				workerLog.Debug("Write worker stopped")
+				return
+			}
+
+			batch = append(batch, msg)
+
+			// Flush batch when full or channel empty
+			if len(batch) >= 100 {
+				s.processBatch(batch, workerLog)
+				batch = batch[:0]
+			} else if len(s.writePipe) == 0 && len(batch) > 0 {
+				s.processBatch(batch, workerLog)
+				batch = batch[:0]
+			}
+
+		case <-flushTicker.C:
+			// Periodic flush to ensure timely writes
+			if len(batch) > 0 {
+				workerLog.Debug("periodic flush", "batchSize", len(batch))
+				s.processBatch(batch, workerLog)
+				batch = batch[:0]
+			}
 		}
 	}
-
-	// Flush remaining batch
-	if len(batch) > 0 {
-		s.processBatch(batch, workerLog)
-	}
-
-	workerLog.Debug("Write worker stopped")
 }
 
 // processBatch processes a batch of messages
