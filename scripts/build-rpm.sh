@@ -258,9 +258,9 @@ fi
 setup_network_requirements
 
 # Create runtime directories
-mkdir -p /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs
-chown root:root /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs
-chmod 755 /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs
+mkdir -p /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs /opt/joblet/run
+chown root:root /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs /opt/joblet/run
+chmod 755 /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs /opt/joblet/run
 
 # Setup cgroup delegation
 if [ -d /sys/fs/cgroup ]; then

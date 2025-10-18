@@ -10,9 +10,9 @@
 resource management. It handles process isolation, resource limits, GPU acceleration, and monitoring automatically,
 letting you focus on your applications rather than infrastructure complexity.
 
-> **📚 Complete Documentation: [/docs/README.md](docs/README.md)**
+> ** Complete Documentation: [/docs/README.md](docs/README.md)**
 
-> **🤖 AI Agent Ready:** Provides sandboxed code execution with GPU support, resource controls, and complete process
+> **🤖 Provides sandboxed code execution with GPU support, resource controls, and complete process
 > isolation for AI workloads.
 
 ## 🎯 Key Capabilities

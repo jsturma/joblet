@@ -164,10 +164,11 @@ case "$1" in
         mkdir -p /opt/joblet/network
         mkdir -p /opt/joblet/volumes
         mkdir -p /opt/joblet/jobs
-        
+        mkdir -p /opt/joblet/run
+
         # Set ownership and permissions
-        chown root:root /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs
-        chmod 755 /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs
+        chown root:root /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs /opt/joblet/run
+        chmod 755 /var/log/joblet /opt/joblet/logs /opt/joblet/network /opt/joblet/volumes /opt/joblet/jobs /opt/joblet/run
 
         # Setup cgroup delegation
         if [ -d /sys/fs/cgroup ]; then
