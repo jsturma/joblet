@@ -14,7 +14,9 @@ operations.
     - [log](#rnx-job-log)
     - [metrics](#rnx-job-metrics)
     - [stop](#rnx-job-stop)
+    - [cancel](#rnx-job-cancel)
     - [delete](#rnx-job-delete)
+    - [delete-all](#rnx-job-delete-all)
 - [Workflow Commands](#workflow-commands)
     - [run](#rnx-workflow-run)
     - [list](#rnx-workflow-list)
@@ -500,11 +502,13 @@ gzip -dc /opt/joblet/metrics/<job-uuid>/*.jsonl.gz | jq -c '{timestamp, cpu: .cp
 
 ### `rnx job stop`
 
-Stop a running or scheduled job.
+Stop a running job.
 
 ```bash
 rnx job stop <job-uuid>
 ```
+
+Terminates a running job using graceful shutdown (SIGTERM) followed by force termination (SIGKILL) if necessary.
 
 #### Examples
 
@@ -514,6 +518,39 @@ rnx job stop f47ac10b-58cc-4372-a567-0e02b2c3d479
 
 # Stop multiple jobs
 rnx job list --json | jq -r '.[] | select(.status == "RUNNING") | .id' | xargs -I {} rnx job stop {}
+```
+
+### `rnx job cancel`
+
+Cancel a scheduled job before it starts executing.
+
+```bash
+rnx job cancel <job-uuid>
+```
+
+This command is specifically designed for jobs in SCHEDULED status and will:
+
+1. Cancel the scheduled job (preventing it from executing)
+2. Change the job status to CANCELED (not STOPPED)
+3. Preserve the job in history for audit purposes
+
+This provides proper cancel vs stop semantics:
+- `rnx job stop` → for RUNNING jobs (status becomes STOPPED)
+- `rnx job cancel` → for SCHEDULED jobs (status becomes CANCELED)
+
+**Note:** This command only works for jobs in SCHEDULED status. For running jobs, use `rnx job stop`.
+
+#### Examples
+
+```bash
+# Cancel a scheduled job
+rnx job cancel f47ac10b-58cc-4372-a567-0e02b2c3d479
+
+# Cancel using short UUID (first 8 characters)
+rnx job cancel f47ac10b
+
+# Cancel all scheduled jobs
+rnx job list --json | jq -r '.[] | select(.status == "SCHEDULED") | .id' | xargs -I {} rnx job cancel {}
 ```
 
 ### `rnx job delete`
@@ -931,7 +968,7 @@ rnx runtime install <runtime-spec> [flags]
 | Flag              | Short | Description                                                              | Default |
 |-------------------|-------|--------------------------------------------------------------------------|---------|
 | `--force`         | `-f`  | Force reinstall by deleting existing runtime                             | false   |
-| `--registry`  |       | Custom runtime registry URL (default: https://github.com/ehsaniara/joblet-runtimes) | none    |
+| `--registry`      |       | GitHub runtime registry (format: owner/repo)                             | ehsaniara/joblet-runtimes |
 
 #### Description
 
@@ -965,7 +1002,7 @@ rnx runtime install openjdk-21
 rnx runtime install python-3.11-ml@1.0.2
 rnx runtime install openjdk-21@1.0.3
 
-# Install from custom registry
+# Install from custom GitHub registry (format: owner/repo)
 rnx runtime install custom-runtime --registry=myorg/runtimes
 rnx runtime install custom-runtime@2.0.0 --registry=acme/private-runtimes
 

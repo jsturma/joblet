@@ -105,10 +105,10 @@ certs/
 
 ### Role-Based Authorization
 
-| Role       | RunJob | GetJobStatus | StopJob | ListJobs | GetJobLogs |
-|------------|--------|--------------|---------|----------|------------|
-| **admin**  | ✅      | ✅            | ✅       | ✅        | ✅          |
-| **viewer** | ❌      | ✅            | ❌       | ✅        | ✅          |
+| Role       | RunJob | GetJobStatus | StopJob | CancelJob | DeleteJob | DeleteAllJobs | ListJobs | GetJobLogs | GetJobMetrics |
+|------------|--------|--------------|---------|-----------|-----------|---------------|----------|------------|---------------|
+| **admin**  | ✅      | ✅            | ✅       | ✅         | ✅         | ✅             | ✅        | ✅          | ✅             |
+| **viewer** | ❌      | ✅            | ❌       | ❌         | ❌         | ❌             | ✅        | ✅          | ✅             |
 
 ## Service Definition
 
@@ -116,21 +116,25 @@ certs/
 syntax = "proto3";
 package joblet;
 
-service JobletService {
-  // Create and start a new job
-  rpc RunJob(RunJobReq) returns (RunJobRes);
-
-  // Get job information by ID
+service JobService {
+  // Job operations
+  rpc RunJob(RunJobRequest) returns (RunJobResponse);
   rpc GetJobStatus(GetJobStatusReq) returns (GetJobStatusRes);
-
-  // Stop a running job
   rpc StopJob(StopJobReq) returns (StopJobRes);
-
-  // List all jobs
+  rpc CancelJob(CancelJobReq) returns (CancelJobRes);
+  rpc DeleteJob(DeleteJobReq) returns (DeleteJobRes);
+  rpc DeleteAllJobs(DeleteAllJobsReq) returns (DeleteAllJobsRes);
+  rpc GetJobLogs(GetJobLogsReq) returns (stream DataChunk);
   rpc ListJobs(EmptyRequest) returns (Jobs);
 
-  // Stream job output in real-time
-  rpc GetJobLogs(GetJobLogsReq) returns (stream DataChunk);
+  // Job metrics operations
+  rpc GetJobMetrics(JobMetricsRequest) returns (stream JobMetricsSample);
+
+  // Workflow operations
+  rpc RunWorkflow(RunWorkflowRequest) returns (RunWorkflowResponse);
+  rpc GetWorkflowStatus(GetWorkflowStatusRequest) returns (GetWorkflowStatusResponse);
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc GetWorkflowJobs(GetWorkflowJobsRequest) returns (GetWorkflowJobsResponse);
 }
 ```
 
@@ -259,6 +263,144 @@ ExitCode: -1
 EndTime: 2024-01-15T10:45:00Z
 ```
 
+### CancelJob
+
+Cancels a scheduled job before it starts executing. This is specifically for jobs in SCHEDULED status.
+
+**Authorization**: Admin only
+
+```protobuf
+rpc CancelJob(CancelJobReq) returns (CancelJobRes);
+```
+
+**Request Parameters**:
+
+- `uuid` (string): Job UUID (required)
+
+**Behavior**:
+
+1. Verifies job is in SCHEDULED status
+2. Prevents the job from executing
+3. Changes job status to `CANCELED` (not STOPPED)
+4. Preserves job in history for audit purposes
+
+**Status Semantics**:
+
+- `StopJob` → for RUNNING jobs (status becomes STOPPED)
+- `CancelJob` → for SCHEDULED jobs (status becomes CANCELED)
+
+**Response**:
+
+- Job UUID, updated status (CANCELED), and timestamp
+
+**Example**:
+
+```bash
+# CLI
+rnx job cancel f47ac10b-58cc-4372-a567-0e02b2c3d479
+
+# Expected Response
+Job canceled successfully:
+ID: f47ac10b-58cc-4372-a567-0e02b2c3d479
+Status: CANCELED
+CanceledAt: 2024-01-15T10:45:00Z
+```
+
+**Error Conditions**:
+
+- Job not found → `NOT_FOUND`
+- Job not in SCHEDULED status → `FAILED_PRECONDITION` ("Job is not scheduled")
+- Permission denied → `PERMISSION_DENIED`
+
+### DeleteJob
+
+Permanently deletes a job and all its associated data including logs, metrics, and metadata.
+
+**Authorization**: Admin only
+
+```protobuf
+rpc DeleteJob(DeleteJobReq) returns (DeleteJobRes);
+```
+
+**Request Parameters**:
+
+- `uuid` (string): Job UUID (required)
+
+**Deletion Scope**:
+
+- Job records and metadata
+- Log files and buffers
+- Metric data files
+- Subscriptions and streams
+- Any remaining resources
+
+**Restrictions**:
+
+- Job must be in a terminal state (COMPLETED, FAILED, STOPPED, CANCELED)
+- Running or scheduled jobs cannot be deleted (must stop/cancel first)
+
+**Response**:
+
+- Success confirmation with deleted job UUID
+
+**Example**:
+
+```bash
+# CLI
+rnx job delete f47ac10b-58cc-4372-a567-0e02b2c3d479
+
+# Expected Response
+Job deleted successfully:
+ID: f47ac10b-58cc-4372-a567-0e02b2c3d479
+```
+
+**Error Conditions**:
+
+- Job not found → `NOT_FOUND`
+- Job still running → `FAILED_PRECONDITION` ("Cannot delete running job")
+- Permission denied → `PERMISSION_DENIED`
+
+### DeleteAllJobs
+
+Deletes all non-running jobs from the system in a single operation. Running and scheduled jobs are preserved.
+
+**Authorization**: Admin only
+
+```protobuf
+rpc DeleteAllJobs(DeleteAllJobsReq) returns (DeleteAllJobsRes);
+```
+
+**Request Parameters**: None (or empty request)
+
+**Behavior**:
+
+1. Identifies all jobs in terminal states (COMPLETED, FAILED, STOPPED, CANCELED)
+2. Deletes each job including logs, metrics, and metadata
+3. Skips RUNNING and SCHEDULED jobs
+4. Returns counts of deleted and skipped jobs
+
+**Response**:
+
+- `deleted_count` (int): Number of jobs deleted
+- `skipped_count` (int): Number of jobs skipped (running/scheduled)
+- `message` (string): Summary message
+
+**Example**:
+
+```bash
+# CLI
+rnx job delete-all
+
+# Expected Response
+Successfully deleted 15 jobs, skipped 3 running/scheduled jobs
+```
+
+**Use Cases**:
+
+- Cleanup after batch processing
+- Maintenance operations
+- Development/testing cleanup
+
 ### ListJobs
 
 Lists all jobs with their current status and metadata. Useful for monitoring overall system activity.
@@ -328,6 +470,79 @@ Processing item 2
 ...
 Script completed successfully
 ```
+
+### GetJobMetrics
+
+Streams resource usage metrics for a job as time-series data. Shows CPU, memory, I/O, network, process, and GPU metrics collected during job execution.
+
+**Authorization**: Admin, Viewer
+
+```protobuf
+rpc GetJobMetrics(JobMetricsRequest) returns (stream JobMetricsSample);
+```
+
+**Request Parameters**:
+
+- `job_uuid` (string): Job UUID (required)
+
+**Streaming Behavior**:
+
+Similar to `GetJobLogs`, this method streams all metrics from job start:
+
+1. **For completed jobs**: Streams all historical metrics from start to finish, then closes
+2. **For running jobs**: Streams historical metrics, then continues with live metrics until completion or disconnect
+3. **Historical Replay**: Metrics stored as time-series allow complete historical replay of resource usage
+
+**Metrics Collected**:
+
+| Category | Metrics                                                     |
+|----------|-------------------------------------------------------------|
+| CPU      | Usage %, user/system time, throttling                       |
+| Memory   | Current/peak usage, anonymous/file cache, page faults       |
+| I/O      | Read/write bandwidth, IOPS, total bytes                     |
+| Network  | RX/TX bytes/packets, bandwidth                              |
+| Process  | Count, threads, open file descriptors                       |
+| GPU      | Utilization, memory, temperature, power (if GPUs allocated) |
+
+**Response**:
+
+- Stream of `JobMetricsSample` messages, one per collection interval (typically 1-5 seconds)
+- Each sample includes timestamp and all resource metrics
+
+**Storage**:
+
+Metrics are persisted server-side as gzipped JSONL files at:
+- Path: `/opt/joblet/metrics/<job-uuid>/<timestamp>.jsonl.gz`
+- Format: One JSON object per line
+- Compression: gzip (~10x size reduction)
+
+**Example**:
+
+```bash
+# CLI - Stream metrics for a job
+rnx job metrics f47ac10b-58cc-4372-a567-0e02b2c3d479
+
+# CLI - JSON output for analysis
+rnx --json job metrics f47ac10b | jq -c '{timestamp, cpu: .cpu.usagePercent, memory: .memory.current}'
+
+# Expected Response (streaming)
+Timestamp: 2024-01-15T10:30:01Z
+CPU: 45.2%, Memory: 256MB, I/O Read: 10MB/s, I/O Write: 5MB/s
+Network RX: 1.2MB/s, Network TX: 0.8MB/s
+
+Timestamp: 2024-01-15T10:30:06Z
+CPU: 48.1%, Memory: 312MB, I/O Read: 12MB/s, I/O Write: 6MB/s
+Network RX: 1.5MB/s, Network TX: 1.0MB/s
+...
+```
+
+**Use Cases**:
+
+- Performance analysis and optimization
+- Resource usage tracking and billing
+- Anomaly detection
+- Historical replay for debugging
+- Capacity planning
 
 ## Message Types
 

@@ -17,8 +17,7 @@ complex data pipelines, ML training workflows, and automated task sequences.
 Examples:
   rnx workflow run pipeline.yaml           # Run a workflow
   rnx workflow list                        # List all workflows
-  rnx workflow status <uuid>               # Check workflow status
-  rnx workflow delete <uuid>               # Delete a workflow`,
+  rnx workflow status <uuid>               # Check workflow status`,
 		DisableFlagsInUseLine: true,
 	}
 

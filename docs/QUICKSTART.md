@@ -318,11 +318,14 @@ rnx runtime list
 Monitor system performance and job execution metrics in real-time:
 
 ```bash
-# Monitor system metrics
-rnx monitor
-
 # Get current system status
 rnx monitor status
+
+# Show current server metrics with top processes
+rnx monitor top
+
+# Stream real-time server metrics
+rnx monitor watch
 
 # Stream job logs (use Ctrl+C to stop)
 rnx job log <job-uuid>
@@ -354,15 +357,16 @@ rnx job list                    # List all jobs
 rnx job status <job-uuid>       # Check job status
 rnx job log <job-uuid>          # View job logs
 rnx job stop <job-uuid>         # Stop running job
+rnx job cancel <job-uuid>       # Cancel scheduled job
 rnx job delete <job-uuid>       # Delete specific job
 rnx job delete-all              # Delete all non-running jobs
 
 # Workflow Management
-rnx job run --workflow=file.yaml    # Run workflow
-rnx job list --workflow             # List workflows
-rnx job status --workflow <uuid>    # Check workflow status
-rnx job status --workflow --detail <uuid> # View workflow status + YAML
-rnx job status --workflow --json --detail <uuid> # JSON output with YAML content
+rnx workflow run file.yaml      # Run workflow
+rnx workflow list               # List workflows
+rnx workflow status <uuid>      # Check workflow status
+rnx workflow status --detail <uuid> # View workflow status + YAML
+rnx workflow status --json --detail <uuid> # JSON output with YAML content
 
 # Volume Management
 rnx volume create <name>    # Create volume
@@ -372,11 +376,12 @@ rnx volume remove <name>    # Remove volume
 # Network Management
 rnx network create <name>   # Create network
 rnx network list            # List networks
-rnx network delete <name>   # Delete network
+rnx network remove <name>   # Remove network
 
 # System Monitoring
-rnx monitor                 # Real-time metrics
 rnx monitor status          # Current status
+rnx monitor top             # Server metrics with top processes
+rnx monitor watch           # Real-time streaming metrics
 ```
 
 For additional assistance, consult the [Troubleshooting Guide](./TROUBLESHOOTING.md) or execute `rnx help` for
