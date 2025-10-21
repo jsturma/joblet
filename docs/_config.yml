@@ -1,3 +1,3 @@
 theme: jekyll-theme-minimal
-title: Native Linux Microcontainers 
-description: Joblet is a micro-container runtime for running Linux jobs with: Process and filesystem isolation (PID namespace, chroot) Fine-grained CPU, memory, and IO throttling (cgroups v2) Secure job execution with mTLS and RBAC Built-in scheduler, SSE log streaming, and multi-core pinning Ideal for: Agentic AI Workloads (Untrusted code)
+title: Native Linux Microcontainers
+description: "Joblet is a micro-container runtime for running Linux jobs with: Process and filesystem isolation (PID namespace, chroot) Fine-grained CPU, memory, and IO throttling (cgroups v2) Secure job execution with mTLS and RBAC Built-in scheduler, SSE log streaming, and multi-core pinning Ideal for: Agentic AI Workloads (Untrusted code)"
