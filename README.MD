@@ -32,6 +32,8 @@ letting you focus on your applications rather than infrastructure complexity.
 
 ## 📦 Getting Started
 
+> **☁️ Cloud Deployment**: Joblet can be deployed directly on AWS EC2 with automated installation and CloudWatch integration. See the [AWS Deployment Guide](docs/AWS_DEPLOYMENT.md) for one-click deployment with user data scripts.
+
 ### A. Joblet Server Installation (Linux)
 
 #### Option 1: Package Installation (Ubuntu/Debian)
@@ -212,6 +214,7 @@ npm run dev
 
 - **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running quickly with step-by-step instructions
 - **[Installation Guide](docs/INSTALLATION.md)** - Comprehensive installation procedures for all platforms
+- **[AWS Deployment Guide](docs/AWS_DEPLOYMENT.md)** - Deploy Joblet on AWS EC2 with CloudWatch integration
 - **[GPU Support Guide](docs/GPU_SUPPORT.md)** - Complete guide to NVIDIA GPU acceleration and CUDA integration
 - **[Job Execution Guide](docs/JOB_EXECUTION.md)** - Detailed job management and execution patterns
 - **[RNX CLI Reference](docs/RNX_CLI_REFERENCE.md)** - Complete command reference with examples
@@ -224,6 +227,7 @@ npm run dev
 - **[Joblet Proto](https://github.com/ehsaniara/joblet-proto)**
 - **[Joblet Python SDK](https://github.com/ehsaniara/joblet-sdk-python/)**
 - **[Joblet MCP Server](https://github.com/ehsaniara/joblet-mcp-server)**
+- **[Joblet Runtimes](https://github.com/ehsaniara/joblet-runtimes)**
 
 **Developing a custom client?** Start with the [protocol definitions](https://github.com/ehsaniara/joblet-proto) to
 generate language-specific bindings.
