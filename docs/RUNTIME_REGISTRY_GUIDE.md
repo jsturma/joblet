@@ -596,7 +596,7 @@ Error: HTTP 404: 404 Not Found
 
 - [Runtime System Overview](RUNTIME_SYSTEM.md)
 - [RNX CLI Reference](RNX_CLI_REFERENCE.md)
-- [Creating Custom Runtimes](RUNTIME_IMPLEMENTATION.md)
+- [Creating Custom Runtimes](RUNTIME_ADVANCED.md)
 - [Deployment Guide](DEPLOYMENT.md)
 
 ---

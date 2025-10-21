@@ -2,6 +2,8 @@ package registry
 
 import (
 	"time"
+
+	"github.com/ehsaniara/joblet/pkg/semver"
 )
 
 // Registry represents the structure of registry.json from a runtime registry
@@ -70,22 +72,33 @@ type CachedRegistry struct {
 
 // GetLatestVersion returns the latest version for a given runtime
 // Returns empty string if runtime not found
+// Uses semantic version comparison to determine the latest version
 func (r *Registry) GetLatestVersion(runtimeName string) string {
 	versions, exists := r.Runtimes[runtimeName]
 	if !exists || len(versions) == 0 {
 		return ""
 	}
 
-	// Find the latest version by comparing semantic versions
-	// For now, we'll use a simple approach: latest by UpdatedAt or highest version string
-	var latestVersion string
-	for version := range versions {
-		if latestVersion == "" || version > latestVersion {
-			latestVersion = version
+	// Parse all valid semantic versions
+	var latestSemver *semver.Version
+	latestVersionStr := ""
+
+	for versionStr := range versions {
+		// Try to parse as semantic version
+		v, err := semver.NewVersion(versionStr)
+		if err != nil {
+			// If not a valid semver, skip it (shouldn't happen with proper registry)
+			continue
+		}
+
+		// Update if this is the first version or if it's greater than the current latest
+		if latestSemver == nil || v.GreaterThan(latestSemver) {
+			latestSemver = v
+			latestVersionStr = versionStr
 		}
 	}
 
-	return latestVersion
+	return latestVersionStr
 }
 
 // GetRuntimeEntry returns a specific runtime entry

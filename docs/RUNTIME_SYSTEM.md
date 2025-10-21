@@ -268,7 +268,7 @@ Each runtime package is a self-contained zip file containing:
 - Runtime metadata for auto-detection
 - Proper directory structure for deployment
 
-> **📚 Detailed Guide**: See [RUNTIME_DEPLOYMENT.md](RUNTIME_DEPLOYMENT.md) for comprehensive deployment documentation,
+> **📚 Detailed Guide**: See [RUNTIME_ADVANCED.md](RUNTIME_ADVANCED.md) for comprehensive deployment documentation,
 > CI/CD integration, and advanced scenarios.
 
 ## 🎯 Runtime Management

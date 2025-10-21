@@ -18,6 +18,19 @@ func TestRegistry_GetLatestVersion(t *testing.T) {
 			"openjdk-21": {
 				"2.0.0": {Version: "2.0.0"},
 			},
+			// Test semantic version comparison: 1.10.0 > 1.9.0 (not by string comparison)
+			"test-semver": {
+				"1.9.0":  {Version: "1.9.0"},
+				"1.10.0": {Version: "1.10.0"},
+				"1.2.0":  {Version: "1.2.0"},
+			},
+			// Test multi-digit version numbers
+			"test-complex": {
+				"1.3.1":  {Version: "1.3.1"},
+				"1.3.2":  {Version: "1.3.2"},
+				"1.3.10": {Version: "1.3.10"},
+				"1.3.9":  {Version: "1.3.9"},
+			},
 		},
 	}
 
@@ -29,12 +42,22 @@ func TestRegistry_GetLatestVersion(t *testing.T) {
 		{
 			name:        "python-3.11-ml latest",
 			runtimeName: "python-3.11-ml",
-			want:        "1.0.2", // Highest version string
+			want:        "1.0.2", // Highest version
 		},
 		{
 			name:        "openjdk-21 latest",
 			runtimeName: "openjdk-21",
 			want:        "2.0.0",
+		},
+		{
+			name:        "semantic version comparison (1.10.0 > 1.9.0)",
+			runtimeName: "test-semver",
+			want:        "1.10.0", // Should be 1.10.0, not 1.9.0 (string comparison would give 1.9.0)
+		},
+		{
+			name:        "complex version numbers",
+			runtimeName: "test-complex",
+			want:        "1.3.10", // Should be 1.3.10, not 1.3.9 (string comparison would give 1.3.9)
 		},
 		{
 			name:        "non-existent runtime",

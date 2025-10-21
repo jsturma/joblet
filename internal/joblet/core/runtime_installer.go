@@ -56,6 +56,25 @@ func NewRuntimeInstaller(config *config.Config, logger *logger.Logger, platform 
 	}
 }
 
+// createTempDir creates a temporary directory in a reliable location
+// Tries to use /opt/joblet/tmp first (which is guaranteed writable by systemd),
+// then falls back to system temp directory
+func (ri *RuntimeInstaller) createTempDir(pattern string) (string, error) {
+	// Try /opt/joblet/tmp first (guaranteed writable by systemd service)
+	jobletTmpDir := "/opt/joblet/tmp"
+	if err := os.MkdirAll(jobletTmpDir, 0755); err == nil {
+		tmpDir, err := os.MkdirTemp(jobletTmpDir, pattern)
+		if err == nil {
+			return tmpDir, nil
+		}
+		// Log but continue to fallback
+		ri.logger.Debug("failed to create temp dir in /opt/joblet/tmp, falling back to system temp", "error", err)
+	}
+
+	// Fallback to system temp directory
+	return os.MkdirTemp("", pattern)
+}
+
 // RuntimeInstallRequest represents a runtime installation request
 type RuntimeInstallRequest struct {
 	RuntimeSpec    string
@@ -241,7 +260,7 @@ func (ri *RuntimeInstaller) InstallFromRegistry(ctx context.Context, req *Runtim
 	}
 
 	// Create temporary download directory
-	tmpDir, err := os.MkdirTemp("", "runtime-download-*")
+	tmpDir, err := ri.createTempDir("runtime-download-*")
 	if err != nil {
 		return &RuntimeInstallResult{
 			RuntimeSpec: req.RuntimeSpec,
@@ -539,7 +558,7 @@ func (ri *RuntimeInstaller) extractTarGz(tarGzPath, destPath string) error {
 
 // createSimpleChroot creates a chroot environment with full host access
 func (ri *RuntimeInstaller) createSimpleChroot() (string, func(), error) {
-	chrootDir, err := os.MkdirTemp("", "runtime-chroot-*")
+	chrootDir, err := ri.createTempDir("runtime-chroot-*")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}

@@ -229,7 +229,10 @@ rnx job run --max-memory=1024 --runtime=python-3.11-ml \
 - [**Job Execution Guide**](./JOB_EXECUTION.md) - Running jobs with resource limits and isolation
 - [**GPU Support Guide**](./GPU_SUPPORT.md) - NVIDIA GPU acceleration, CUDA environments, and resource management
 - [**Workflows Guide**](./WORKFLOWS.md) - YAML workflows with dependencies and orchestration
-- [**Runtime System**](./RUNTIME_SYSTEM.md) - Pre-built environments for instant execution
+- [**Runtime System**](./RUNTIME_SYSTEM.md) - Pre-built environments for instant execution (start here)
+- [**Runtime Registry Guide**](./RUNTIME_REGISTRY_GUIDE.md) - Using and managing runtime registries
+- [**Runtime Design & Examples**](./RUNTIME_DESIGN.md) - Technical design with practical examples
+- [**Runtime Advanced**](./RUNTIME_ADVANCED.md) - Implementation, security, and enterprise patterns
 - [**Volume Management**](./VOLUME_MANAGEMENT.md) - Persistent and temporary storage
 - [**Network Management**](./NETWORK_MANAGEMENT.md) - Network isolation and custom networks
 - [**Joblet Admin UI**](./ADMIN_UI.md) - [Standalone React-based interface](https://github.com/ehsaniara/joblet-admin)
@@ -238,8 +241,6 @@ rnx job run --max-memory=1024 --runtime=python-3.11-ml \
 ### Advanced Topics
 
 - [**Security Guide**](./SECURITY.md) - mTLS, authentication, and best practices
-- [**Runtime Deployment**](./RUNTIME_DEPLOYMENT.md) - Zero-contamination runtime deployment
-- [**Runtime Advanced Scenarios**](./RUNTIME_ADVANCED_SCENARIOS.md) - Enterprise patterns and CI/CD
 - [**Deployment Guide**](./DEPLOYMENT.md) - Production deployment strategies
 - [**Troubleshooting**](./TROUBLESHOOTING.md) - Common issues and solutions
 
@@ -250,7 +251,6 @@ rnx job run --max-memory=1024 --runtime=python-3.11-ml \
 - [**Storage Guide**](./STORAGE.md) - Data persistence and storage management
 - [**Process Isolation**](./PROCESS_ISOLATION.md) - Complete guide to process isolation and multi-process jobs
 - [**Security Analysis**](./ISOLATION_SECURITY_ANALYSIS.md) - Service-based isolation security analysis
-- [**Runtime Cleanup**](./RUNTIME_ISOLATION_CLEANUP.md) - Runtime isolation cleanup design and implementation
 
 ## Quick Start Example
 
