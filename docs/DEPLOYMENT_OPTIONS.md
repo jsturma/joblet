@@ -348,15 +348,14 @@ All distributions benefit from the same improvements through shared installation
 - **CloudWatch Logs**: Not available (unless on EC2)
 
 ### EC2 User Data
-- **Infrastructure cost**: AWS EC2 rates (~$15-120/month depending on instance)
+- **Infrastructure cost**: AWS EC2 rates (varies by instance type)
 - **Operational cost**: Lower (automated installation)
-- **CloudWatch Logs**: $0.50/GB ingestion + $0.03/GB/month storage
+- **CloudWatch Logs**: Per GB ingested + per GB/month stored
 
-**Example monthly costs (EC2):**
-- t3.small instance: ~$15/month
-- t3.medium instance: ~$30/month
-- CloudWatch Logs (100 jobs/day × 1MB): ~$2/month
-- **Total for small production**: ~$32/month
+**Example resource usage (EC2):**
+- t3.small instance: Suitable for dev/test
+- t3.medium instance: Suitable for small production
+- CloudWatch Logs (100 jobs/day × 1MB): ~3 GB/day ingestion, ~21 GB stored (7-day retention)
 
 ---
 

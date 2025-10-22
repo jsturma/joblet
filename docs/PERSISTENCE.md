@@ -654,42 +654,43 @@ Typical job with 10,000 log lines:
 - GetLogEvents: 10 requests/sec per account
 - Use CloudWatch Insights for complex queries
 
-**Costs:**
+**Cost Considerations:**
 ```
-CloudWatch Logs Pricing (us-east-1, as of 2024):
-- Ingestion: $0.50 per GB
-- Storage: $0.03 per GB/month
-- Query (Insights): $0.005 per GB scanned
+CloudWatch Logs Pricing (prices vary by region):
+- Ingestion: Per GB ingested
+- Storage: Per GB/month stored
+- Query (Insights): Per GB scanned
 
-CloudWatch Metrics Pricing (us-east-1, as of 2024):
-- Standard Metrics: First 10 metrics free, then $0.30/metric/month
-- Custom Metrics: $0.30/metric/month
-- API Requests (GetMetricStatistics): $0.01 per 1,000 requests
+CloudWatch Metrics Pricing:
+- Standard Metrics: First 10 metrics free, then charged per metric/month
+- Custom Metrics: Charged per metric/month
+- API Requests: Charged per 1,000 requests
 
 Example: 1000 jobs/day, 10 MB logs/job
 
 Logs with 7-day retention (default):
-- Ingestion: 10 GB/day × $0.50 = $5/day = $150/month
-- Storage: 70 GB (7 days) × $0.03 = $2.10/month
-- Total logs: ~$152/month
+- Ingestion: 10 GB/day ingested
+- Storage: 70 GB (7 days) stored
+- Note: Ingestion typically dominates cost
 
 Logs with 30-day retention:
-- Ingestion: $150/month (same)
-- Storage: 300 GB (30 days) × $0.03 = $9/month
-- Total logs: ~$159/month
+- Ingestion: 10 GB/day (same)
+- Storage: 300 GB (30 days) stored
+- Note: Higher storage than 7-day retention
 
 Logs with 1-day retention (dev):
-- Ingestion: $150/month (same)
-- Storage: 10 GB (1 day) × $0.03 = $0.30/month
-- Total logs: ~$150/month
+- Ingestion: 10 GB/day (same)
+- Storage: 10 GB (1 day) stored - minimal
+- Note: Lowest storage cost
 
 Metrics (9 metrics per job):
-- Cost: ~9 unique metric names × $0.30 = $2.70/month
-  (Dimensions don't multiply the cost, they're part of the metric identity)
+- 9 unique metric names charged
+- Dimensions don't multiply the cost (part of metric identity)
 
-Total with 7-day retention: ~$152/month (logs) + ~$3/month (metrics) = ~$155/month
-Total with 30-day retention: ~$159/month (logs) + ~$3/month (metrics) = ~$162/month
-Total with 1-day retention: ~$150/month (logs) + ~$3/month (metrics) = ~$153/month
+Cost comparison:
+- 7-day retention: Balanced (logs + metrics)
+- 30-day retention: Higher storage costs
+- 1-day retention: Minimal storage costs (dev/test)
 
 💡 Cost Optimization: Shorter retention = lower storage costs!
 ```

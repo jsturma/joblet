@@ -258,21 +258,21 @@ aws logs filter-log-events \
 
 #### Cost Optimization
 
-CloudWatch Logs pricing (as of 2024):
-- **Ingestion**: $0.50 per GB
-- **Storage**: $0.03 per GB/month
-- **Insights queries**: $0.005 per GB scanned
+CloudWatch Logs pricing (prices vary by region):
+- **Ingestion**: Per GB ingested
+- **Storage**: Per GB/month stored
+- **Insights queries**: Per GB scanned
 
-**Example calculation:**
-- 1,000 jobs/day × 10 MB logs = 10 GB/day = 300 GB/month
-- Ingestion: 300 GB × $0.50 = $150/month
-- Storage: 300 GB × $0.03 = $9/month
-- **Total**: ~$160/month
+**Example resource usage:**
+- 1,000 jobs/day × 10 MB logs = 10 GB/day = 300 GB/month ingested
+- Storage with 30-day retention: 300 GB stored
+- Storage with 7-day retention: 70 GB stored (default)
 
 **Cost saving strategies:**
-1. Set log retention policies (7 days, 30 days, etc.)
+1. Set log retention policies (7 days for dev, 30 days for production, etc.)
 2. Use log filtering to reduce ingestion volume
 3. Archive old logs to S3 (future feature)
+4. Use 1-day retention for development environments
 
 #### Troubleshooting AWS Deployment
 

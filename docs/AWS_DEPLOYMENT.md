@@ -130,14 +130,26 @@ cat > joblet-cloudwatch-policy.json << 'EOF'
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents",
+        "logs:PutRetentionPolicy",
         "logs:DescribeLogStreams",
         "logs:GetLogEvents",
-        "logs:FilterLogEvents"
+        "logs:FilterLogEvents",
+        "logs:DeleteLogGroup",
+        "logs:DeleteLogStream"
       ],
       "Resource": [
         "arn:aws:logs:*:*:log-group:/joblet/*",
         "arn:aws:logs:*:*:log-group:/joblet/*:*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
     },
     {
       "Effect": "Allow",
@@ -363,19 +375,43 @@ rnx job status <JOB_ID>
 
 If you enabled CloudWatch, view logs in AWS Console:
 
-1. Go to **CloudWatch** → **Logs** → **Log groups**
-2. Look for `/joblet` log groups:
-   - `/joblet/job-<JOB_ID>` - Individual job logs
-   - `/joblet/metrics` - Job metrics
-   - `/joblet/server` - Server logs
+1. **CloudWatch Logs** → **Log groups**:
+   - `/joblet/<NODE_ID>/jobs` - All job logs for this node (grouped by node)
+     - Log streams: `<JOB_ID>-stdout`, `<JOB_ID>-stderr`
+   - **Default retention**: 7 days (configurable)
+
+2. **CloudWatch Metrics** → **Custom namespaces** → **Joblet/Jobs**:
+   - `CPUUsage`, `MemoryUsage`, `GPUUsage`
+   - `DiskReadBytes`, `DiskWriteBytes`
+   - `NetworkRxBytes`, `NetworkTxBytes`
+   - **Retention**: 15 months (automatic)
 
 **Via CLI:**
 ```bash
 # List log groups
 aws logs describe-log-groups --log-group-name-prefix /joblet
 
-# Tail job logs
-aws logs tail /joblet/job-<JOB_ID> --follow
+# Get instance metadata to find NODE_ID
+aws ec2 describe-instances --instance-ids i-xxxxxxxxx \
+  --query 'Reservations[0].Instances[0].Tags[?Key==`NodeId`].Value' --output text
+
+# Tail job logs (replace NODE_ID and JOB_ID)
+aws logs tail /joblet/<NODE_ID>/jobs --follow --filter-pattern <JOB_ID>
+
+# View specific job log stream
+aws logs get-log-events \
+  --log-group-name /joblet/<NODE_ID>/jobs \
+  --log-stream-name <JOB_ID>-stdout
+
+# Query metrics
+aws cloudwatch get-metric-statistics \
+  --namespace Joblet/Jobs \
+  --metric-name CPUUsage \
+  --dimensions Name=JobID,Value=<JOB_ID> Name=NodeID,Value=<NODE_ID> \
+  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 60 \
+  --statistics Average
 ```
 
 For advanced CloudWatch queries and monitoring, see [MONITORING.md](MONITORING.md).
@@ -536,6 +572,38 @@ chmod +x /tmp/joblet-install.sh
 /tmp/joblet-install.sh
 ```
 
+### CloudWatch Log Retention
+
+After installation, you can configure log retention to control storage costs:
+
+```bash
+# SSH into instance
+ssh -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>
+
+# Edit config
+sudo nano /opt/joblet/config/joblet-config.yml
+
+# Under persist.storage.cloudwatch, add:
+persist:
+  storage:
+    type: cloudwatch
+    cloudwatch:
+      log_retention_days: 7    # Default (if not set)
+
+      # Other options:
+      # log_retention_days: 1    # Development (minimal cost)
+      # log_retention_days: 30   # Production (balance)
+      # log_retention_days: 365  # Compliance (1 year)
+      # log_retention_days: -1   # Never expire (expensive!)
+
+# Restart to apply
+sudo systemctl restart joblet
+```
+
+**Valid retention values:** 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653, -1 (never expire)
+
+**Note:** CloudWatch Metrics retention is fixed at 15 months and cannot be configured.
+
 ## Quick Start (AWS CLI)
 
 If you prefer AWS CLI:
@@ -595,22 +663,29 @@ scp -i ~/.ssh/your-key.pem <EC2_USER>@<PUBLIC_IP>:/tmp/joblet-backup.tar.gz ./
 
 **For production:** Use EBS snapshots for complete backups.
 
-## Cost Estimates
+## Cost Considerations
 
-Estimated monthly costs (us-east-1, subject to change):
+Key cost factors to consider (prices vary by region):
 
-| Component | Configuration | Monthly Cost |
-|-----------|--------------|--------------|
-| EC2 Instance | t3.medium (2 vCPU, 4GB RAM) | ~$30 |
-| EBS Storage | 30 GB gp3 | ~$3 |
-| CloudWatch Logs | 100 jobs/day, 1MB each | ~$2 |
-| **Total** | | **~$35/month** |
+| Component | Configuration | Notes |
+|-----------|--------------|-------|
+| EC2 Instance | t3.medium (2 vCPU, 4GB RAM) | Main compute cost |
+| EBS Storage | 30 GB gp3 | Storage for jobs and data |
+| CloudWatch Logs | Per GB ingested + stored | 7-day retention (default) |
+| CloudWatch Metrics | Per unique metric | 9 metrics per job |
 
-**Reduce costs:**
-- Use t3.small for development (~$15/month)
+**CloudWatch Logs breakdown (100 jobs/day, 1MB each):**
+- Ingestion: 3 GB/day ingested
+- Storage (7-day retention): ~21 GB stored
+- Note: Ingestion costs typically dominate over storage
+
+**Cost optimization strategies:**
+- Use t3.small for development environments
 - Stop instance during off-hours (saves ~50%)
-- Disable CloudWatch for dev/test
-- Use Reserved Instances for production (save up to 72%)
+- Disable CloudWatch for dev/test environments
+- Reduce log retention to 1 day for development
+- Use Reserved Instances for production (significant savings)
+- Consider Spot Instances for batch/non-critical workloads
 
 ## Next Steps
 

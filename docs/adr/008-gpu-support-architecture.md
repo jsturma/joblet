@@ -30,9 +30,9 @@ GPU hardware introduces several complexities that must be carefully addressed:
 **Driver Dependencies**: NVIDIA GPUs require specific kernel modules and driver versions that must be precisely matched
 with CUDA library versions. Mismatched versions can cause runtime failures or suboptimal performance.
 
-**Resource Economics**: High-end GPUs represent substantial capital investments (often $10,000+ per unit), making
+**Resource Economics**: High-end GPUs represent substantial capital investments, making
 dedicated per-job allocation economically inefficient. Multi-tenancy support is essential for cost-effective
-utilization.
+utilization and maximizing return on investment.
 
 **Memory Architecture**: GPU memory operates independently from system RAM, requiring separate tracking, allocation, and
 limit enforcement mechanisms that cannot leverage our existing CPU memory management systems.
