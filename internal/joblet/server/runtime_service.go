@@ -591,9 +591,8 @@ func (s *RuntimeServiceServer) installFromRegistryStreaming(req *pb.InstallRunti
 		return err
 	}
 
-	// Extract registry URL from Branch field (temporary until we add dedicated proto field)
-	// TODO: Add dedicated registry_url field to InstallRuntimeRequest proto
-	registryURL := req.Branch
+	// Extract registry URL from dedicated field
+	registryURL := req.RegistryUrl
 
 	// Create registry install request
 	registryReq := &core.RuntimeInstallFromRegistryRequest{

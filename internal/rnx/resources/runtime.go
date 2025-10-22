@@ -955,12 +955,11 @@ func runStreamingRegistryRuntimeInstall(ctx context.Context, client *client.JobC
 
 	// Create streaming installation request WITHOUT repository info
 	// Server will detect this and route to registry
-	// Note: We'll use Branch field temporarily to pass registry URL (TODO: add dedicated field to proto)
 	req := &pb.InstallRuntimeRequest{
 		RuntimeSpec:    runtimeSpec,
 		ForceReinstall: force,
-		Branch:         registryURL, // Temporarily use Branch field for registry URL
-		// Repository, Path are empty - signals registry installation
+		RegistryUrl:    registryURL, // Use dedicated registry URL field
+		// Repository, Path, Branch are empty - signals registry installation
 	}
 
 	stream, err := client.StreamingInstallRuntimeFromGithub(ctx, req)

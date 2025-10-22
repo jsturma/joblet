@@ -5110,11 +5110,12 @@ func (x *Timestamp) GetNanos() int32 {
 
 type InstallRuntimeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	RuntimeSpec    string                 `protobuf:"bytes,1,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`        // Runtime spec
-	Repository     string                 `protobuf:"bytes,2,opt,name=repository,proto3" json:"repository,omitempty"`          // GitHub repo
-	Branch         string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`                  // Branch
-	Path           string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`                      // Path in repo
-	ForceReinstall bool                   `protobuf:"varint,5,opt,name=forceReinstall,proto3" json:"forceReinstall,omitempty"` // Force reinstall
+	RuntimeSpec    string                 `protobuf:"bytes,1,opt,name=runtimeSpec,proto3" json:"runtimeSpec,omitempty"`                    // Runtime spec
+	Repository     string                 `protobuf:"bytes,2,opt,name=repository,proto3" json:"repository,omitempty"`                      // GitHub repo
+	Branch         string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`                              // Branch
+	Path           string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`                                  // Path in repo
+	ForceReinstall bool                   `protobuf:"varint,5,opt,name=forceReinstall,proto3" json:"forceReinstall,omitempty"`             // Force reinstall
+	RegistryUrl    string                 `protobuf:"bytes,6,opt,name=registry_url,json=registryUrl,proto3" json:"registry_url,omitempty"` // Registry URL (for installing from external registry)
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -5182,6 +5183,13 @@ func (x *InstallRuntimeRequest) GetForceReinstall() bool {
 		return x.ForceReinstall
 	}
 	return false
+}
+
+func (x *InstallRuntimeRequest) GetRegistryUrl() string {
+	if x != nil {
+		return x.RegistryUrl
+	}
+	return ""
 }
 
 type InstallRuntimeResponse struct {
@@ -7845,7 +7853,7 @@ const file_joblet_proto_rawDesc = "" +
 	"\bexitCode\x18\a \x01(\x05R\bexitCode\";\n" +
 	"\tTimestamp\x12\x18\n" +
 	"\aseconds\x18\x01 \x01(\x03R\aseconds\x12\x14\n" +
-	"\x05nanos\x18\x02 \x01(\x05R\x05nanos\"\xad\x01\n" +
+	"\x05nanos\x18\x02 \x01(\x05R\x05nanos\"\xd0\x01\n" +
 	"\x15InstallRuntimeRequest\x12 \n" +
 	"\vruntimeSpec\x18\x01 \x01(\tR\vruntimeSpec\x12\x1e\n" +
 	"\n" +
@@ -7853,7 +7861,8 @@ const file_joblet_proto_rawDesc = "" +
 	"repository\x12\x16\n" +
 	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x12\n" +
 	"\x04path\x18\x04 \x01(\tR\x04path\x12&\n" +
-	"\x0eforceReinstall\x18\x05 \x01(\bR\x0eforceReinstall\"\xd4\x01\n" +
+	"\x0eforceReinstall\x18\x05 \x01(\bR\x0eforceReinstall\x12!\n" +
+	"\fregistry_url\x18\x06 \x01(\tR\vregistryUrl\"\xd4\x01\n" +
 	"\x16InstallRuntimeResponse\x12\"\n" +
 	"\fbuildJobUuid\x18\x01 \x01(\tR\fbuildJobUuid\x12 \n" +
 	"\vruntimeSpec\x18\x02 \x01(\tR\vruntimeSpec\x12\x16\n" +
