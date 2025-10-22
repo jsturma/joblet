@@ -25,36 +25,36 @@ func TestCloudWatchBackend_NodeIDIntegration(t *testing.T) {
 			nodeID:            "node-123",
 			jobID:             "job-abc",
 			logGroupPrefix:    "/joblet",
-			expectedLogGroup:  "/joblet/node-123/jobs/job-abc",
-			expectedStreamOut: "job-job-abc-stdout",
-			expectedStreamErr: "job-job-abc-stderr",
+			expectedLogGroup:  "/joblet/node-123/jobs",
+			expectedStreamOut: "job-abc-stdout",
+			expectedStreamErr: "job-abc-stderr",
 		},
 		{
 			name:              "nodeID with dashes and underscores",
 			nodeID:            "aws-node_prod-01",
 			jobID:             "test-job-456",
 			logGroupPrefix:    "/myapp",
-			expectedLogGroup:  "/myapp/aws-node_prod-01/jobs/test-job-456",
-			expectedStreamOut: "job-test-job-456-stdout",
-			expectedStreamErr: "job-test-job-456-stderr",
+			expectedLogGroup:  "/myapp/aws-node_prod-01/jobs",
+			expectedStreamOut: "test-job-456-stdout",
+			expectedStreamErr: "test-job-456-stderr",
 		},
 		{
 			name:              "custom prefix with trailing slash",
 			nodeID:            "cluster-node-1",
 			jobID:             "processing-job",
 			logGroupPrefix:    "/production/logs/",
-			expectedLogGroup:  "/production/logs//cluster-node-1/jobs/processing-job",
-			expectedStreamOut: "job-processing-job-stdout",
-			expectedStreamErr: "job-processing-job-stderr",
+			expectedLogGroup:  "/production/logs//cluster-node-1/jobs",
+			expectedStreamOut: "processing-job-stdout",
+			expectedStreamErr: "processing-job-stderr",
 		},
 		{
 			name:              "minimal prefix",
 			nodeID:            "n1",
 			jobID:             "j1",
 			logGroupPrefix:    "/j",
-			expectedLogGroup:  "/j/n1/jobs/j1",
-			expectedStreamOut: "job-j1-stdout",
-			expectedStreamErr: "job-j1-stderr",
+			expectedLogGroup:  "/j/n1/jobs",
+			expectedStreamOut: "j1-stdout",
+			expectedStreamErr: "j1-stderr",
 		},
 	}
 
@@ -129,13 +129,11 @@ func TestCloudWatchBackend_DefaultValues(t *testing.T) {
 		cwBackend := backend.(*CloudWatchBackend)
 
 		// Verify defaults are applied
-		if cwBackend.config.LogGroupPrefix != "/joblet/jobs" {
-			t.Errorf("Expected default log_group_prefix '/joblet/jobs', got '%s'", cwBackend.config.LogGroupPrefix)
+		if cwBackend.config.LogGroupPrefix != "/joblet" {
+			t.Errorf("Expected default log_group_prefix '/joblet', got '%s'", cwBackend.config.LogGroupPrefix)
 		}
 
-		if cwBackend.config.LogStreamPrefix != "job-" {
-			t.Errorf("Expected default log_stream_prefix 'job-', got '%s'", cwBackend.config.LogStreamPrefix)
-		}
+		// LogStreamPrefix is deprecated - no longer checked
 
 		if cwBackend.config.MetricNamespace != "Joblet/Jobs" {
 			t.Errorf("Expected default metric_namespace 'Joblet/Jobs', got '%s'", cwBackend.config.MetricNamespace)
@@ -165,34 +163,30 @@ func TestCloudWatchBackend_LogGroupNaming(t *testing.T) {
 	tests := []struct {
 		prefix   string
 		nodeID   string
-		jobID    string
 		expected string
 	}{
 		{
 			prefix:   "/joblet",
 			nodeID:   "node-1",
-			jobID:    "job-123",
-			expected: "/joblet/node-1/jobs/job-123",
+			expected: "/joblet/node-1/jobs",
 		},
 		{
 			prefix:   "/production/app",
 			nodeID:   "cluster-node-5",
-			jobID:    "task-abc-def",
-			expected: "/production/app/cluster-node-5/jobs/task-abc-def",
+			expected: "/production/app/cluster-node-5/jobs",
 		},
 		{
 			prefix:   "/dev",
 			nodeID:   "local-dev",
-			jobID:    "test",
-			expected: "/dev/local-dev/jobs/test",
+			expected: "/dev/local-dev/jobs",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
 			// Test the log group naming logic directly
-			// Format: {prefix}/{nodeID}/jobs/{jobID}
-			logGroup := tt.prefix + "/" + tt.nodeID + "/jobs/" + tt.jobID
+			// Format: {prefix}/{nodeID}/jobs (one group per node)
+			logGroup := tt.prefix + "/" + tt.nodeID + "/jobs"
 
 			if logGroup != tt.expected {
 				t.Errorf("Expected log group '%s', got '%s'", tt.expected, logGroup)
@@ -228,13 +222,20 @@ func TestCloudWatchBackend_DeleteJob_LogGroupFormat(t *testing.T) {
 			t.Errorf("Expected nodeID '%s', got '%s'", nodeID, cwBackend.config.NodeID)
 		}
 
-		// Expected log group for deletion: /test/delete-test-node/jobs/job-to-delete
-		expectedLogGroup := "/test/" + nodeID + "/jobs/" + jobID
+		// Expected log group for deletion: /test/delete-test-node/jobs
+		// Expected streams: job-to-delete-stdout, job-to-delete-stderr (metrics are in CloudWatch Metrics API)
+		expectedLogGroup := "/test/" + nodeID + "/jobs"
+		expectedStreams := []string{
+			jobID + "-stdout",
+			jobID + "-stderr",
+		}
 
 		// We can't test actual deletion without AWS, but we verify the config is correct
 		_ = backend.Close()
 
 		t.Logf("DeleteJob would use log group: %s", expectedLogGroup)
+		t.Logf("DeleteJob would delete log streams: %v", expectedStreams)
+		t.Logf("Note: Metrics are stored in CloudWatch Metrics (namespace: Joblet/Jobs) and cannot be deleted individually")
 	}
 }
 
@@ -405,13 +406,14 @@ func TestCloudWatchBackend_WriteMetrics_Format(t *testing.T) {
 			t.Logf("Expected failure without AWS credentials: %v", err)
 		}
 
-		// Expected log group: /metrics-test/metrics-write-node/jobs/metrics-job
-		// Expected log stream: stream-metrics-job-metrics
+		// Metrics are now sent to CloudWatch Metrics API
+		// Expected namespace: Joblet/Jobs
+		// Expected dimensions: JobID=metrics-job, NodeID=metrics-write-node
 
 		_ = backend.Close()
 	}
 
-	// Test validates code structure and metric writing logic
+	// Test validates code structure and metric writing logic using CloudWatch Metrics API
 }
 
 func TestCloudWatchBackend_BatchSizes(t *testing.T) {
@@ -512,8 +514,8 @@ func TestCloudWatchBackend_ReadLogs_QueryFormatting(t *testing.T) {
 			t.Logf("Expected failure without AWS credentials: %v", err)
 		}
 
-		// Expected log group: /query-test/query-node/jobs/query-job
-		// Expected log stream: q-query-job-stdout
+		// Expected log group: /query-test/query-node/jobs
+		// Expected log stream: query-job-stdout
 
 		_ = backend.Close()
 	}

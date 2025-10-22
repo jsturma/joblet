@@ -122,11 +122,26 @@ Cloud-native storage using AWS CloudWatch Logs for both logs and metrics.
 
 **Log Organization:**
 ```
-CloudWatch Log Groups:
-└── {log_group_prefix}/{nodeId}/jobs/{jobId}
-    ├── Log Stream: {log_stream_prefix}{jobId}-stdout
-    ├── Log Stream: {log_stream_prefix}{jobId}-stderr
-    └── Log Stream: {log_stream_prefix}{jobId}-metrics
+CloudWatch Log Groups (one per node):
+└── {log_group_prefix}/{nodeId}/jobs
+    ├── Log Stream: {jobId}-stdout
+    ├── Log Stream: {jobId}-stderr
+    ├── Log Stream: {anotherJobId}-stdout
+    └── Log Stream: {anotherJobId}-stderr
+
+CloudWatch Metrics (namespace per deployment):
+└── {metric_namespace}  (e.g., Joblet/Jobs)
+    ├── Metric: CPUUsage
+    ├── Metric: MemoryUsage (MB)
+    ├── Metric: GPUUsage (%)
+    ├── Metric: DiskReadBytes
+    ├── Metric: DiskWriteBytes
+    ├── Metric: DiskReadOps
+    ├── Metric: DiskWriteOps
+    ├── Metric: NetworkRxBytes (KB)
+    └── Metric: NetworkTxBytes (KB)
+
+    Dimensions: JobID, NodeID, [custom dimensions...]
 ```
 
 **Multi-Node Architecture:**
@@ -134,10 +149,25 @@ CloudWatch Log Groups:
 CloudWatch backend supports distributed deployments with multiple joblet nodes. Each node is identified by a unique `nodeId`, ensuring logs from different nodes are properly isolated:
 
 ```
-Log Groups:
-├── /joblet/node-1/jobs/job-abc      # Node 1's jobs
-├── /joblet/node-2/jobs/job-abc      # Node 2's jobs (same jobID, different node)
-└── /joblet/node-3/jobs/job-xyz      # Node 3's jobs
+Log Groups (one per node):
+├── /joblet/node-1/jobs              # All jobs from node-1
+│   ├── job-abc-stdout
+│   └── job-abc-stderr
+├── /joblet/node-2/jobs              # All jobs from node-2
+│   ├── job-abc-stdout               # (same jobID, different node)
+│   └── job-abc-stderr
+└── /joblet/node-3/jobs              # All jobs from node-3
+    ├── job-xyz-stdout
+    └── job-xyz-stderr
+
+CloudWatch Metrics (shared namespace across all nodes):
+└── Joblet/Jobs
+    ├── CPUUsage [JobID=job-abc, NodeID=node-1]
+    ├── MemoryUsage [JobID=job-abc, NodeID=node-1]
+    ├── CPUUsage [JobID=job-abc, NodeID=node-2]
+    ├── MemoryUsage [JobID=job-abc, NodeID=node-2]
+    ├── CPUUsage [JobID=job-xyz, NodeID=node-3]
+    └── MemoryUsage [JobID=job-xyz, NodeID=node-3]
 ```
 
 This allows:
@@ -184,6 +214,9 @@ CloudWatch backend uses AWS default credential chain (secure, no credentials in 
         "logs:FilterLogEvents",
         "logs:DeleteLogGroup",
         "logs:DeleteLogStream",
+        "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics",
         "ec2:DescribeRegions"
       ],
       "Resource": "*"
@@ -207,9 +240,9 @@ persist:
       # Or specify explicitly
       # region: "us-east-1"
 
-      # Log group organization (nodeId automatically inserted)
-      log_group_prefix: "/joblet"              # Creates: /joblet/{nodeId}/jobs/{jobId}
-      log_stream_prefix: "job-"                # Creates: job-{jobId}-stdout, job-{jobId}-stderr
+      # Log group organization (one per node)
+      log_group_prefix: "/joblet"              # Creates: /joblet/{nodeId}/jobs
+      # Note: log_stream_prefix is deprecated - streams are named: {jobId}-{streamType}
 
       # Metrics configuration
       metric_namespace: "Joblet/Production"    # CloudWatch Metrics namespace
@@ -235,22 +268,55 @@ persist:
 
 **Monitoring:**
 
-View logs in AWS Console:
+**View logs in AWS Console:**
 ```
-CloudWatch → Log Groups → /joblet/{nodeId}/jobs/{jobId}
+CloudWatch → Log Groups → /joblet/{nodeId}/jobs
 ```
 
-Query logs using AWS CLI:
+**View metrics in AWS Console:**
+```
+CloudWatch → Metrics → Custom Namespaces → Joblet/Jobs
+```
+
+**Query logs using AWS CLI:**
 ```bash
 # Get logs for a specific job on node-1
 aws logs get-log-events \
-  --log-group-name "/joblet/node-1/jobs/my-job-id" \
-  --log-stream-name "job-my-job-id-stdout"
+  --log-group-name "/joblet/node-1/jobs" \
+  --log-stream-name "my-job-id-stdout"
 
 # Filter logs across all nodes
 aws logs filter-log-events \
   --log-group-name-prefix "/joblet/" \
   --filter-pattern "ERROR"
+```
+
+**Query metrics using AWS CLI:**
+```bash
+# Get CPU usage for a specific job
+aws cloudwatch get-metric-statistics \
+  --namespace "Joblet/Jobs" \
+  --metric-name "CPUUsage" \
+  --dimensions Name=JobID,Value=my-job-id Name=NodeID,Value=node-1 \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-01-01T23:59:59Z \
+  --period 60 \
+  --statistics Average
+
+# List all metrics for a job
+aws cloudwatch list-metrics \
+  --namespace "Joblet/Jobs" \
+  --dimensions Name=JobID,Value=my-job-id
+
+# Get memory usage with custom dimensions
+aws cloudwatch get-metric-statistics \
+  --namespace "Joblet/Production" \
+  --metric-name "MemoryUsage" \
+  --dimensions Name=JobID,Value=my-job-id Name=NodeID,Value=node-1 Name=Environment,Value=production \
+  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 300 \
+  --statistics Average,Maximum,Minimum
 ```
 
 ### S3 Backend (Planned)
@@ -411,8 +477,17 @@ persist:
 
 **Result in CloudWatch:**
 ```
-/joblet-cluster/cluster-node-1/jobs/job-123
-/joblet-cluster/cluster-node-2/jobs/job-456
+Log Groups:
+/joblet-cluster/cluster-node-1/jobs
+  └── Streams: job-123-stdout, job-123-stderr
+/joblet-cluster/cluster-node-2/jobs
+  └── Streams: job-456-stdout, job-456-stderr
+
+Metrics (namespace: Joblet/Production):
+  ├── CPUUsage [JobID=job-123, NodeID=cluster-node-1, Environment=production, Cluster=main-cluster, Node=node-1]
+  ├── MemoryUsage [JobID=job-123, NodeID=cluster-node-1, Environment=production, Cluster=main-cluster, Node=node-1]
+  ├── CPUUsage [JobID=job-456, NodeID=cluster-node-2, Environment=production, Cluster=main-cluster, Node=node-2]
+  └── MemoryUsage [JobID=job-456, NodeID=cluster-node-2, Environment=production, Cluster=main-cluster, Node=node-2]
 ```
 
 ## API Reference
@@ -553,10 +628,24 @@ CloudWatch Logs Pricing (us-east-1, as of 2024):
 - Storage: $0.03 per GB/month
 - Query (Insights): $0.005 per GB scanned
 
-Example: 1000 jobs/day × 10 MB logs = 10 GB/day
-- Ingestion: $5/day = $150/month
+CloudWatch Metrics Pricing (us-east-1, as of 2024):
+- Standard Metrics: First 10 metrics free, then $0.30/metric/month
+- Custom Metrics: $0.30/metric/month
+- API Requests (GetMetricStatistics): $0.01 per 1,000 requests
+
+Example: 1000 jobs/day
+Logs (10 MB/job):
+- Ingestion: 10 GB/day × $0.50 = $5/day = $150/month
 - Storage: 300 GB × $0.03 = $9/month
-- Total: ~$160/month
+
+Metrics (9 metrics per job, 1 sample/min for 10 mins avg):
+- Metric data points: 1000 jobs × 9 metrics × 10 samples = 90,000 data points/day
+- Cost: First 10 free, ~90K metrics × $0.30/month ≈ $27,000/month
+  (NOTE: Metrics are billed per unique metric combination, not data points)
+- Actual cost: ~9 unique metric names × $0.30 = $2.70/month
+  (Dimensions don't multiply the cost, they're part of the metric identity)
+
+Total: ~$160/month (logs) + ~$3/month (metrics) = ~$163/month
 ```
 
 **Rate Limiting:**
@@ -741,10 +830,21 @@ Built-in CloudWatch metrics:
 - `IncomingLogEvents`: Number of log events
 - `ThrottledRequests`: Rate limiting
 
-Custom metrics (via CloudWatch Metrics):
-- Job execution count
-- Average job duration
-- Resource usage per job
+Custom metrics (via CloudWatch Metrics API):
+- CPUUsage: CPU cores used by job
+- MemoryUsage: Memory usage in MB
+- GPUUsage: GPU utilization percentage
+- DiskReadBytes/DiskWriteBytes: Disk I/O throughput
+- DiskReadOps/DiskWriteOps: Disk I/O operations
+- NetworkRxBytes/NetworkTxBytes: Network throughput in KB
+
+**CloudWatch Metrics Features:**
+- **Automatic Dashboards**: CloudWatch automatically creates dashboards for custom metrics
+- **Alarms**: Set alarms on metric thresholds (e.g., CPU > 90%, Memory > 80%)
+- **Anomaly Detection**: CloudWatch can detect unusual patterns in metrics
+- **Metric Math**: Combine metrics with expressions (e.g., total I/O = read + write)
+- **Statistics**: Get Average, Sum, Min, Max, SampleCount for any metric
+- **Retention**: Metrics are retained for 15 months automatically
 
 ## Future Enhancements
 

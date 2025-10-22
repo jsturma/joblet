@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -13,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	cloudwatchtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 
@@ -23,9 +24,10 @@ import (
 
 // CloudWatchBackend implements the Backend interface for AWS CloudWatch Logs and Metrics
 type CloudWatchBackend struct {
-	config     *config.CloudWatchConfig
-	logsClient *cloudwatchlogs.Client
-	logger     *logger.Logger
+	config        *config.CloudWatchConfig
+	logsClient    *cloudwatchlogs.Client
+	metricsClient *cloudwatch.Client
+	logger        *logger.Logger
 
 	// Cache for log group/stream creation
 	createdGroups  map[string]bool
@@ -62,11 +64,9 @@ func NewCloudWatchBackend(cfg *config.StorageConfig, nodeID string, log *logger.
 
 	// Set defaults for prefixes
 	if cwConfig.LogGroupPrefix == "" {
-		cwConfig.LogGroupPrefix = "/joblet/jobs"
+		cwConfig.LogGroupPrefix = "/joblet"
 	}
-	if cwConfig.LogStreamPrefix == "" {
-		cwConfig.LogStreamPrefix = "job-"
-	}
+	// LogStreamPrefix is deprecated - log streams now use format: {jobID}-{streamType}
 	if cwConfig.MetricNamespace == "" {
 		cwConfig.MetricNamespace = "Joblet/Jobs"
 	}
@@ -92,9 +92,13 @@ func NewCloudWatchBackend(cfg *config.StorageConfig, nodeID string, log *logger.
 	// Create CloudWatch Logs client
 	logsClient := cloudwatchlogs.NewFromConfig(awsCfg)
 
+	// Create CloudWatch Metrics client
+	metricsClient := cloudwatch.NewFromConfig(awsCfg)
+
 	backend := &CloudWatchBackend{
 		config:         &cwConfig,
 		logsClient:     logsClient,
+		metricsClient:  metricsClient,
 		logger:         log,
 		createdGroups:  make(map[string]bool),
 		createdStreams: make(map[string]bool),
@@ -169,9 +173,10 @@ func (b *CloudWatchBackend) writeLogsToStream(jobID, streamType string, logs []*
 	ctx := context.Background()
 
 	// Determine log group and stream names
-	// Include nodeID for multi-node deployments: /joblet/{nodeID}/jobs/{jobID}
-	logGroup := fmt.Sprintf("%s/%s/jobs/%s", b.config.LogGroupPrefix, b.config.NodeID, jobID)
-	logStream := fmt.Sprintf("%s%s-%s", b.config.LogStreamPrefix, jobID, streamType)
+	// Single log group per node: /joblet/{nodeID}/jobs
+	// Separate log stream per job: {jobID}-{streamType}
+	logGroup := fmt.Sprintf("%s/%s/jobs", b.config.LogGroupPrefix, b.config.NodeID)
+	logStream := fmt.Sprintf("%s-%s", jobID, streamType)
 
 	// Ensure log group exists
 	if err := b.ensureLogGroup(ctx, logGroup); err != nil {
@@ -350,8 +355,7 @@ func (b *CloudWatchBackend) ensureLogStream(ctx context.Context, logGroup, logSt
 	return nil
 }
 
-// WriteMetrics writes metrics to CloudWatch (stored as JSON in log events for now)
-// TODO: In a future version, consider using CloudWatch Metrics API for proper metric storage
+// WriteMetrics writes metrics to CloudWatch Metrics API
 func (b *CloudWatchBackend) WriteMetrics(jobID string, metrics []*ipcpb.Metric) error {
 	if len(metrics) == 0 {
 		return nil
@@ -359,56 +363,166 @@ func (b *CloudWatchBackend) WriteMetrics(jobID string, metrics []*ipcpb.Metric) 
 
 	ctx := context.Background()
 
-	// Store metrics as JSON log events in a dedicated metrics log stream
-	// Include nodeID for multi-node deployments
-	logGroup := fmt.Sprintf("%s/%s/jobs/%s", b.config.LogGroupPrefix, b.config.NodeID, jobID)
-	logStream := fmt.Sprintf("%s%s-metrics", b.config.LogStreamPrefix, jobID)
+	// Convert metrics to CloudWatch metric data
+	metricData := make([]cloudwatchtypes.MetricDatum, 0, len(metrics)*9) // Up to 9 metrics per sample
 
-	// Ensure log group and stream exist
-	if err := b.ensureLogGroup(ctx, logGroup); err != nil {
-		return fmt.Errorf("failed to ensure log group for metrics: %w", err)
+	// Base dimensions for all metrics
+	baseDimensions := []cloudwatchtypes.Dimension{
+		{
+			Name:  aws.String("JobID"),
+			Value: aws.String(jobID),
+		},
+		{
+			Name:  aws.String("NodeID"),
+			Value: aws.String(b.config.NodeID),
+		},
 	}
-	if err := b.ensureLogStream(ctx, logGroup, logStream); err != nil {
-		return fmt.Errorf("failed to ensure log stream for metrics: %w", err)
-	}
 
-	// Convert metrics to log events (JSON format)
-	events := make([]types.InputLogEvent, 0, len(metrics))
-	for _, metric := range metrics {
-		// Serialize metric as JSON
-		jsonData, err := json.Marshal(metric)
-		if err != nil {
-			b.logger.Warn("failed to marshal metric to JSON", "error", err)
-			continue
-		}
-
-		// Convert timestamp to milliseconds
-		timestamp := metric.Timestamp / 1_000_000
-		events = append(events, types.InputLogEvent{
-			Message:   aws.String(string(jsonData)),
-			Timestamp: aws.Int64(timestamp),
+	// Add custom dimensions from config
+	for key, value := range b.config.MetricDimensions {
+		baseDimensions = append(baseDimensions, cloudwatchtypes.Dimension{
+			Name:  aws.String(key),
+			Value: aws.String(value),
 		})
 	}
 
-	// Batch write events
-	batchSize := b.config.MetricBatchSize
-	for i := 0; i < len(events); i += batchSize {
-		end := i + batchSize
-		if end > len(events) {
-			end = len(events)
+	for _, metric := range metrics {
+		if metric.Data == nil {
+			continue
 		}
-		batch := events[i:end]
 
-		if err := b.putLogEvents(ctx, logGroup, logStream, batch); err != nil {
-			return fmt.Errorf("failed to put metric events (batch %d-%d): %w", i, end, err)
+		// Convert nanoseconds to time.Time for CloudWatch
+		timestamp := time.Unix(0, metric.Timestamp)
+
+		data := metric.Data
+
+		// CPU Usage
+		if data.CpuUsage > 0 {
+			metricData = append(metricData, cloudwatchtypes.MetricDatum{
+				MetricName: aws.String("CPUUsage"),
+				Unit:       cloudwatchtypes.StandardUnitNone,
+				Value:      aws.Float64(data.CpuUsage),
+				Timestamp:  &timestamp,
+				Dimensions: baseDimensions,
+			})
+		}
+
+		// Memory Usage (convert to MB for better CloudWatch visualization)
+		if data.MemoryUsage > 0 {
+			memoryMB := float64(data.MemoryUsage) / 1024 / 1024
+			metricData = append(metricData, cloudwatchtypes.MetricDatum{
+				MetricName: aws.String("MemoryUsage"),
+				Unit:       cloudwatchtypes.StandardUnitMegabytes,
+				Value:      aws.Float64(memoryMB),
+				Timestamp:  &timestamp,
+				Dimensions: baseDimensions,
+			})
+		}
+
+		// GPU Usage
+		if data.GpuUsage > 0 {
+			metricData = append(metricData, cloudwatchtypes.MetricDatum{
+				MetricName: aws.String("GPUUsage"),
+				Unit:       cloudwatchtypes.StandardUnitPercent,
+				Value:      aws.Float64(data.GpuUsage * 100), // Convert 0.0-1.0 to 0-100
+				Timestamp:  &timestamp,
+				Dimensions: baseDimensions,
+			})
+		}
+
+		// Disk I/O metrics
+		if data.DiskIo != nil {
+			if data.DiskIo.ReadBytes > 0 {
+				metricData = append(metricData, cloudwatchtypes.MetricDatum{
+					MetricName: aws.String("DiskReadBytes"),
+					Unit:       cloudwatchtypes.StandardUnitBytes,
+					Value:      aws.Float64(float64(data.DiskIo.ReadBytes)),
+					Timestamp:  &timestamp,
+					Dimensions: baseDimensions,
+				})
+			}
+			if data.DiskIo.WriteBytes > 0 {
+				metricData = append(metricData, cloudwatchtypes.MetricDatum{
+					MetricName: aws.String("DiskWriteBytes"),
+					Unit:       cloudwatchtypes.StandardUnitBytes,
+					Value:      aws.Float64(float64(data.DiskIo.WriteBytes)),
+					Timestamp:  &timestamp,
+					Dimensions: baseDimensions,
+				})
+			}
+			if data.DiskIo.ReadOps > 0 {
+				metricData = append(metricData, cloudwatchtypes.MetricDatum{
+					MetricName: aws.String("DiskReadOps"),
+					Unit:       cloudwatchtypes.StandardUnitCount,
+					Value:      aws.Float64(float64(data.DiskIo.ReadOps)),
+					Timestamp:  &timestamp,
+					Dimensions: baseDimensions,
+				})
+			}
+			if data.DiskIo.WriteOps > 0 {
+				metricData = append(metricData, cloudwatchtypes.MetricDatum{
+					MetricName: aws.String("DiskWriteOps"),
+					Unit:       cloudwatchtypes.StandardUnitCount,
+					Value:      aws.Float64(float64(data.DiskIo.WriteOps)),
+					Timestamp:  &timestamp,
+					Dimensions: baseDimensions,
+				})
+			}
+		}
+
+		// Network I/O metrics (convert to KB for better visualization)
+		if data.NetworkIo != nil {
+			if data.NetworkIo.RxBytes > 0 {
+				rxKB := float64(data.NetworkIo.RxBytes) / 1024
+				metricData = append(metricData, cloudwatchtypes.MetricDatum{
+					MetricName: aws.String("NetworkRxBytes"),
+					Unit:       cloudwatchtypes.StandardUnitKilobytes,
+					Value:      aws.Float64(rxKB),
+					Timestamp:  &timestamp,
+					Dimensions: baseDimensions,
+				})
+			}
+			if data.NetworkIo.TxBytes > 0 {
+				txKB := float64(data.NetworkIo.TxBytes) / 1024
+				metricData = append(metricData, cloudwatchtypes.MetricDatum{
+					MetricName: aws.String("NetworkTxBytes"),
+					Unit:       cloudwatchtypes.StandardUnitKilobytes,
+					Value:      aws.Float64(txKB),
+					Timestamp:  &timestamp,
+					Dimensions: baseDimensions,
+				})
+			}
 		}
 	}
 
-	b.logger.Debug("wrote metrics to CloudWatch",
+	if len(metricData) == 0 {
+		b.logger.Debug("no metrics to write", "jobId", jobID)
+		return nil
+	}
+
+	// Batch write metrics (CloudWatch allows up to 1000 metrics per request, but we use smaller batches)
+	batchSize := b.config.MetricBatchSize
+	for i := 0; i < len(metricData); i += batchSize {
+		end := i + batchSize
+		if end > len(metricData) {
+			end = len(metricData)
+		}
+		batch := metricData[i:end]
+
+		_, err := b.metricsClient.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
+			Namespace:  aws.String(b.config.MetricNamespace),
+			MetricData: batch,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to put metric data (batch %d-%d): %w", i, end, err)
+		}
+	}
+
+	b.logger.Debug("wrote metrics to CloudWatch Metrics",
 		"jobId", jobID,
 		"count", len(metrics),
-		"logGroup", logGroup,
-		"logStream", logStream)
+		"metricDataPoints", len(metricData),
+		"namespace", b.config.MetricNamespace)
 
 	return nil
 }
@@ -436,15 +550,15 @@ func (b *CloudWatchBackend) ReadLogs(ctx context.Context, query *LogQuery) (*Log
 
 // readLogsFromStream retrieves logs from CloudWatch and sends them to the channel
 func (b *CloudWatchBackend) readLogsFromStream(ctx context.Context, query *LogQuery, ch chan<- *ipcpb.LogLine) error {
-	// Include nodeID for multi-node deployments
-	logGroup := fmt.Sprintf("%s/%s/jobs/%s", b.config.LogGroupPrefix, b.config.NodeID, query.JobID)
+	// Single log group per node
+	logGroup := fmt.Sprintf("%s/%s/jobs", b.config.LogGroupPrefix, b.config.NodeID)
 
 	// Determine stream type suffix
 	streamSuffix := "stdout"
 	if query.Stream == ipcpb.StreamType_STREAM_TYPE_STDERR {
 		streamSuffix = "stderr"
 	}
-	logStream := fmt.Sprintf("%s%s-%s", b.config.LogStreamPrefix, query.JobID, streamSuffix)
+	logStream := fmt.Sprintf("%s-%s", query.JobID, streamSuffix)
 
 	// Build GetLogEvents input
 	input := &cloudwatchlogs.GetLogEventsInput{
@@ -515,47 +629,152 @@ func (b *CloudWatchBackend) ReadMetrics(ctx context.Context, query *MetricQuery)
 	return reader, nil
 }
 
-// readMetricsFromStream retrieves metrics from CloudWatch and sends them to the channel
+// readMetricsFromStream retrieves metrics from CloudWatch Metrics API and sends them to the channel
 func (b *CloudWatchBackend) readMetricsFromStream(ctx context.Context, query *MetricQuery, ch chan<- *ipcpb.Metric) error {
-	// Include nodeID for multi-node deployments
-	logGroup := fmt.Sprintf("%s/%s/jobs/%s", b.config.LogGroupPrefix, b.config.NodeID, query.JobID)
-	logStream := fmt.Sprintf("%s%s-metrics", b.config.LogStreamPrefix, query.JobID)
-
-	// Build GetLogEvents input
-	input := &cloudwatchlogs.GetLogEventsInput{
-		LogGroupName:  aws.String(logGroup),
-		LogStreamName: aws.String(logStream),
-		StartFromHead: aws.Bool(true),
-	}
-
+	// Determine time range
+	var startTime, endTime time.Time
 	if query.StartTime != nil {
-		startMs := *query.StartTime / 1_000_000
-		input.StartTime = aws.Int64(startMs)
+		startTime = time.Unix(0, *query.StartTime)
+	} else {
+		startTime = time.Now().Add(-24 * time.Hour) // Default: last 24 hours
 	}
 	if query.EndTime != nil {
-		endMs := *query.EndTime / 1_000_000
-		input.EndTime = aws.Int64(endMs)
-	}
-	if query.Limit > 0 {
-		input.Limit = aws.Int32(int32(query.Limit))
+		endTime = time.Unix(0, *query.EndTime)
+	} else {
+		endTime = time.Now()
 	}
 
-	// Retrieve metrics
-	resp, err := b.logsClient.GetLogEvents(ctx, input)
-	if err != nil {
-		return fmt.Errorf("failed to get metric events: %w", err)
+	// CloudWatch Metrics uses 1-minute granularity for queries within 15 days
+	// Use 5-minute granularity for older data
+	period := int32(60) // 1 minute
+	if time.Since(startTime) > 15*24*time.Hour {
+		period = 300 // 5 minutes
 	}
 
-	// Parse JSON metrics and send to channel
-	for _, event := range resp.Events {
-		var metric ipcpb.Metric
-		if err := json.Unmarshal([]byte(*event.Message), &metric); err != nil {
-			b.logger.Warn("failed to unmarshal metric from JSON", "error", err)
+	// Determine statistic to use
+	stat := cloudwatchtypes.StatisticAverage
+	if query.Aggregation != "" {
+		switch query.Aggregation {
+		case "avg":
+			stat = cloudwatchtypes.StatisticAverage
+		case "min":
+			stat = cloudwatchtypes.StatisticMinimum
+		case "max":
+			stat = cloudwatchtypes.StatisticMaximum
+		case "sum":
+			stat = cloudwatchtypes.StatisticSum
+		}
+	}
+
+	// Base dimensions for metrics
+	dimensions := []cloudwatchtypes.Dimension{
+		{
+			Name:  aws.String("JobID"),
+			Value: aws.String(query.JobID),
+		},
+		{
+			Name:  aws.String("NodeID"),
+			Value: aws.String(b.config.NodeID),
+		},
+	}
+
+	// List of metric names to query
+	metricNames := []string{
+		"CPUUsage",
+		"MemoryUsage",
+		"GPUUsage",
+		"DiskReadBytes",
+		"DiskWriteBytes",
+		"DiskReadOps",
+		"DiskWriteOps",
+		"NetworkRxBytes",
+		"NetworkTxBytes",
+	}
+
+	// Query all metrics and aggregate by timestamp
+	metricsMap := make(map[time.Time]*ipcpb.Metric)
+
+	for _, metricName := range metricNames {
+		resp, err := b.metricsClient.GetMetricStatistics(ctx, &cloudwatch.GetMetricStatisticsInput{
+			Namespace:  aws.String(b.config.MetricNamespace),
+			MetricName: aws.String(metricName),
+			Dimensions: dimensions,
+			StartTime:  &startTime,
+			EndTime:    &endTime,
+			Period:     aws.Int32(period),
+			Statistics: []cloudwatchtypes.Statistic{stat},
+		})
+		if err != nil {
+			b.logger.Warn("failed to get metric statistics", "metric", metricName, "error", err)
 			continue
 		}
 
+		// Process datapoints
+		for _, dp := range resp.Datapoints {
+			if dp.Timestamp == nil || dp.Average == nil {
+				continue
+			}
+
+			timestamp := *dp.Timestamp
+			value := *dp.Average
+
+			// Get or create metric entry for this timestamp
+			metric, exists := metricsMap[timestamp]
+			if !exists {
+				metric = &ipcpb.Metric{
+					JobId:     query.JobID,
+					Timestamp: timestamp.UnixNano(),
+					Data: &ipcpb.MetricData{
+						DiskIo:    &ipcpb.DiskIO{},
+						NetworkIo: &ipcpb.NetworkIO{},
+					},
+				}
+				metricsMap[timestamp] = metric
+			}
+
+			// Map CloudWatch metric to protobuf metric
+			switch metricName {
+			case "CPUUsage":
+				metric.Data.CpuUsage = value
+			case "MemoryUsage":
+				metric.Data.MemoryUsage = int64(value * 1024 * 1024) // Convert MB back to bytes
+			case "GPUUsage":
+				metric.Data.GpuUsage = value / 100 // Convert 0-100 back to 0.0-1.0
+			case "DiskReadBytes":
+				metric.Data.DiskIo.ReadBytes = int64(value)
+			case "DiskWriteBytes":
+				metric.Data.DiskIo.WriteBytes = int64(value)
+			case "DiskReadOps":
+				metric.Data.DiskIo.ReadOps = int64(value)
+			case "DiskWriteOps":
+				metric.Data.DiskIo.WriteOps = int64(value)
+			case "NetworkRxBytes":
+				metric.Data.NetworkIo.RxBytes = int64(value * 1024) // Convert KB back to bytes
+			case "NetworkTxBytes":
+				metric.Data.NetworkIo.TxBytes = int64(value * 1024) // Convert KB back to bytes
+			}
+		}
+	}
+
+	// Sort timestamps and send metrics in chronological order
+	timestamps := make([]time.Time, 0, len(metricsMap))
+	for ts := range metricsMap {
+		timestamps = append(timestamps, ts)
+	}
+	sort.Slice(timestamps, func(i, j int) bool {
+		return timestamps[i].Before(timestamps[j])
+	})
+
+	// Apply limit if specified
+	if query.Limit > 0 && len(timestamps) > query.Limit {
+		timestamps = timestamps[:query.Limit]
+	}
+
+	// Send metrics to channel
+	for _, ts := range timestamps {
+		metric := metricsMap[ts]
 		select {
-		case ch <- &metric:
+		case ch <- metric:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -565,70 +784,54 @@ func (b *CloudWatchBackend) readMetricsFromStream(ctx context.Context, query *Me
 }
 
 // DeleteJob deletes all CloudWatch log streams for a job
+// Note: Metrics are stored in CloudWatch Metrics API and cannot be deleted individually
 func (b *CloudWatchBackend) DeleteJob(jobID string) error {
 	ctx := context.Background()
-	// Include nodeID for multi-node deployments
-	logGroup := fmt.Sprintf("%s/%s/jobs/%s", b.config.LogGroupPrefix, b.config.NodeID, jobID)
+	// Single log group per node - only delete job-specific log streams
+	logGroup := fmt.Sprintf("%s/%s/jobs", b.config.LogGroupPrefix, b.config.NodeID)
 
-	// List all log streams in the group
-	listResp, err := b.logsClient.DescribeLogStreams(ctx, &cloudwatchlogs.DescribeLogStreamsInput{
-		LogGroupName: aws.String(logGroup),
-	})
-
-	if err != nil {
-		// If log group doesn't exist, that's fine
-		if strings.Contains(err.Error(), "ResourceNotFoundException") {
-			b.logger.Debug("log group not found (already deleted or never created)", "logGroup", logGroup)
-			return nil
-		}
-		return fmt.Errorf("failed to list log streams for deletion: %w", err)
+	// Define the log streams for this job (stdout and stderr only, metrics are in CloudWatch Metrics)
+	streams := []string{
+		fmt.Sprintf("%s-stdout", jobID),
+		fmt.Sprintf("%s-stderr", jobID),
 	}
 
-	// Delete each log stream
-	for _, stream := range listResp.LogStreams {
+	// Delete each log stream for this job
+	var errs []error
+	for _, streamName := range streams {
 		_, err := b.logsClient.DeleteLogStream(ctx, &cloudwatchlogs.DeleteLogStreamInput{
 			LogGroupName:  aws.String(logGroup),
-			LogStreamName: stream.LogStreamName,
+			LogStreamName: aws.String(streamName),
 		})
 		if err != nil {
-			b.logger.Warn("failed to delete log stream", "logStream", *stream.LogStreamName, "error", err)
+			// Ignore ResourceNotFoundException - stream may not have been created
+			if !strings.Contains(err.Error(), "ResourceNotFoundException") {
+				b.logger.Warn("failed to delete log stream", "logStream", streamName, "error", err)
+				errs = append(errs, fmt.Errorf("stream %s: %w", streamName, err))
+			} else {
+				b.logger.Debug("log stream not found (already deleted or never created)", "logStream", streamName)
+			}
 		} else {
-			b.logger.Debug("deleted log stream", "logStream", *stream.LogStreamName)
+			b.logger.Debug("deleted log stream", "logStream", streamName)
 		}
+
+		// Clear from cache
+		streamKey := fmt.Sprintf("%s/%s", logGroup, streamName)
+		b.cacheMutex.Lock()
+		delete(b.createdStreams, streamKey)
+		b.cacheMutex.Unlock()
+
+		// Clear sequence tokens
+		b.tokenMutex.Lock()
+		delete(b.sequenceTokens, streamKey)
+		b.tokenMutex.Unlock()
 	}
 
-	// Delete the log group itself
-	_, err = b.logsClient.DeleteLogGroup(ctx, &cloudwatchlogs.DeleteLogGroupInput{
-		LogGroupName: aws.String(logGroup),
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "ResourceNotFoundException") {
-			// Already deleted
-			return nil
-		}
-		return fmt.Errorf("failed to delete log group: %w", err)
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to delete some log streams: %v", errs)
 	}
 
-	// Clear from cache
-	b.cacheMutex.Lock()
-	delete(b.createdGroups, logGroup)
-	for key := range b.createdStreams {
-		if strings.HasPrefix(key, logGroup+"/") {
-			delete(b.createdStreams, key)
-		}
-	}
-	b.cacheMutex.Unlock()
-
-	// Clear sequence tokens
-	b.tokenMutex.Lock()
-	for key := range b.sequenceTokens {
-		if strings.HasPrefix(key, logGroup+"/") {
-			delete(b.sequenceTokens, key)
-		}
-	}
-	b.tokenMutex.Unlock()
-
-	b.logger.Info("deleted CloudWatch log group for job", "jobId", jobID, "logGroup", logGroup)
+	b.logger.Info("deleted CloudWatch log streams for job", "jobId", jobID, "logGroup", logGroup)
 	return nil
 }
 
