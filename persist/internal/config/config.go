@@ -73,6 +73,11 @@ type CloudWatchConfig struct {
 	// Batch settings
 	LogBatchSize    int `yaml:"log_batch_size"`    // Max log events per batch (default: 100)
 	MetricBatchSize int `yaml:"metric_batch_size"` // Max metric data points per batch (default: 20)
+
+	// Retention settings
+	LogRetentionDays int `yaml:"log_retention_days"` // Log retention in days (0 = use default, -1 = never expire, default: 7)
+	// Valid values: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653
+	// 0 or not set = default to 7 days, -1 = never expire
 }
 
 // LogStorageConfig contains log storage settings

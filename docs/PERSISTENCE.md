@@ -209,6 +209,7 @@ CloudWatch backend uses AWS default credential chain (secure, no credentials in 
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents",
+        "logs:PutRetentionPolicy",
         "logs:DescribeLogStreams",
         "logs:GetLogEvents",
         "logs:FilterLogEvents",
@@ -253,7 +254,39 @@ persist:
       # Batch settings (CloudWatch API limits)
       log_batch_size: 100                      # Max: 10,000 events per batch
       metric_batch_size: 20                    # Max: 1,000 data points per batch
+
+      # Retention settings
+      log_retention_days: 7                    # Log retention in days (default: 7)
+      # Valid values: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653
+      # 0 or not set = default to 7 days
+      # -1 = never expire (infinite retention, can be expensive!)
 ```
+
+**Log Retention:**
+
+CloudWatch Logs retention controls how long your logs are stored:
+
+- **Default: 7 days** - Balances cost and log availability
+- **Custom retention:** Choose from 1 day to 10 years (3653 days)
+- **Infinite retention:** Set to `-1` (not recommended due to cost)
+- **Cost optimization:** Shorter retention = lower storage costs
+
+Example retention strategies:
+```yaml
+# Development - 1 day retention
+log_retention_days: 1
+
+# Production - 30 days retention
+log_retention_days: 30
+
+# Compliance - 1 year retention
+log_retention_days: 365
+
+# Infinite (expensive!)
+log_retention_days: -1
+```
+
+**Note:** CloudWatch Metrics retention is fixed at 15 months and cannot be configured.
 
 **Auto-Detection Features:**
 
@@ -633,19 +666,32 @@ CloudWatch Metrics Pricing (us-east-1, as of 2024):
 - Custom Metrics: $0.30/metric/month
 - API Requests (GetMetricStatistics): $0.01 per 1,000 requests
 
-Example: 1000 jobs/day
-Logs (10 MB/job):
-- Ingestion: 10 GB/day × $0.50 = $5/day = $150/month
-- Storage: 300 GB × $0.03 = $9/month
+Example: 1000 jobs/day, 10 MB logs/job
 
-Metrics (9 metrics per job, 1 sample/min for 10 mins avg):
-- Metric data points: 1000 jobs × 9 metrics × 10 samples = 90,000 data points/day
-- Cost: First 10 free, ~90K metrics × $0.30/month ≈ $27,000/month
-  (NOTE: Metrics are billed per unique metric combination, not data points)
-- Actual cost: ~9 unique metric names × $0.30 = $2.70/month
+Logs with 7-day retention (default):
+- Ingestion: 10 GB/day × $0.50 = $5/day = $150/month
+- Storage: 70 GB (7 days) × $0.03 = $2.10/month
+- Total logs: ~$152/month
+
+Logs with 30-day retention:
+- Ingestion: $150/month (same)
+- Storage: 300 GB (30 days) × $0.03 = $9/month
+- Total logs: ~$159/month
+
+Logs with 1-day retention (dev):
+- Ingestion: $150/month (same)
+- Storage: 10 GB (1 day) × $0.03 = $0.30/month
+- Total logs: ~$150/month
+
+Metrics (9 metrics per job):
+- Cost: ~9 unique metric names × $0.30 = $2.70/month
   (Dimensions don't multiply the cost, they're part of the metric identity)
 
-Total: ~$160/month (logs) + ~$3/month (metrics) = ~$163/month
+Total with 7-day retention: ~$152/month (logs) + ~$3/month (metrics) = ~$155/month
+Total with 30-day retention: ~$159/month (logs) + ~$3/month (metrics) = ~$162/month
+Total with 1-day retention: ~$150/month (logs) + ~$3/month (metrics) = ~$153/month
+
+💡 Cost Optimization: Shorter retention = lower storage costs!
 ```
 
 **Rate Limiting:**

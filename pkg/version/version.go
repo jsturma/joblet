@@ -62,16 +62,16 @@ func GetVersion() string {
 // GetShortVersion returns a concise version string for display
 func GetShortVersion() string {
 	version := GetVersion()
-	if GitCommit != "unknown" && len(GitCommit) >= 7 {
-		return fmt.Sprintf("%s (%s)", version, GitCommit[:7])
+	if GitCommit != "unknown" && len(GitCommit) >= 8 {
+		return fmt.Sprintf("%s (%s)", version, GitCommit[:8])
 	}
 	return version
 }
 
 // FormatVersion formats a version with optional commit hash
 func FormatVersion(version, commit string) string {
-	if commit != "unknown" && commit != "" && len(commit) >= 7 {
-		return fmt.Sprintf("%s (%s)", version, commit[:7])
+	if commit != "unknown" && commit != "" && len(commit) >= 8 {
+		return fmt.Sprintf("%s (%s)", version, commit[:8])
 	}
 	return version
 }

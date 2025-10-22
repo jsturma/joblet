@@ -63,13 +63,13 @@ get_version_info() {
 build_ldflags() {
     local component="$1"
     echo "-s -w \
-        -X joblet/pkg/version.Version=$VERSION \
-        -X joblet/pkg/version.GitCommit=$GIT_COMMIT \
-        -X joblet/pkg/version.GitTag=$GIT_TAG \
-        -X joblet/pkg/version.BuildDate=$BUILD_DATE \
-        -X joblet/pkg/version.Component=$component \
-        -X joblet/pkg/version.ProtoCommit=$PROTO_COMMIT \
-        -X joblet/pkg/version.ProtoTag=$PROTO_TAG"
+        -X github.com/ehsaniara/joblet/pkg/version.Version=$VERSION \
+        -X github.com/ehsaniara/joblet/pkg/version.GitCommit=$GIT_COMMIT \
+        -X github.com/ehsaniara/joblet/pkg/version.GitTag=$GIT_TAG \
+        -X github.com/ehsaniara/joblet/pkg/version.BuildDate=$BUILD_DATE \
+        -X github.com/ehsaniara/joblet/pkg/version.Component=$component \
+        -X github.com/ehsaniara/joblet/pkg/version.ProtoCommit=$PROTO_COMMIT \
+        -X github.com/ehsaniara/joblet/pkg/version.ProtoTag=$PROTO_TAG"
 }
 
 # Build specific component

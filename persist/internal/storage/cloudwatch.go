@@ -79,6 +79,14 @@ func NewCloudWatchBackend(cfg *config.StorageConfig, nodeID string, log *logger.
 		cwConfig.MetricBatchSize = 20 // CloudWatch Metrics max is 1,000 per batch
 	}
 
+	// Set default retention if not specified
+	// 0 or not set = default to 7 days
+	// -1 = never expire (don't set retention policy)
+	// positive = expire after N days
+	if cwConfig.LogRetentionDays == 0 {
+		cwConfig.LogRetentionDays = 7 // Default: 7 days retention
+	}
+
 	// Load AWS configuration using default credential chain
 	// This supports IAM roles, instance profiles, environment variables, and shared credentials file
 	log.Info("using AWS default credential chain (IAM role, instance profile, or environment variables)")
@@ -281,7 +289,7 @@ func (b *CloudWatchBackend) putLogEvents(ctx context.Context, logGroup, logStrea
 	return nil
 }
 
-// ensureLogGroup creates a log group if it doesn't exist
+// ensureLogGroup creates a log group if it doesn't exist and sets retention policy
 func (b *CloudWatchBackend) ensureLogGroup(ctx context.Context, logGroup string) error {
 	// Check cache first
 	b.cacheMutex.RLock()
@@ -297,23 +305,43 @@ func (b *CloudWatchBackend) ensureLogGroup(ctx context.Context, logGroup string)
 		LogGroupName: aws.String(logGroup),
 	})
 
+	groupAlreadyExisted := false
 	if err != nil {
 		// Check if error is "already exists" - this is not a real error
 		if strings.Contains(err.Error(), "ResourceAlreadyExistsException") {
-			b.cacheMutex.Lock()
-			b.createdGroups[logGroup] = true
-			b.cacheMutex.Unlock()
-			return nil
+			groupAlreadyExisted = true
+			// Continue to set retention policy even for existing groups
+		} else {
+			return fmt.Errorf("failed to create log group: %w", err)
 		}
-		return fmt.Errorf("failed to create log group: %w", err)
 	}
 
-	// Cache the fact that we've created this group
+	// Cache the fact that we've created/verified this group
 	b.cacheMutex.Lock()
 	b.createdGroups[logGroup] = true
 	b.cacheMutex.Unlock()
 
-	b.logger.Info("created CloudWatch log group", "logGroup", logGroup)
+	// Set retention policy if configured (skip if -1 = never expire)
+	action := "created"
+	if groupAlreadyExisted {
+		action = "verified"
+	}
+
+	if b.config.LogRetentionDays > 0 {
+		_, err := b.logsClient.PutRetentionPolicy(ctx, &cloudwatchlogs.PutRetentionPolicyInput{
+			LogGroupName:    aws.String(logGroup),
+			RetentionInDays: aws.Int32(int32(b.config.LogRetentionDays)),
+		})
+		if err != nil {
+			b.logger.Warn("failed to set retention policy", "logGroup", logGroup, "retentionDays", b.config.LogRetentionDays, "error", err)
+			// Don't fail - log group was created/verified successfully
+		} else {
+			b.logger.Info(fmt.Sprintf("%s CloudWatch log group with retention", action), "logGroup", logGroup, "retentionDays", b.config.LogRetentionDays)
+		}
+	} else {
+		b.logger.Info(fmt.Sprintf("%s CloudWatch log group", action), "logGroup", logGroup, "retention", "never expire")
+	}
+
 	return nil
 }
 
