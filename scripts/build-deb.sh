@@ -4,8 +4,8 @@ set -e
 ARCH=${1:-amd64}
 VERSION=${2:-1.0.0}
 PACKAGE_NAME="joblet"
-BUILD_DIR="./builds/joblet-deb-${ARCH}"
-BUILDS_DIR="./builds"
+BUILD_DIR="./packages/joblet-deb-${ARCH}"
+BUILDS_DIR="./packages/dist"
 
 # Clean up version string for Debian package format
 CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//' | sed 's/-[0-9]\+-g[a-f0-9]\+.*//' | sed 's/-[a-f0-9]\+$//')

@@ -52,7 +52,7 @@ persist/persist
 /release
 
 # Package build artifacts (DEB/RPM)
-builds/
+packages/
 joblet-deb-*/
 rpmbuild/
 *.deb

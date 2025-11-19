@@ -4,8 +4,8 @@ set -e
 ARCH=${1:-x86_64}
 VERSION=${2:-1.0.0}
 PACKAGE_NAME="joblet"
-BUILD_DIR="./builds/rpmbuild"
-BUILDS_DIR="./builds"
+BUILD_DIR="./packages/rpmbuild"
+BUILDS_DIR="./packages/dist"
 RELEASE="1"
 
 # Map architectures
@@ -437,7 +437,7 @@ rpmbuild --define "_topdir $(pwd)/$BUILD_DIR" \
 PACKAGE_FILE=$(find "$BUILD_DIR/RPMS" -name "*.rpm" -type f | head -1)
 
 if [ -f "$PACKAGE_FILE" ]; then
-    # Move to builds directory
+    # Move to packages directory
     FINAL_PACKAGE_FILE="${BUILDS_DIR}/$(basename "$PACKAGE_FILE")"
     mv "$PACKAGE_FILE" "$FINAL_PACKAGE_FILE"
     PACKAGE_FILE="$FINAL_PACKAGE_FILE"
