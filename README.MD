@@ -41,26 +41,57 @@ letting you focus on your applications rather than infrastructure complexity.
 #### Option 1: Package Installation (Ubuntu/Debian)
 
 ```bash
-# Download and install the latest release
+# For amd64 (Intel/AMD) systems
 wget $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*_amd64\.deb" | cut -d '"' -f 4)
 sudo dpkg -i joblet_*_amd64.deb
 
-# Start the service
-sudo systemctl start joblet
-sudo systemctl enable joblet
+# For arm64 (ARM/AWS Graviton) systems
+wget $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*_arm64\.deb" | cut -d '"' -f 4)
+sudo dpkg -i joblet_*_arm64.deb
+
+# Start the service (automatically started after installation)
+sudo systemctl status joblet  # Verify service is running
+sudo systemctl enable joblet   # Enable on boot
+```
+
+#### Option 1b: Package Installation (RHEL/CentOS/Fedora/Amazon Linux)
+
+```bash
+# For x86_64 (Intel/AMD) systems
+wget $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*x86_64\.rpm" | cut -d '"' -f 4)
+sudo yum localinstall -y joblet-*.x86_64.rpm  # Amazon Linux 2 / CentOS 7
+# OR
+sudo dnf localinstall -y joblet-*.x86_64.rpm  # Amazon Linux 2023 / CentOS 8+ / Fedora
+
+# For aarch64 (ARM/AWS Graviton) systems
+wget $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*aarch64\.rpm" | cut -d '"' -f 4)
+sudo yum localinstall -y joblet-*.aarch64.rpm  # Amazon Linux 2 / CentOS 7
+# OR
+sudo dnf localinstall -y joblet-*.aarch64.rpm  # Amazon Linux 2023 / CentOS 8+ / Fedora
+
+# Service is automatically started after installation
+sudo systemctl status joblet  # Verify service is running
+sudo systemctl enable joblet  # Enable on boot
 ```
 
 #### Option 2: Manual Installation (Any Linux Distribution)
 
 ```bash
-# Download and extract the release
+# Download and extract the release (choose appropriate architecture)
+# For amd64:
 curl -L -o rnx-linux-amd64.tar.gz $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
 tar -xzf rnx-linux-amd64.tar.gz
 cd rnx-linux-amd64
 
+# For arm64:
+curl -L -o rnx-linux-arm64.tar.gz $(curl -s https://api.github.com/repos/ehsaniara/joblet/releases/latest | grep "browser_download_url.*linux-arm64.tar.gz" | cut -d '"' -f 4)
+tar -xzf rnx-linux-arm64.tar.gz
+cd rnx-linux-arm64
+
 # Run the installation script
 sudo ./install.sh
-sudo systemctl start joblet
+# Service is automatically started after installation
+sudo systemctl status joblet  # Verify service is running
 ```
 
 ### B. RNX Client Installation (Cross-Platform)
@@ -199,12 +230,14 @@ npm run dev
 
 ### Joblet Server (Linux)
 
-- **Operating System**: Linux kernel 4.6+ (Ubuntu 18.04+, CentOS 8+, or equivalent distributions)
+- **Operating System**: Linux kernel 4.6+ (Ubuntu 18.04+, CentOS 8+, Amazon Linux 2/2023, or equivalent distributions)
+- **Architectures**: amd64 (x86_64) and arm64 (aarch64) - including AWS Graviton instances
 - **Hardware**: Multi-core CPU, 1GB+ RAM, 5GB+ disk space (scales with workload)
 - **Network**: Port 50051 accessible for gRPC communication
 - **Privileges**: Root access required for namespace and cgroup management
 - **Dependencies**: cgroups v2, iptables, iproute2, bridge-utils (standard on most distributions)
-- **GPU Support**: NVIDIA drivers (optional, required only for GPU workloads)
+- **GPU Support**: NVIDIA drivers (optional, required only for GPU workloads on amd64)
+- **Package Formats**: DEB (Debian/Ubuntu) and RPM (RHEL/CentOS/Fedora/Amazon Linux) packages available
 
 ### RNX Client (Cross-Platform)
 
