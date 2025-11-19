@@ -1,9 +1,15 @@
 # Simple Joblet Makefile
 REMOTE_HOST ?= 192.168.1.161
-REMOTE_USER ?= jay
+REMOTE_USER ?= joblet
 
 # Fix GOPATH if IntelliJ IDEA has set it incorrectly
 export GOPATH := $(HOME)/go
+
+# Architecture support: amd64, arm64, or both (default: both)
+# Usage: ARCH=amd64 make all    # Build only for amd64
+#        ARCH=arm64 make all    # Build only for arm64
+#        make all               # Build for both (default)
+ARCH ?= amd64 arm64
 
 # Version information
 # Priority: 1. VERSION env var, 2. VERSION file, 3. git tags, 4. fallback to "dev"
@@ -26,30 +32,63 @@ LDFLAGS := -s -w \
 	-X github.com/ehsaniara/joblet/pkg/version.GitTag=$(GIT_TAG) \
 	-X github.com/ehsaniara/joblet/pkg/version.BuildDate=$(BUILD_DATE)
 
-.PHONY: all clean deploy test proto help joblet rnx persist state version
+.PHONY: all clean deploy test proto help joblet rnx persist state version builds
 
 all: proto joblet rnx persist state
 	@echo "✅ Build complete - all binaries ready"
 
+builds: all
+	@echo "📦 Building packages (DEB and RPM) for all architectures..."
+	@mkdir -p builds
+	@echo "📦 Building Debian packages..."
+	@./scripts/build-deb.sh amd64 $(VERSION)
+	@./scripts/build-deb.sh arm64 $(VERSION)
+	@echo "📦 Building RPM packages..."
+	@if command -v rpmbuild >/dev/null 2>&1; then \
+		./scripts/build-rpm.sh amd64 $(VERSION) || echo "⚠️  RPM build for amd64 failed (rpmbuild may not be fully configured)"; \
+		./scripts/build-rpm.sh arm64 $(VERSION) || echo "⚠️  RPM build for arm64 failed (rpmbuild may not be fully configured)"; \
+	else \
+		echo "⚠️  rpmbuild not found - skipping RPM packages (install rpmbuild to build RPM packages)"; \
+	fi
+	@echo "✅ Package build complete!"
+	@echo "📦 Packages in ./builds/:"
+	@for pkg in builds/*.deb builds/*.rpm; do \
+		if [ -f "$$pkg" ]; then \
+			ls -lh "$$pkg" | awk '{print "  " $$9 " (" $$5 ")"}'; \
+		fi; \
+	done
+
 joblet:
-	@echo "Building joblet daemon..."
-	@GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=joblet" -o bin/joblet ./cmd/joblet
-	@echo "✅ joblet built (version: $(VERSION))"
+	@for arch in $(ARCH); do \
+		echo "Building joblet daemon for linux/$$arch..."; \
+		mkdir -p bin/linux-$$arch; \
+		GOOS=linux GOARCH=$$arch go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=joblet" -o bin/linux-$$arch/joblet ./cmd/joblet; \
+		echo "✅ joblet built for linux/$$arch (version: $(VERSION))"; \
+	done
 
 rnx:
-	@echo "Building rnx CLI..."
-	@GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=rnx" -o bin/rnx ./cmd/rnx
-	@echo "✅ rnx built (version: $(VERSION))"
+	@for arch in $(ARCH); do \
+		echo "Building rnx CLI for linux/$$arch..."; \
+		mkdir -p bin/linux-$$arch; \
+		GOOS=linux GOARCH=$$arch go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=rnx" -o bin/linux-$$arch/rnx ./cmd/rnx; \
+		echo "✅ rnx built for linux/$$arch (version: $(VERSION))"; \
+	done
 
 persist:
-	@echo "Building persist..."
-	@cd persist && GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=persist" -o ../bin/persist ./cmd/persist
-	@echo "✅ persist built (version: $(VERSION))"
+	@for arch in $(ARCH); do \
+		echo "Building persist for linux/$$arch..."; \
+		mkdir -p bin/linux-$$arch; \
+		cd persist && GOOS=linux GOARCH=$$arch go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=persist" -o ../bin/linux-$$arch/persist ./cmd/persist && cd ..; \
+		echo "✅ persist built for linux/$$arch (version: $(VERSION))"; \
+	done
 
 state:
-	@echo "Building state..."
-	@cd state && GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=state" -o ../bin/state ./cmd/state
-	@echo "✅ state built (version: $(VERSION))"
+	@for arch in $(ARCH); do \
+		echo "Building state for linux/$$arch..."; \
+		mkdir -p bin/linux-$$arch; \
+		cd state && GOOS=linux GOARCH=$$arch go build -ldflags="$(LDFLAGS) -X github.com/ehsaniara/joblet/pkg/version.Component=state" -o ../bin/linux-$$arch/state ./cmd/state && cd ..; \
+		echo "✅ state built for linux/$$arch (version: $(VERSION))"; \
+	done
 
 proto:
 	@echo "Generating proto files..."
@@ -62,15 +101,21 @@ version:
 	@echo "Git Commit: $(GIT_COMMIT)"
 	@echo "Git Tag: $(GIT_TAG)"
 	@echo "Build Date: $(BUILD_DATE)"
+	@echo "Architectures: $(ARCH)"
 
 clean:
-	rm -rf bin/ dist/ api/gen/ internal/proto/gen/
+	rm -rf bin/ dist/ api/gen/ internal/proto/gen/ builds/
 
 deploy: all
 	@echo "Deploying to $(REMOTE_USER)@$(REMOTE_HOST)..."
+	@echo "Note: Deploy will use amd64 binaries by default"
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p /tmp/joblet/build"
 	@echo "Copying binaries..."
-	@scp bin/joblet bin/rnx bin/persist bin/state $(REMOTE_USER)@$(REMOTE_HOST):/tmp/joblet/build/
+	@if [ -d bin/linux-amd64 ]; then \
+		scp bin/linux-amd64/joblet bin/linux-amd64/rnx bin/linux-amd64/persist bin/linux-amd64/state $(REMOTE_USER)@$(REMOTE_HOST):/tmp/joblet/build/; \
+	else \
+		scp bin/joblet bin/rnx bin/persist bin/state $(REMOTE_USER)@$(REMOTE_HOST):/tmp/joblet/build/; \
+	fi
 	@echo "Stopping services..."
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) 'sudo systemctl stop joblet.service || true'
 	@echo "Installing binaries..."
@@ -93,7 +138,8 @@ help:
 	@echo "Joblet Monorepo Build System"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make all       - Build all binaries (joblet, rnx, persist, state)"
+	@echo "  make all       - Build all binaries (joblet, rnx, persist, state) for all architectures"
+	@echo "  make builds    - Build all binaries and create Debian packages for all architectures"
 	@echo "  make joblet    - Build joblet daemon only"
 	@echo "  make rnx       - Build rnx CLI only"
 	@echo "  make persist   - Build persist only"
@@ -103,6 +149,11 @@ help:
 	@echo "  make clean     - Remove build artifacts"
 	@echo "  make test      - Run all tests (all modules)"
 	@echo "  make deploy    - Deploy to remote server"
+	@echo ""
+	@echo "Architecture Support:"
+	@echo "  ARCH=amd64 make all     - Build only for amd64"
+	@echo "  ARCH=arm64 make all     - Build only for arm64"
+	@echo "  make all                - Build for both amd64 and arm64 (default)"
 	@echo ""
 	@echo "Version Information:"
 	@echo "  Version:    $(VERSION)"

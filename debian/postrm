@@ -14,6 +14,8 @@ case "$1" in
         # Remove symlinks
         rm -f /usr/bin/joblet
         rm -f /usr/bin/rnx
+        rm -f /usr/local/bin/rnx
+        rm -f /usr/local/bin/certs_gen_embedded.sh
 
         # Remove user-accessible certificate symlinks
         rm -rf /etc/joblet
@@ -48,6 +50,8 @@ case "$1" in
         # Remove symlinks
         rm -f /usr/bin/joblet
         rm -f /usr/bin/rnx
+        rm -f /usr/local/bin/rnx
+        rm -f /usr/local/bin/certs_gen_embedded.sh
 
         if [ "$LOG_COUNT" -gt 0 ]; then
             echo "Removed $LOG_COUNT job log files"

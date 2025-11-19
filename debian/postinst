@@ -109,7 +109,12 @@ case "$1" in
         chmod 755 /opt/joblet/scripts
         chmod 644 /opt/joblet/scripts/joblet-config-template.yml
         chmod 644 /opt/joblet/scripts/rnx-config-template.yml
-        chmod +x /usr/local/bin/certs_gen_embedded.sh
+        chmod +x /opt/joblet/bin/certs_gen_embedded.sh
+
+        # Create symlink for certs_gen_embedded.sh in /usr/local/bin for easy access
+        if [ ! -L /usr/local/bin/certs_gen_embedded.sh ]; then
+            ln -sf /opt/joblet/bin/certs_gen_embedded.sh /usr/local/bin/certs_gen_embedded.sh
+        fi
 
         mkdir -p /opt/joblet/config
         chmod 700 /opt/joblet/config  # Restricted since it will contain private keys
@@ -123,10 +128,14 @@ case "$1" in
             ln -sf /opt/joblet/bin/rnx /usr/local/bin/rnx
         fi
 
-        get_configuration_debian
+        # Load configuration
+        if ! get_configuration_debian; then
+            print_error "Failed to load configuration"
+            exit 1
+        fi
 
         # Detect AWS environment and display information
-        detect_aws_environment
+        detect_aws_environment || true
 
         print_info "Configuration Summary:$EC2_INFO"
         echo "  gRPC Server Bind: $JOBLET_SERVER_ADDRESS:$JOBLET_SERVER_PORT"
@@ -154,11 +163,15 @@ case "$1" in
             fi
         else
             print_error "Failed to generate certificates"
+            print_error "Installation cannot continue without certificates"
             exit 1
         fi
 
         # Network requirements configured
-        setup_network_requirements
+        if ! setup_network_requirements; then
+            print_error "Warning: Network setup encountered issues, but continuing installation..."
+            print_info "You may need to configure network settings manually"
+        fi
 
         # Create runtime directories
         mkdir -p /var/log/joblet
@@ -182,9 +195,31 @@ case "$1" in
         # Note: persist now runs as a subprocess of joblet (no separate service needed)
         print_info "persist will run as a subprocess of joblet-core"
 
-        # Enable systemd services
-        systemctl daemon-reload
-        systemctl enable joblet.service
+        # Enable and start systemd service
+        systemctl daemon-reload || {
+            print_error "Warning: systemctl daemon-reload failed, but continuing..."
+        }
+        systemctl enable joblet.service || {
+            print_error "Warning: Failed to enable joblet.service, but continuing..."
+            print_info "You may need to enable it manually: sudo systemctl enable joblet.service"
+        }
+        
+        # Start the service
+        if systemctl start joblet.service; then
+            print_success "Joblet service started successfully"
+            # Give it a moment to initialize
+            sleep 2
+            if systemctl is-active --quiet joblet.service; then
+                print_success "Joblet service is running and ready"
+            else
+                print_error "Warning: Service started but may not be fully ready yet"
+                print_info "Check status with: sudo systemctl status joblet.service"
+            fi
+        else
+            print_error "Warning: Failed to start joblet.service"
+            print_info "You may need to start it manually: sudo systemctl start joblet.service"
+            print_info "Check logs with: sudo journalctl -u joblet.service -n 50"
+        fi
 
         # Clean up temporary files (EC2 info may be used for AWS deployments)
         rm -f /tmp/joblet-ec2-info

@@ -99,6 +99,7 @@ buffers:
 #   enabled: false - NO buffering (live streaming only, no persistence, no historical data)
 # Disabling persist eliminates unbounded memory growth but loses historical log/metric access
 ipc:
+  enabled: true                                    # Enable IPC to persist service + in-memory buffering
   socket: "/opt/joblet/run/persist-ipc.sock"      # Unix socket for log/metric writes
   buffer_size: 10000                              # Message buffer size
   reconnect_delay: "5s"                           # Reconnection retry delay

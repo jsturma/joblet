@@ -4,7 +4,8 @@ set -e
 ARCH=${1:-amd64}
 VERSION=${2:-1.0.0}
 PACKAGE_NAME="joblet"
-BUILD_DIR="joblet-deb-${ARCH}"
+BUILD_DIR="./builds/joblet-deb-${ARCH}"
+BUILDS_DIR="./builds"
 
 # Clean up version string for Debian package format
 CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//' | sed 's/-[0-9]\+-g[a-f0-9]\+.*//' | sed 's/-[a-f0-9]\+$//')
@@ -19,27 +20,31 @@ fi
 
 echo "🔨 Building Debian package for $PACKAGE_NAME v$CLEAN_VERSION ($ARCH)..."
 
-# Check if binaries already exist (CI mode)
+# Set binary directory based on architecture
+BIN_DIR="./bin/linux-${ARCH}"
+
+# Check if binaries already exist (CI mode in root)
 if [ -f "./joblet" ] && [ -f "./rnx" ] && [ -f "./persist" ] && [ -f "./state" ]; then
     echo "📦 Using pre-built binaries from root directory (CI mode)..."
-    mkdir -p ./bin
-    cp ./joblet ./bin/joblet
-    cp ./rnx ./bin/rnx
-    cp ./persist ./bin/persist
-    cp ./state ./bin/state
-    chmod +x ./bin/joblet ./bin/rnx ./bin/persist ./bin/state
-elif [ ! -f "./bin/joblet" ] || [ ! -f "./bin/rnx" ] || [ ! -f "./bin/persist" ] || [ ! -f "./bin/state" ]; then
+    mkdir -p "$BIN_DIR"
+    cp ./joblet "$BIN_DIR/joblet"
+    cp ./rnx "$BIN_DIR/rnx"
+    cp ./persist "$BIN_DIR/persist"
+    cp ./state "$BIN_DIR/state"
+    chmod +x "$BIN_DIR"/*
+elif [ ! -f "$BIN_DIR/joblet" ] || [ ! -f "$BIN_DIR/rnx" ] || [ ! -f "$BIN_DIR/persist" ] || [ ! -f "$BIN_DIR/state" ]; then
     # Build all binaries if they don't exist
-    echo "📦 Building all binaries..."
-    make all || {
+    echo "📦 Building binaries for $ARCH..."
+    ARCH=$ARCH make all || {
         echo "❌ Build failed!"
         exit 1
     }
 else
-    echo "📦 Using existing binaries from ./bin/..."
+    echo "📦 Using existing binaries from $BIN_DIR/..."
 fi
 
 # Clean and create build directory
+mkdir -p "$BUILDS_DIR"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
@@ -49,32 +54,31 @@ mkdir -p "$BUILD_DIR/opt/joblet/bin"
 mkdir -p "$BUILD_DIR/opt/joblet/config"
 mkdir -p "$BUILD_DIR/opt/joblet/scripts"
 mkdir -p "$BUILD_DIR/etc/systemd/system"
-mkdir -p "$BUILD_DIR/usr/local/bin"
 
 # Copy binaries to /opt/joblet/bin
-if [ ! -f "./bin/joblet" ]; then
-    echo "❌ Joblet binary not found!"
+if [ ! -f "$BIN_DIR/joblet" ]; then
+    echo "❌ Joblet binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/joblet "$BUILD_DIR/opt/joblet/bin/"
+cp "$BIN_DIR/joblet" "$BUILD_DIR/opt/joblet/bin/"
 
-if [ ! -f "./bin/rnx" ]; then
-    echo "❌ RNX CLI binary not found!"
+if [ ! -f "$BIN_DIR/rnx" ]; then
+    echo "❌ RNX CLI binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/rnx "$BUILD_DIR/opt/joblet/bin/"
+cp "$BIN_DIR/rnx" "$BUILD_DIR/opt/joblet/bin/"
 
-if [ ! -f "./bin/persist" ]; then
-    echo "❌ persist binary not found!"
+if [ ! -f "$BIN_DIR/persist" ]; then
+    echo "❌ persist binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/persist "$BUILD_DIR/opt/joblet/bin/"
+cp "$BIN_DIR/persist" "$BUILD_DIR/opt/joblet/bin/"
 
-if [ ! -f "./bin/state" ]; then
-    echo "❌ state binary not found!"
+if [ ! -f "$BIN_DIR/state" ]; then
+    echo "❌ state binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/state "$BUILD_DIR/opt/joblet/bin/"
+cp "$BIN_DIR/state" "$BUILD_DIR/opt/joblet/bin/"
 
 # Copy template files (NOT actual configs with certificates)
 if [ -f "./scripts/joblet-config-template.yml" ]; then
@@ -97,9 +101,9 @@ fi
 # Note: persist now runs as subprocess, no separate service needed
 cp ./scripts/joblet.service "$BUILD_DIR/etc/systemd/system/"
 
-# Copy certificate generation script (embedded version)
-cp ./scripts/certs_gen_embedded.sh "$BUILD_DIR/usr/local/bin/certs_gen_embedded.sh"
-chmod +x "$BUILD_DIR/usr/local/bin/certs_gen_embedded.sh"
+# Copy certificate generation script (embedded version) to package-owned directory
+cp ./scripts/certs_gen_embedded.sh "$BUILD_DIR/opt/joblet/bin/certs_gen_embedded.sh"
+chmod +x "$BUILD_DIR/opt/joblet/bin/certs_gen_embedded.sh"
 
 # Copy common installation functions
 cp ./scripts/common-install-functions.sh "$BUILD_DIR/opt/joblet/scripts/"
@@ -148,7 +152,7 @@ chmod 755 "$BUILD_DIR/DEBIAN/prerm"
 chmod 755 "$BUILD_DIR/DEBIAN/postrm"
 
 # Build the package
-PACKAGE_FILE="${PACKAGE_NAME}_${CLEAN_VERSION}_${ARCH}.deb"
+PACKAGE_FILE="${BUILDS_DIR}/${PACKAGE_NAME}_${CLEAN_VERSION}_${ARCH}.deb"
 dpkg-deb --build "$BUILD_DIR" "$PACKAGE_FILE"
 
 echo "✅ Package built successfully: $PACKAGE_FILE"

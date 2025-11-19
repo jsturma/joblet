@@ -4,25 +4,32 @@ set -e
 ARCH=${1:-x86_64}
 VERSION=${2:-1.0.0}
 PACKAGE_NAME="joblet"
-BUILD_DIR="rpmbuild"
+BUILD_DIR="./builds/rpmbuild"
+BUILDS_DIR="./builds"
 RELEASE="1"
 
 # Map architectures
 case $ARCH in
     amd64|x86_64)
         RPM_ARCH="x86_64"
+        BIN_ARCH="amd64"
         ;;
     arm64|aarch64)
         RPM_ARCH="aarch64"
+        BIN_ARCH="arm64"
         ;;
     386|i386|i686)
         RPM_ARCH="i686"
+        BIN_ARCH="386"
         ;;
     *)
         echo "❌ Unsupported architecture: $ARCH"
         exit 1
         ;;
 esac
+
+# Set binary directory based on architecture
+BIN_DIR="./bin/linux-${BIN_ARCH}"
 
 # Clean up version string for RPM package format
 CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//' | sed 's/-[0-9]\+-g[a-f0-9]\+.*//' | sed 's/-[a-f0-9]\+$//')
@@ -37,29 +44,31 @@ fi
 
 echo "🔨 Building RPM package for $PACKAGE_NAME v$CLEAN_VERSION ($RPM_ARCH)..."
 
-# Check if binaries already exist (CI mode)
-if [ -f "./joblet" ] && [ -f "./rnx" ] && [ -f "./persist" ]; then
+# Check if binaries already exist (CI mode in root)
+if [ -f "./joblet" ] && [ -f "./rnx" ] && [ -f "./persist" ] && [ -f "./state" ]; then
     echo "📦 Using pre-built binaries from root directory (CI mode)..."
-    mkdir -p ./bin
-    cp ./joblet ./bin/joblet
-    cp ./rnx ./bin/rnx
-    cp ./persist ./bin/persist
-    chmod +x ./bin/joblet ./bin/rnx ./bin/persist ./bin/state
-elif [ ! -f "./bin/joblet" ] || [ ! -f "./bin/rnx" ] || [ ! -f "./bin/persist" ] || [ ! -f "./bin/state" ]; then
+    mkdir -p "$BIN_DIR"
+    cp ./joblet "$BIN_DIR/joblet"
+    cp ./rnx "$BIN_DIR/rnx"
+    cp ./persist "$BIN_DIR/persist"
+    cp ./state "$BIN_DIR/state"
+    chmod +x "$BIN_DIR"/*
+elif [ ! -f "$BIN_DIR/joblet" ] || [ ! -f "$BIN_DIR/rnx" ] || [ ! -f "$BIN_DIR/persist" ] || [ ! -f "$BIN_DIR/state" ]; then
     # Build all binaries if they don't exist
-    echo "📦 Building all binaries..."
-    make all || {
+    echo "📦 Building binaries for $BIN_ARCH..."
+    ARCH=$BIN_ARCH make all || {
         echo "❌ Build failed!"
         exit 1
     }
 else
-    echo "📦 Using existing binaries from ./bin/..."
+    echo "📦 Using existing binaries from $BIN_DIR/..."
 fi
 
 # Get the current date for changelog
 CHANGELOG_DATE=$(date '+%a %b %d %Y')
 
 # Clean and create build directory
+mkdir -p "$BUILDS_DIR"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
@@ -67,29 +76,29 @@ mkdir -p "$BUILD_DIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 mkdir -p "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}"
 
 # Copy binaries
-if [ ! -f "./bin/joblet" ]; then
-    echo "❌ Joblet binary not found!"
+if [ ! -f "$BIN_DIR/joblet" ]; then
+    echo "❌ Joblet binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/joblet "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+cp "$BIN_DIR/joblet" "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
 
-if [ ! -f "./bin/rnx" ]; then
-    echo "❌ RNX CLI binary not found!"
+if [ ! -f "$BIN_DIR/rnx" ]; then
+    echo "❌ RNX CLI binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/rnx "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+cp "$BIN_DIR/rnx" "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
 
-if [ ! -f "./bin/persist" ]; then
-    echo "❌ persist binary not found!"
+if [ ! -f "$BIN_DIR/persist" ]; then
+    echo "❌ persist binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/persist "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+cp "$BIN_DIR/persist" "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
 
-if [ ! -f "./bin/state" ]; then
-    echo "❌ state binary not found!"
+if [ ! -f "$BIN_DIR/state" ]; then
+    echo "❌ state binary not found in $BIN_DIR!"
     exit 1
 fi
-cp ./bin/state "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
+cp "$BIN_DIR/state" "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/"
 
 # Copy scripts and configs
 cp -r ./scripts "$BUILD_DIR/SOURCES/${PACKAGE_NAME}-${CLEAN_VERSION}/" || {
@@ -428,9 +437,10 @@ rpmbuild --define "_topdir $(pwd)/$BUILD_DIR" \
 PACKAGE_FILE=$(find "$BUILD_DIR/RPMS" -name "*.rpm" -type f | head -1)
 
 if [ -f "$PACKAGE_FILE" ]; then
-    # Move to current directory
-    mv "$PACKAGE_FILE" .
-    PACKAGE_FILE=$(basename "$PACKAGE_FILE")
+    # Move to builds directory
+    FINAL_PACKAGE_FILE="${BUILDS_DIR}/$(basename "$PACKAGE_FILE")"
+    mv "$PACKAGE_FILE" "$FINAL_PACKAGE_FILE"
+    PACKAGE_FILE="$FINAL_PACKAGE_FILE"
     echo "✅ Package built successfully: $PACKAGE_FILE"
 else
     echo "❌ Package build failed - RPM not found"
