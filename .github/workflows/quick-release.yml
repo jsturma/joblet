@@ -138,9 +138,9 @@ jobs:
             fi
             ./scripts/build-rpm.sh $rpm_arch ${{ steps.version.outputs.version }}
 
-            # Rename to avoid conflicts
-            mv *.deb joblet_${{ steps.version.outputs.version }}_$arch.deb || true
-            mv *.rpm joblet-${{ steps.version.outputs.version }}-1.$rpm_arch.rpm || true
+            # Move packages from packages/dist/ to current directory for release
+            mv packages/dist/*.deb . || true
+            mv packages/dist/*.rpm . || true
           done
 
       - name: Create archives
@@ -185,8 +185,8 @@ jobs:
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-freebsd-amd64.tar.gz rnx-freebsd-amd64
           tar -czf rnx-${{ steps.version.outputs.tag_version }}-freebsd-arm64.tar.gz rnx-freebsd-arm64
           
-          # Generate checksums
-          sha256sum *.deb *.rpm *.tar.gz *.zip > joblet-v${{ steps.version.outputs.version }}-checksums.txt
+          # Generate checksums (packages are in current directory after move)
+          sha256sum *.deb *.rpm *.tar.gz *.zip > joblet-v${{ steps.version.outputs.version }}-checksums.txt || true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

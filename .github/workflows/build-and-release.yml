@@ -396,7 +396,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debian-package-amd64
-          path: "*.deb"
+          path: "packages/dist/*.deb"
 
   build-deb-package-arm64:
     needs: [ test, build-binary ]
@@ -545,7 +545,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debian-package-arm64
-          path: "*.deb"
+          path: "packages/dist/*.deb"
 
   build-rpm-package-x86_64:
     needs: [ test, build-binary ]
@@ -684,7 +684,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rpm-package-x86_64
-          path: "*.rpm"
+          path: "packages/dist/*.rpm"
 
   build-rpm-package-aarch64:
     needs: [ test, build-binary ]
@@ -838,7 +838,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rpm-package-aarch64
-          path: "*.rpm"
+          path: "packages/dist/*.rpm"
 
   test-debian-package-amd64:
     needs: build-deb-package-amd64
@@ -1135,9 +1135,9 @@ jobs:
         run: |
           mkdir -p release/
           
-          # Server packages (.deb and .rpm)
-          find packages/ -name "*.deb" -exec cp {} release/ \;
-          find packages/ -name "*.rpm" -exec cp {} release/ \;
+          # Server packages (.deb and .rpm) - find in packages/dist/ or packages/ recursively
+          find packages/ -name "*.deb" -type f -exec cp {} release/ \;
+          find packages/ -name "*.rpm" -type f -exec cp {} release/ \;
           
           # Cross-platform CLI archives
           find packages/cross-platform-cli -name "*.tar.gz" -exec cp {} release/ \;
